@@ -24,7 +24,7 @@ class Client:
         self.transport = transport
         self.buffer_size = buffer_size
         self.identifier = str(uuid.uuid4().hex)
-        self.upstream = []
+        self.upstream = asyncio.Queue()
         self.address_type = None
         self.remote_address = None
         self.remote_port = None
@@ -133,7 +133,8 @@ class Client:
         })
 
         if self.transport == 'http':
-            self.upstream.append(socks_connect_msg)
+            print('putting it in a http socket')
+            await self.upstream.put(socks_connect_msg)
         else:
             await self.transport.send_json(socks_connect_msg)
         await self.stream()
@@ -146,7 +147,7 @@ class Client:
                     print("Client disconnected")
                     break
                 if self.transport == 'http':
-                    self.upstream.append(self.generate_upstream_message(data))
+                    await self.upstream.put(self.generate_upstream_message(data))
                 else:
                     await self.transport.send_json(self.generate_upstream_message(data))
          except (EOFError, ConnectionResetError):
