@@ -1,0 +1,96 @@
+import aiohttp
+import asyncio
+import base64
+import collections
+import json
+import socket
+
+client = collections.namedtuple('Client', 'reader writer')
+clients = {}
+
+
+### HELPERS
+def bytes_to_base64(data) -> str:
+    """
+    Base64 encode a bytes object.
+    :param data: A python bytes object.
+    :return: A base64 encoded string
+    :rtype: str
+    """
+    return base64.b64encode(data).decode('utf-8')
+
+def base64_to_bytes(data) -> bytes:
+    """
+    Base64 encode a bytes object.
+    :param data: A base64 string.
+    :return: A bytes object.
+    :rtype: bytes
+    """
+    return base64.b64decode(data)
+
+
+### CLIENT
+
+def generate_downstream_msg(identifier, msg: bytes):
+    return json.dumps({
+        'identifier': identifier,
+        'msg': bytes_to_base64(msg),
+    })
+
+
+async def socks_connect_results(identifier, ws, rep, atype, bind_addr, bind_port):
+    await ws.send_str(generate_downstream_msg(
+        identifier,
+        b''.join([
+            b'\x05',
+            int(rep).to_bytes(1, 'big'),
+            int(0).to_bytes(1, 'big'),
+            int(1).to_bytes(1, 'big'),
+            socket.inet_aton(bind_addr) if bind_addr else int(0).to_bytes(1, 'big'),
+            bind_port.to_bytes(2, 'big') if bind_port else int(0).to_bytes(1, 'big')
+        ])
+    ))
+
+
+async def stream(identifier, reader, ws):
+    while True:
+        msg = await reader.read(4096)
+
+        if not msg:
+            break
+        await ws.send_str(generate_downstream_msg(identifier, msg))
+
+
+async def socks_connect(msg, ws):
+    identifier = msg.get('identifier')
+    atype = msg.get('atype')
+    remote = msg.get('address')
+    port = int(msg.get('port'))
+    print(msg)
+    try:
+        reader, writer = await asyncio.open_connection(remote, port)
+        clients[identifier] = client(reader, writer)
+        bind_addr, bind_port = writer.get_extra_info('sockname')
+        await socks_connect_results(identifier, ws, 0, atype, bind_addr, bind_port)
+        await stream(identifier, reader, ws)
+    except Exception as e:
+       await socks_connect_results(identifier,  ws, 1, atype, None, None)
+
+
+async def main():
+    async with aiohttp.ClientSession() as session:
+        async with session.ws_connect('ws://127.0.0.1:1337/ws') as ws:
+            async for msg in ws:
+                msg = json.loads(msg.json())
+                identifier = msg.get('identifier', None)
+                if not identifier:
+                    return
+                if identifier in clients:
+                    clients[identifier].writer.write(base64_to_bytes(msg.get('msg')))
+                    continue
+                asyncio.create_task(socks_connect(msg, ws))
+
+asyncio.run(main())
+
+
+
