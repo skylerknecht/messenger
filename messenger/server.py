@@ -8,18 +8,20 @@ from .socks import SocksServer
 
 
 class MessengerServer:
-    def __init__(self, address: str = '127.0.0.1', port: int = 1337, http_route: str = '/http', ws_route: str = '/ws',
+    def __init__(self, address: str = '127.0.0.1', port: int = 1337,
+                 http_route: str = '/http',
+                 ws_route: str = '/ws',
                  ssl: tuple[str, str] = None):
         self.address = address
         self.port = port
         self.ssl = ssl
         self.app = web.Application()
         self.app.router.add_routes([
-            web.get(http_route, self.http_handler),
-            web.post(http_route, self.http_handler),
+            web.get(http_route, self.http_get_handler),
+            web.post(http_route, self.http_post_handler),
         ])
         self.app.router.add_routes([
-            web.get(ws_route, self.http_handler),
+            web.get(ws_route, self.websocket_handler),
         ])
         self.socks_servers = []
 
@@ -36,34 +38,36 @@ class MessengerServer:
         await asyncio.Event().wait()
         print('Server running on {}:{}'.format(self.address, self.port))
 
-    async def http_handler(self, request):
-        if request.method == 'GET':
-            port = random.randint(9050, 9100)
-            socks_server = SocksServer(('127.0.0.1', port))
-            self.socks_servers.append(socks_server)
-            await socks_server.start()
-            print('socks server started on {}'.format(port))
-            return web.Response(status=200, text=str(id(socks_server)))
-        elif request.method == 'POST':
-            data = await request.json()
-            print(data)
-            if len(data) != 10:
-                identifier = json.loads(data).get('identifier', None)
-                if identifier:
-                    for socks_server in self.socks_servers:
-                        socks_server.send_downstream(data)
-                    return web.Response(status=200, text='gotchu')
-            upstream_data = []
+    async def http_get_handler(self, request):
+        port = random.randint(9050, 9100)
+        socks_server = SocksServer(('127.0.0.1', port))
+        self.socks_servers.append(socks_server)
+        await socks_server.start()
+        print('socks server started on {}'.format(port))
+        return web.Response(status=200, text=str(id(socks_server)))
+
+    async def http_post_handler(self, request):
+        messages = json.loads(await request.text())
+        upstream_data = []
+        for msg in messages:
+            msg = json.loads(msg)
+            identifier = msg.get('identifier', None)
+            msg = msg.get('msg', None)
+            if not identifier:
+                return web.Response(status=404, text='Not Found')
+            if not msg:
+                return web.Response(status=404, text='Not Found')
+            socks_server_identifier, client_identifier = identifier.split(':')
             for socks_server in self.socks_servers:
-                if id(socks_server) != int(data):
-                    continue
-                for client in socks_server.clients:
-                    while not client.upstream.empty():
-                        data = await client.upstream.get()
-                        upstream_data.append(data)
-            return web.Response(status=200, text=json.dumps(upstream_data))
-        else:
-            return web.Response(status=405, text='Method Not Allowed')
+                if id(socks_server) == int(socks_server_identifier):
+                    for client in socks_server.clients:
+                        while not client.upstream.empty():
+                            data = await client.upstream.get()
+                            upstream_data.append(data)
+                    if not client_identifier:
+                        continue
+                    socks_server.send_downstream(client_identifier, msg)
+        return web.Response(status=200, text=json.dumps(upstream_data))
 
     async def websocket_handler(self, request):
         ws = web.WebSocketResponse()
@@ -75,7 +79,14 @@ class MessengerServer:
         print('socks server started on {}'.format(port))
 
         async for msg in ws:
-            socks_server.send_downstream(msg.data)
+            msg = json.loads(msg.data)
+            identifier = msg.get('identifier', None)
+            msg = msg.get('msg', None)
+            if not identifier:
+                return ws
+            if not msg:
+                return ws
+            socks_server.send_downstream(identifier, msg)
 
         self.socks_servers.remove(socks_server)
         print('socks server stopped on {}'.format(port))

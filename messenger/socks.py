@@ -133,10 +133,9 @@ class Client:
         })
 
         if self.transport == 'http':
-            print('putting it in a http socket')
             await self.upstream.put(socks_connect_msg)
         else:
-            await self.transport.send_json(socks_connect_msg)
+            await self.transport.send_str(socks_connect_msg)
         await self.stream()
 
     async def stream(self):
@@ -149,7 +148,7 @@ class Client:
                 if self.transport == 'http':
                     await self.upstream.put(self.generate_upstream_message(data))
                 else:
-                    await self.transport.send_json(self.generate_upstream_message(data))
+                    await self.transport.send_str(self.generate_upstream_message(data))
          except (EOFError, ConnectionResetError):
              print("Client disconnected unexpectedly")
 
@@ -176,15 +175,9 @@ class SocksServer:
     async def start(self):
         await asyncio.start_server(self.handle_client, self.host, self.port)
 
-    def send_downstream(self, msg):
-        try:
-            msg = json.loads(msg)
-        except JSONDecodeError:
-            print(f'Server {self.host}:{self.port} received invalid JSON: {msg}')
-            return
-        identifier = msg.get('identifier')
-        msg = convert.base64_to_bytes(msg.get('msg'))
+    def send_downstream(self, identifier, msg):
+        msg = convert.base64_to_bytes(msg)
         for client in self.clients:
             if client.identifier == identifier:
-                client.writer.write(msg)
-
+                if not client.writer.transport.is_closing():
+                    client.writer.write(msg)

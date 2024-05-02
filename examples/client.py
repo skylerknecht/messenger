@@ -1,161 +1,181 @@
 import aiohttp
+import argparse
 import asyncio
 import base64
 import collections
 import json
+import random
 import socket
+import sys
+import time
+
+from urllib import request
+
+BUFFER_SIZE = 4096
+HTTP_ROUTE = '/http'
+WS_ROUTE = '/ws'
 
 
-buffer_size = 4096
-uri = '127.0.0.1:1337'
-ws_route = 'ws5'
-http_route = 'http'
+class MessengerClient:
+    NAME = 'MessengerClient'
+    CLIENT = collections.namedtuple('Client', 'reader writer')
 
-client = collections.namedtuple('Client', 'reader writer')
-clients = {}
+    def __init__(self, uri, buffer_size):
+        self.uri = uri
+        self.buffer_size = buffer_size
+        self.clients = {}
 
+    @staticmethod
+    def bytes_to_base64(data) -> str:
+        """
+        Base64 encode a bytes object.
+        :param data: A python bytes object.
+        :return: A base64 encoded string
+        :rtype: str
+        """
+        return base64.b64encode(data).decode('utf-8')
 
-### HELPERS
-def bytes_to_base64(data) -> str:
-    """
-    Base64 encode a bytes object.
-    :param data: A python bytes object.
-    :return: A base64 encoded string
-    :rtype: str
-    """
-    return base64.b64encode(data).decode('utf-8')
+    @staticmethod
+    def base64_to_bytes(data) -> bytes:
+        """
+        Base64 encode a bytes object.
+        :param data: A base64 string.
+        :return: A bytes object.
+        :rtype: bytes
+        """
+        return base64.b64decode(data)
 
+    def connect(self):
+        return NotImplementedError(f'{self.NAME} does not implement stream')
 
-def base64_to_bytes(data) -> bytes:
-    """
-    Base64 encode a bytes object.
-    :param data: A base64 string.
-    :return: A bytes object.
-    :rtype: bytes
-    """
-    return base64.b64decode(data)
+    def generate_downstream_msg(self, identifier, msg: bytes):
+        return json.dumps({
+            'identifier': identifier,
+            'msg': self.bytes_to_base64(msg),
+        })
 
+    def socks_connect_results(self, identifier, rep, atype, bind_addr, bind_port):
+        return self.generate_downstream_msg(
+            identifier,
+            b''.join([
+                b'\x05',
+                int(rep).to_bytes(1, 'big'),
+                int(0).to_bytes(1, 'big'),
+                int(1).to_bytes(1, 'big'),
+                socket.inet_aton(bind_addr) if bind_addr else int(0).to_bytes(1, 'big'),
+                bind_port.to_bytes(2, 'big') if bind_port else int(0).to_bytes(1, 'big')
+            ])
+        )
 
-### CLIENT
+    async def socks_connect(self, identifier, msg):
+        atype = msg.get('atype')
+        address = msg.get('address')
+        port = int(msg.get('port'))
+        try:
+            reader, writer = await asyncio.open_connection(address, port)
+            self.clients[msg.get('identifier')] = self.CLIENT(reader, writer)
+            bind_addr, bind_port = writer.get_extra_info('sockname')
+            return self.socks_connect_results(identifier, 0, atype, bind_addr, bind_port)
+        except Exception as e:  #ToDo add more exceptions and update the rep.
+            return self.socks_connect_results(identifier, 1, atype, None, None)
 
-def generate_downstream_msg(identifier, msg: bytes):
-    return json.dumps({
-        'identifier': identifier,
-        'msg': bytes_to_base64(msg),
-    })
-
-
-async def handle_transport_downstream(downstream_msg, transport):
-    if isinstance(transport, aiohttp.ClientWebSocketResponse):
-        await transport.send_str(downstream_msg)
-    async with aiohttp.ClientSession() as session:
-        async with session.post(f'http://{uri}/{http_route}', json=downstream_msg) as response:
-            messages = await response.text()
-            print(messages)
-
-
-def socks_connect_results(identifier, rep, atype, bind_addr, bind_port):
-    return generate_downstream_msg(
-        identifier,
-        b''.join([
-            b'\x05',
-            int(rep).to_bytes(1, 'big'),
-            int(0).to_bytes(1, 'big'),
-            int(1).to_bytes(1, 'big'),
-            socket.inet_aton(bind_addr) if bind_addr else int(0).to_bytes(1, 'big'),
-            bind_port.to_bytes(2, 'big') if bind_port else int(0).to_bytes(1, 'big')
-        ])
-    )
-
-
-async def ws_stream(identifier, ws):
-    client = clients[identifier]
-    while True:
-        msg = await client.reader.read(buffer_size)
-        if not msg:
-            break
-        downstream_msg = generate_downstream_msg(identifier, msg)
-        ws.send_str(downstream_msg)
+    def stream(self, identifier, transport):
+        return NotImplementedError(f'{self.NAME} does not implement stream')
 
 
-async def http_stream(identifier, uri, http_route):
-    client = clients[identifier]
-    async with aiohttp.ClientSession() as session:
-        while True:
-            msg = await client.reader.read(buffer_size)
-            if not msg:
-                break
-            downstream_msg = generate_downstream_msg(identifier, msg)
-            async with session.post(f'http://{uri}/{http_route}', json=downstream_msg) as response:
-                pass
+class WebSocketMessengerClient(MessengerClient):
 
+    def __init__(self, uri, buffer_size):
+        super().__init__(uri, buffer_size)
 
-async def socks_connect(msg):
-    identifier = msg.get('identifier')
-    atype = msg.get('atype')
-    remote = msg.get('address')
-    port = int(msg.get('port'))
-    print(msg)
-    try:
-        reader, writer = await asyncio.open_connection(remote, port)
-        clients[identifier] = client(reader, writer)
-        bind_addr, bind_port = writer.get_extra_info('sockname')
-        return socks_connect_results(identifier, 0, atype, bind_addr, bind_port)
-    except Exception as e:
-        return socks_connect_results(identifier, 1, atype, None, None)
-
-
-async def start_http_socks5(uri, http_route, socks_server_id):
-    async with aiohttp.ClientSession() as session:
-        while True:
-            await asyncio.sleep(0.1)
-            async with session.post(f'http://{uri}/{http_route}', json=socks_server_id) as response:
-                if response.status == 200:
-                    messages = await response.text()
-                    messages = json.loads(messages)
-                    for message in messages:
-                        message=json.loads(message)
-                        identifier = message.get('identifier', None)
-                        if not identifier:
-                            continue
-                        if identifier in clients:
-                            clients[identifier].writer.write(base64_to_bytes(message.get('msg')))
-                            continue
-                        socks_connect_message = await socks_connect(message)
-                        async with session.post(f'http://{uri}/{http_route}', json=socks_connect_message) as response:
-                            print(response.status)
-                        asyncio.create_task(http_stream(identifier, uri, http_route))
-                else:
-                    print(f"HTTP POST request failed with status code: {response.status}")
-
-
-async def main(uri, ws_route, http_route):
-    try:
+    async def connect(self):
         async with aiohttp.ClientSession() as session:
-            async with session.ws_connect(f'ws://{uri}/{ws_route}') as ws:
+            async with session.ws_connect(self.uri) as ws:
                 async for msg in ws:
-                    msg = json.loads(msg.json())
+                    msg = json.loads(msg.data)
                     identifier = msg.get('identifier', None)
                     if not identifier:
                         return
-                    if identifier in clients:
-                        clients[identifier].writer.write(base64_to_bytes(msg.get('msg')))
+                    if identifier in self.clients:
+                        self.clients[identifier].writer.write(self.base64_to_bytes(msg.get('msg')))
                         continue
-                    await ws.send_str(await socks_connect(msg))
-                    asyncio.create_task(ws_stream(identifier, ws))
+                    await ws.send_str(await self.socks_connect(identifier, msg))
+                    asyncio.create_task(self.stream(identifier, ws))
+
+    async def stream(self, identifier, ws):
+        client = self.clients[identifier]
+        while True:
+            msg = await client.reader.read(self.buffer_size)
+            if not msg:
+                break
+            downstream_msg = self.generate_downstream_msg(identifier, msg)
+            await ws.send_str(downstream_msg)
+
+
+class HTTPMessengerClient(MessengerClient):
+    def __init__(self, uri, buffer_size):
+        super().__init__(uri, buffer_size)
+        self.socks_server_id = None
+        self.downstream = asyncio.Queue()
+
+    async def connect(self):
+        with request.urlopen(self.uri) as response:
+            self.socks_server_id = response.read().decode('utf-8')
+        check_in = self.generate_downstream_msg(
+            f'{self.socks_server_id}:',
+            bytes([random.randint(100, 252), random.randint(100, 252), random.randint(100, 252)])
+        )
+        while True:
+            await asyncio.sleep(0.1)
+            downstream_data = []
+            while not self.downstream.empty():
+                data = await self.downstream.get()
+                downstream_data.append(data)
+            if len(downstream_data) == 0:
+                downstream_data.append(check_in)
+            retrieve_data = request.Request(self.uri, data=json.dumps(downstream_data).encode('utf-8'), method='POST')
+            with request.urlopen(retrieve_data) as response:
+                messages = json.loads(response.read().decode('utf-8'))
+                for msg in messages:
+                    print(msg)
+                    msg = json.loads(msg)
+                    identifier = msg.get('identifier', None)
+                    if not identifier:
+                        continue
+                    if identifier in self.clients:
+                        self.clients[identifier].writer.write(self.base64_to_bytes(msg.get('msg')))
+                        continue
+                    socks_connect_results = await self.socks_connect(f'{self.socks_server_id}:{identifier}', msg)
+                    await self.downstream.put(socks_connect_results)
+                    print('calling')
+                    asyncio.create_task(self.stream(identifier, 'http'))
+
+    async def stream(self, identifier, _):
+        client = self.clients[identifier]
+        print('streaming')
+        while True:
+            msg = await client.reader.read(self.buffer_size)
+            if not msg:
+                break
+            downstream_msg = self.generate_downstream_msg(f'{self.socks_server_id}:{identifier}', msg)
+            await self.downstream.put(downstream_msg)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('uri', type=str)
+    args = parser.parse_args()
+
+    try:
+        messenger_client = WebSocketMessengerClient(f'{args.uri}{WS_ROUTE}', BUFFER_SIZE)
+        asyncio.run(messenger_client.connect())
+        sys.exit(0)
     except Exception as e:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(f'http://{uri}/{http_route}') as response:
-                if response.status == 200:
-                    socks_server_id = await response.text()
-                    print(socks_server_id)
-                    asyncio.create_task(start_http_socks5(uri, http_route, socks_server_id))
-                else:
-                    print(f"HTTP GET request failed with status code: {response.status}")
-        await asyncio.Event().wait()
+        print(f'Failed to connect to MessengerServer over WS: {e}')
 
-
-asyncio.run(main(uri, ws_route, http_route))
-
-
-
+    try:
+        messenger_client = HTTPMessengerClient(f'{args.uri}{HTTP_ROUTE}', BUFFER_SIZE)
+        asyncio.run(messenger_client.connect())
+        sys.exit(0)
+    except Exception as e:
+        print(f'Failed to connect to MessengerServer over HTTP: {e}')
