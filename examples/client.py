@@ -7,6 +7,7 @@ import random
 import socket
 import ssl
 import sys
+import urllib
 
 from urllib import request
 
@@ -186,4 +187,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('uri', type=str)
     args = parser.parse_args()
+    url = urllib.parse.urlparse(args.uri)
+    args.uri = f'{url.scheme}://{url.netloc}/'
     asyncio.run(main(args))
