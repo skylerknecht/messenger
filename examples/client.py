@@ -85,9 +85,9 @@ class MessengerClient:
             reader, writer = await asyncio.open_connection(address, port)
             self.clients[msg.get('identifier')] = self.CLIENT(reader, writer)
             bind_addr, bind_port = writer.get_extra_info('sockname')
-            return self.socks_connect_results(identifier, 0, atype, bind_addr, bind_port)
+            return self.socks_connect_results(identifier, 0, atype, bind_addr, bind_port), True
         except Exception as e:  #ToDo add more exceptions and update the rep.
-            return self.socks_connect_results(identifier, 1, atype, None, None)
+            return self.socks_connect_results(identifier, 1, atype, None, None), False
 
     def stream(self, identifier, transport):
         return NotImplementedError(f'{self.NAME} does not implement stream')
@@ -109,8 +109,10 @@ class WebSocketMessengerClient(MessengerClient):
                     if identifier in self.clients:
                         self.clients[identifier].writer.write(self.base64_to_bytes(msg.get('msg')))
                         continue
-                    await ws.send_str(await self.socks_connect(identifier, msg))
-                    asyncio.create_task(self.stream(identifier, ws))
+                    socks_connect_results, stream= await self.socks_connect(identifier, msg)
+                    await ws.send_str(socks_connect_results)
+                    if stream:
+                        asyncio.create_task(self.stream(identifier, ws))
 
     async def stream(self, identifier, ws):
         client = self.clients[identifier]
@@ -154,9 +156,10 @@ class HTTPMessengerClient(MessengerClient):
                     if identifier in self.clients:
                         self.clients[identifier].writer.write(self.base64_to_bytes(msg.get('msg')))
                         continue
-                    socks_connect_results = await self.socks_connect(f'{self.socks_server_id}:{identifier}', msg)
+                    socks_connect_results, stream = await self.socks_connect(f'{self.socks_server_id}:{identifier}', msg)
                     await self.downstream.put(socks_connect_results)
-                    asyncio.create_task(self.stream(identifier, 'http'))
+                    if stream:
+                        asyncio.create_task(self.stream(identifier, 'http'))
 
     async def stream(self, identifier, _):
         client = self.clients[identifier]
