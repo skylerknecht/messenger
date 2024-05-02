@@ -1,10 +1,12 @@
 import asyncio
-import socket
 import json
+import random
+import socket
+import time
 import uuid
 
-from json import JSONDecodeError
 from messenger import convert
+from messenger import output
 
 
 class Client:
@@ -142,7 +144,7 @@ class Client:
          try:
             while True:
                 data = await self.reader.read(self.buffer_size)
-                if not data:  # Client disconnected
+                if not data:
                     break
                 if self.transport == 'http':
                     await self.upstream.put(self.generate_upstream_message(data))
@@ -150,7 +152,7 @@ class Client:
                     await self.transport.send_str(self.generate_upstream_message(data))
          except (EOFError, ConnectionResetError):
              #ToDo add debug statement
-            #print(f"Client {self.identifier} disconnected unexpectedly")
+            # output.display(f"Client {self.identifier} disconnected unexpectedly")
             pass
 
     def generate_upstream_message(self, msg: bytes):
@@ -162,26 +164,60 @@ class Client:
 
 class SocksServer:
 
-    def __init__(self, peername: tuple, transport='http', buffer_size=4096):
-        self.host, self.port = peername
+    def __init__(self, transport='http', buffer_size=4096):
+        self.host, self.port = '127.0.0.1', random.randint(9050, 9100)
         self.transport = transport
         self.buffer_size = buffer_size
         self.clients = []
+        self.last_check_in = time.time()
         self.socks_server = None
+        self.name = 'Socks Server'
 
     async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         client = Client(reader, writer, self.transport, self.buffer_size)
         self.clients.append(client)
         await client.setup()
+        self.clients.remove(client)
+
+    async def expiration(self):
+        while True:
+            await asyncio.sleep(10)
+            now = time.time()
+            expired = int(now - self.last_check_in)
+            if expired >= 30:
+                await self.stop()
+                break
+            elif expired >= 25:
+                output.display(f'{self.name} has not checked in and will stop within the next 5 seconds')
+            elif expired >= 15:
+                output.display(f'{self.name} has not checked in and will stop within the next 15 seconds')
+            elif expired >= 5:
+                output.display(f'{self.name} has not checked in and will stop within the next 25 seconds')
+
+    def is_stopped(self):
+        if not self.socks_server:
+            return True
+        return all(sock.fileno() == -1 for sock in self.socks_server.sockets)
 
     async def start(self):
-        self.socks_server = await asyncio.start_server(self.handle_client, self.host, self.port)
+        while True:
+            try:
+                self.socks_server = await asyncio.start_server(self.handle_client, self.host, self.port)
+                break
+            except OSError as e:
+                port = random.randint(9050, 9100)
+                output.display(f'{self.port} is already is use trying {port}')
+                self.port = port
+        if self.transport == 'http': asyncio.create_task(self.expiration())
+        self.name = f"Socks Server ({'HTTP' if self.transport == 'http' else 'WS'}) on port {self.port}"
+        output.display(f"{self.name } has started")
 
     async def stop(self):
         if self.socks_server:
             self.socks_server.close()  # Stop accepting new connections
             await self.socks_server.wait_closed()  # Wait until the server is closed
-            print('Socks Server Stopped on {}'.format(self.port))
+            output.display(f"{self.name} has stopped")
+            self.socks_server = None
 
         # Close all client connections
         for client in self.clients:

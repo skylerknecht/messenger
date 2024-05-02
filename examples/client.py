@@ -139,14 +139,16 @@ class HTTPMessengerClient(MessengerClient):
         while True:
             await asyncio.sleep(0.1)
             downstream_data = []
-            while not self.downstream.empty():
-                data = await self.downstream.get()
-                downstream_data.append(data)
-            if len(downstream_data) == 0:
+            while not self.downstream.empty() and len(downstream_data) < 10:
+                downstream_data.append(await self.downstream.get())
+            # Check if there is no data after processing the queue
+            if not downstream_data:
                 downstream_data.append(check_in)
             retrieve_data = request.Request(self.uri, data=json.dumps(downstream_data).encode('utf-8'), method='POST')
             with request.urlopen(retrieve_data, context=self.ssl_context) as response:
                 messages = json.loads(response.read().decode('utf-8'))
+                if response.status != 200:
+                    break
                 for msg in messages:
                     msg = json.loads(msg)
                     identifier = msg.get('identifier', None)
@@ -193,4 +195,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     url = urllib.parse.urlparse(args.uri)
     args.uri = f'{url.scheme}://{url.netloc}/'
-    asyncio.run(main(args))
+    try:
+        asyncio.run(main(args))
+    except KeyboardInterrupt:
+        print('\rMessenger Client stopped.')

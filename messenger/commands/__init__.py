@@ -1,3 +1,0 @@
-commands = {
-    'help': help,
-}

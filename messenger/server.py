@@ -1,10 +1,9 @@
-import asyncio
 import ssl
-import random
 import json
+import time
 
 from aiohttp import web
-from .socks import SocksServer
+from messenger.socks import SocksServer
 
 
 class MessengerServer:
@@ -41,11 +40,9 @@ class MessengerServer:
         print(f"Messenger Server is running on http{'s' if self.ssl else ''}://{self.address}:{self.port}/")
 
     async def http_get_handler(self, request):
-        port = random.randint(9050, 9100)
-        socks_server = SocksServer(('127.0.0.1', port), buffer_size=self.buffer_size)
+        socks_server = SocksServer(buffer_size=self.buffer_size)
         self.socks_servers.append(socks_server)
         await socks_server.start()
-        print('HTTP Socks Server started on {}'.format(port))
         return web.Response(status=200, text=str(id(socks_server)))
 
     async def http_post_handler(self, request):
@@ -60,37 +57,42 @@ class MessengerServer:
             if not msg:
                 return web.Response(status=404, text='Not Found')
             socks_server_identifier, client_identifier = identifier.split(':')
+            current_socks_server = None
             for socks_server in self.socks_servers:
                 if id(socks_server) == int(socks_server_identifier):
-                    for client in socks_server.clients:
-                        while not client.upstream.empty():
-                            data = await client.upstream.get()
-                            upstream_data.append(data)
-                    if not client_identifier:
-                        continue
-                    socks_server.send_downstream(client_identifier, msg)
+                    current_socks_server = socks_server
+            if not current_socks_server:
+                return web.Response(status=404, text='Not Found')
+            if current_socks_server.is_stopped():
+                return web.Response(status=404, text='Not Found')
+            current_socks_server.last_check_in = time.time()
+            for client in current_socks_server.clients:
+                while not client.upstream.empty():
+                    data = await client.upstream.get()
+                    upstream_data.append(data)
+            if not client_identifier:
+                continue
+            current_socks_server.send_downstream(client_identifier, msg)
         return web.Response(status=200, text=json.dumps(upstream_data))
 
     async def websocket_handler(self, request):
         ws = web.WebSocketResponse()
         await ws.prepare(request)
-        port = random.randint(9050, 9100)
-        socks_server = SocksServer(('127.0.0.1', port), transport=ws, buffer_size=self.buffer_size)
+        socks_server = SocksServer(transport=ws, buffer_size=self.buffer_size)
         self.socks_servers.append(socks_server)
         await socks_server.start()
-        print('Websocket Socks Server started on {}'.format(port))
 
         async for msg in ws:
             msg = json.loads(msg.data)
             identifier = msg.get('identifier', None)
             msg = msg.get('msg', None)
             if not identifier:
-                return ws
+                continue
             if not msg:
-                return ws
+                continue
+            if socks_server.is_stopped():
+                break
             socks_server.send_downstream(identifier, msg)
 
         await socks_server.stop()
-        self.socks_servers.remove(socks_server)
         return ws
-

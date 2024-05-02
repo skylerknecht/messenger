@@ -27,10 +27,13 @@ async def main(banner, cli, server):
     args = parser.parse_args()
     messenger_server = server.MessengerServer(address=args.address, port=args.port, http_route=args.http_route,
                                               ws_route=args.ws_route, ssl=args.ssl)
-    await messenger_server.start()
-    await asyncio.Event().wait()
-    #messenger_cli = cli.MessengerCLI(messenger_server)
-    #messenger_cli.run()
+    asyncio.create_task(messenger_server.start())
+    messenger_cli = cli.MessengerCLI(messenger_server)
+    await messenger_cli.run()
+
 
 if __name__ == '__main__':
-    asyncio.run(main(banner, cli, server))
+    try:
+        asyncio.run(main(banner, cli, server))
+    except KeyboardInterrupt:
+        print('\rMessenger Server stopped.')
