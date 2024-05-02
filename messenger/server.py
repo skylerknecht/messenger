@@ -38,7 +38,7 @@ class MessengerServer:
         else:
             site = web.TCPSite(runner, self.address, self.port)
             await site.start()
-        print(f"Messenger Server is running at http{'s' if self.ssl else ''}://{self.address}:{self.port}/")
+        print(f"Messenger Server is running on http{'s' if self.ssl else ''}://{self.address}:{self.port}/")
         await asyncio.Event().wait()
 
     async def http_get_handler(self, request):
@@ -46,7 +46,7 @@ class MessengerServer:
         socks_server = SocksServer(('127.0.0.1', port), buffer_size=self.buffer_size)
         self.socks_servers.append(socks_server)
         await socks_server.start()
-        print('HTTP socks server started on {}'.format(port))
+        print('HTTP Socks Server started on {}'.format(port))
         return web.Response(status=200, text=str(id(socks_server)))
 
     async def http_post_handler(self, request):
@@ -79,7 +79,7 @@ class MessengerServer:
         socks_server = SocksServer(('127.0.0.1', port), transport=ws, buffer_size=self.buffer_size)
         self.socks_servers.append(socks_server)
         await socks_server.start()
-        print('Websocket socks server started on {}'.format(port))
+        print('Websocket Socks Server started on {}'.format(port))
 
         async for msg in ws:
             msg = json.loads(msg.data)
