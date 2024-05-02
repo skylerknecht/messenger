@@ -39,7 +39,6 @@ class MessengerServer:
             site = web.TCPSite(runner, self.address, self.port)
             await site.start()
         print(f"Messenger Server is running on http{'s' if self.ssl else ''}://{self.address}:{self.port}/")
-        await asyncio.Event().wait()
 
     async def http_get_handler(self, request):
         port = random.randint(9050, 9100)

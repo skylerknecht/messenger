@@ -2,9 +2,11 @@ import asyncio
 import argparse
 
 from messenger import banner
+from messenger import cli
 from messenger import server
 
-try:
+
+async def main(banner, cli, server):
     print(banner)
     parser = argparse.ArgumentParser()
     # Define command-line arguments
@@ -23,8 +25,12 @@ try:
                         help="Size of the packet buffer in bytes. Default is 4096. This should match the client's "
                              "buffer_size.")
     args = parser.parse_args()
-    server = server.MessengerServer(address=args.address, port=args.port, http_route=args.http_route,
-                                    ws_route=args.ws_route, ssl=args.ssl)
-    asyncio.run(server.start())
-except KeyboardInterrupt:
-    print('\rMessenger Server stopped', end='')
+    messenger_server = server.MessengerServer(address=args.address, port=args.port, http_route=args.http_route,
+                                              ws_route=args.ws_route, ssl=args.ssl)
+    await messenger_server.start()
+    await asyncio.Event().wait()
+    #messenger_cli = cli.MessengerCLI(messenger_server)
+    #messenger_cli.run()
+
+if __name__ == '__main__':
+    asyncio.run(main(banner, cli, server))
