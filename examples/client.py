@@ -1,4 +1,3 @@
-import aiohttp
 import argparse
 import asyncio
 import base64
@@ -7,9 +6,14 @@ import json
 import random
 import socket
 import sys
-import time
 
 from urllib import request
+
+try:
+    import aiohttp
+except ImportError:
+    print('Failed to import aiohttp module.')
+
 
 BUFFER_SIZE = 4096
 HTTP_ROUTE = '/http'
@@ -161,21 +165,23 @@ class HTTPMessengerClient(MessengerClient):
             await self.downstream.put(downstream_msg)
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('uri', type=str)
-    args = parser.parse_args()
-
+async def main(args):
     try:
         messenger_client = WebSocketMessengerClient(f'{args.uri}{WS_ROUTE}', BUFFER_SIZE)
-        asyncio.run(messenger_client.connect())
+        await messenger_client.connect()
         sys.exit(0)
     except Exception as e:
         print(f'Failed to connect to MessengerServer over WS: {e}')
 
     try:
         messenger_client = HTTPMessengerClient(f'{args.uri}{HTTP_ROUTE}', BUFFER_SIZE)
-        asyncio.run(messenger_client.connect())
+        await messenger_client.connect()
         sys.exit(0)
     except Exception as e:
         print(f'Failed to connect to MessengerServer over HTTP: {e}')
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('uri', type=str)
+    args = parser.parse_args()
+    asyncio.run(main(args))
