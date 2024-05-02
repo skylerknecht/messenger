@@ -143,14 +143,13 @@ class Client:
             while True:
                 data = await self.reader.read(self.buffer_size)
                 if not data:  # Client disconnected
-                    print("Client disconnected")
                     break
                 if self.transport == 'http':
                     await self.upstream.put(self.generate_upstream_message(data))
                 else:
                     await self.transport.send_str(self.generate_upstream_message(data))
          except (EOFError, ConnectionResetError):
-             print("Client disconnected unexpectedly")
+             print(f"Client {self.identifier} disconnected unexpectedly")
 
     def generate_upstream_message(self, msg: bytes):
         return json.dumps({

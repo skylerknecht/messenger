@@ -43,7 +43,7 @@ class MessengerServer:
         socks_server = SocksServer(('127.0.0.1', port))
         self.socks_servers.append(socks_server)
         await socks_server.start()
-        print('socks server started on {}'.format(port))
+        print('HTTP socks server started on {}'.format(port))
         return web.Response(status=200, text=str(id(socks_server)))
 
     async def http_post_handler(self, request):
@@ -76,7 +76,7 @@ class MessengerServer:
         socks_server = SocksServer(('127.0.0.1', port), transport=ws)
         self.socks_servers.append(socks_server)
         await socks_server.start()
-        print('socks server started on {}'.format(port))
+        print('Websocket socks server started on {}'.format(port))
 
         async for msg in ws:
             msg = json.loads(msg.data)
