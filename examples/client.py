@@ -11,11 +11,10 @@ import urllib
 
 from urllib import request
 
-#try:
-#    import aiohttp
-#except ImportError:
-#    print('Failed to import aiohttp module.')
-
+try:
+    import aiohttp
+except ImportError:
+    print('Failed to import aiohttp module.')
 
 BUFFER_SIZE = 4096
 HTTP_ROUTE = 'http'
@@ -156,7 +155,8 @@ class HTTPMessengerClient(MessengerClient):
                     if identifier in self.clients:
                         self.clients[identifier].writer.write(self.base64_to_bytes(msg.get('msg')))
                         continue
-                    socks_connect_results, stream = await self.socks_connect(f'{self.socks_server_id}:{identifier}', msg)
+                    socks_connect_results, stream = await self.socks_connect(f'{self.socks_server_id}:{identifier}',
+                                                                             msg)
                     await self.downstream.put(socks_connect_results)
                     if stream:
                         asyncio.create_task(self.stream(identifier, 'http'))
@@ -185,6 +185,7 @@ async def main(args):
         sys.exit(0)
     except Exception as e:
         print(f'Failed to connect to MessengerServer over HTTP: {e}')
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
