@@ -11,10 +11,12 @@ class MessengerServer:
     def __init__(self, address: str = '127.0.0.1', port: int = 1337,
                  http_route: str = '/http',
                  ws_route: str = '/ws',
-                 ssl: tuple[str, str] = None):
+                 ssl: tuple[str, str] = None,
+                 buffer_size: int = 4096):
         self.address = address
         self.port = port
         self.ssl = ssl
+        self.buffer_size = buffer_size
         self.app = web.Application()
         self.app.router.add_routes([
             web.get(http_route, self.http_get_handler),
@@ -33,14 +35,15 @@ class MessengerServer:
             ssl_context.load_cert_chain(self.ssl[0], self.ssl[1])
             site = web.TCPSite(runner, self.address, self.port, ssl_context=ssl_context)
             await site.start()
-        site = web.TCPSite(runner, self.address, self.port)
-        await site.start()
+        else:
+            site = web.TCPSite(runner, self.address, self.port)
+            await site.start()
+        print(f"Messenger Server is running at http{'s' if self.ssl else ''}://{self.address}:{self.port}/")
         await asyncio.Event().wait()
-        print('Server running on {}:{}'.format(self.address, self.port))
 
     async def http_get_handler(self, request):
         port = random.randint(9050, 9100)
-        socks_server = SocksServer(('127.0.0.1', port))
+        socks_server = SocksServer(('127.0.0.1', port), buffer_size=self.buffer_size)
         self.socks_servers.append(socks_server)
         await socks_server.start()
         print('HTTP socks server started on {}'.format(port))
@@ -73,7 +76,7 @@ class MessengerServer:
         ws = web.WebSocketResponse()
         await ws.prepare(request)
         port = random.randint(9050, 9100)
-        socks_server = SocksServer(('127.0.0.1', port), transport=ws)
+        socks_server = SocksServer(('127.0.0.1', port), transport=ws, buffer_size=self.buffer_size)
         self.socks_servers.append(socks_server)
         await socks_server.start()
         print('Websocket socks server started on {}'.format(port))

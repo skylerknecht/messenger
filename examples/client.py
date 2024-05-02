@@ -5,6 +5,7 @@ import collections
 import json
 import random
 import socket
+import ssl
 import sys
 
 from urllib import request
@@ -16,8 +17,8 @@ except ImportError:
 
 
 BUFFER_SIZE = 4096
-HTTP_ROUTE = '/http'
-WS_ROUTE = '/ws'
+HTTP_ROUTE = 'http'
+WS_ROUTE = 'ws'
 
 
 class MessengerClient:
@@ -28,6 +29,10 @@ class MessengerClient:
         self.uri = uri
         self.buffer_size = buffer_size
         self.clients = {}
+        # Accept Self Signed SSL Certs
+        self.ssl_context = ssl.create_default_context()
+        self.ssl_context.check_hostname = False
+        self.ssl_context.verify_mode = ssl.CERT_NONE
 
     @staticmethod
     def bytes_to_base64(data) -> str:
@@ -94,7 +99,7 @@ class WebSocketMessengerClient(MessengerClient):
 
     async def connect(self):
         async with aiohttp.ClientSession() as session:
-            async with session.ws_connect(self.uri) as ws:
+            async with session.ws_connect(self.uri, ssl=self.ssl_context) as ws:
                 async for msg in ws:
                     msg = json.loads(msg.data)
                     identifier = msg.get('identifier', None)
@@ -123,7 +128,7 @@ class HTTPMessengerClient(MessengerClient):
         self.downstream = asyncio.Queue()
 
     async def connect(self):
-        with request.urlopen(self.uri) as response:
+        with request.urlopen(self.uri, context=self.ssl_context) as response:
             self.socks_server_id = response.read().decode('utf-8')
         check_in = self.generate_downstream_msg(
             f'{self.socks_server_id}:',
@@ -138,10 +143,9 @@ class HTTPMessengerClient(MessengerClient):
             if len(downstream_data) == 0:
                 downstream_data.append(check_in)
             retrieve_data = request.Request(self.uri, data=json.dumps(downstream_data).encode('utf-8'), method='POST')
-            with request.urlopen(retrieve_data) as response:
+            with request.urlopen(retrieve_data, context=self.ssl_context) as response:
                 messages = json.loads(response.read().decode('utf-8'))
                 for msg in messages:
-                    print(msg)
                     msg = json.loads(msg)
                     identifier = msg.get('identifier', None)
                     if not identifier:
@@ -151,12 +155,10 @@ class HTTPMessengerClient(MessengerClient):
                         continue
                     socks_connect_results = await self.socks_connect(f'{self.socks_server_id}:{identifier}', msg)
                     await self.downstream.put(socks_connect_results)
-                    print('calling')
                     asyncio.create_task(self.stream(identifier, 'http'))
 
     async def stream(self, identifier, _):
         client = self.clients[identifier]
-        print('streaming')
         while True:
             msg = await client.reader.read(self.buffer_size)
             if not msg:
