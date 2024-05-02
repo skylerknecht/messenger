@@ -160,7 +160,7 @@ class Client:
 
 class SocksServer:
 
-    def __init__(self, peername: tuple[str, int], transport='http', buffer_size=4096):
+    def __init__(self, peername: tuple, transport='http', buffer_size=4096):
         self.host, self.port = peername
         self.transport = transport
         self.buffer_size = buffer_size

@@ -11,7 +11,7 @@ class MessengerServer:
     def __init__(self, address: str = '127.0.0.1', port: int = 1337,
                  http_route: str = '/http',
                  ws_route: str = '/ws',
-                 ssl: tuple[str, str] = None,
+                 ssl: tuple = None,
                  buffer_size: int = 4096):
         self.address = address
         self.port = port
