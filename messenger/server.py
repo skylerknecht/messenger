@@ -90,7 +90,7 @@ class MessengerServer:
                 return ws
             socks_server.send_downstream(identifier, msg)
 
+        await socks_server.stop()
         self.socks_servers.remove(socks_server)
-        print('socks server stopped on {}'.format(port))
         return ws
 

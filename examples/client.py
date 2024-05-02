@@ -11,10 +11,10 @@ import urllib
 
 from urllib import request
 
-try:
-    import aiohttp
-except ImportError:
-    print('Failed to import aiohttp module.')
+#try:
+#    import aiohttp
+#except ImportError:
+#    print('Failed to import aiohttp module.')
 
 
 BUFFER_SIZE = 4096
@@ -109,7 +109,7 @@ class WebSocketMessengerClient(MessengerClient):
                     if identifier in self.clients:
                         self.clients[identifier].writer.write(self.base64_to_bytes(msg.get('msg')))
                         continue
-                    socks_connect_results, stream= await self.socks_connect(identifier, msg)
+                    socks_connect_results, stream = await self.socks_connect(identifier, msg)
                     await ws.send_str(socks_connect_results)
                     if stream:
                         asyncio.create_task(self.stream(identifier, ws))

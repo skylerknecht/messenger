@@ -149,7 +149,9 @@ class Client:
                 else:
                     await self.transport.send_str(self.generate_upstream_message(data))
          except (EOFError, ConnectionResetError):
-             print(f"Client {self.identifier} disconnected unexpectedly")
+             #ToDo add debug statement
+            #print(f"Client {self.identifier} disconnected unexpectedly")
+            pass
 
     def generate_upstream_message(self, msg: bytes):
         return json.dumps({
@@ -165,6 +167,7 @@ class SocksServer:
         self.transport = transport
         self.buffer_size = buffer_size
         self.clients = []
+        self.socks_server = None
 
     async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         client = Client(reader, writer, self.transport, self.buffer_size)
@@ -172,7 +175,19 @@ class SocksServer:
         await client.setup()
 
     async def start(self):
-        await asyncio.start_server(self.handle_client, self.host, self.port)
+        self.socks_server = await asyncio.start_server(self.handle_client, self.host, self.port)
+
+    async def stop(self):
+        if self.socks_server:
+            self.socks_server.close()  # Stop accepting new connections
+            await self.socks_server.wait_closed()  # Wait until the server is closed
+            print('Socks Server Stopped on {}'.format(self.port))
+
+        # Close all client connections
+        for client in self.clients:
+            if not client.writer.transport.is_closing():
+                client.writer.close()
+                await client.writer.wait_closed()  # Ensure the writer is fully closed
 
     def send_downstream(self, identifier, msg):
         msg = convert.base64_to_bytes(msg)
