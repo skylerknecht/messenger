@@ -141,8 +141,8 @@ class Client:
         await self.stream()
 
     async def stream(self):
-         try:
-            while True:
+        while True:
+            try:
                 data = await self.reader.read(self.buffer_size)
                 if not data:
                     break
@@ -150,10 +150,16 @@ class Client:
                     await self.upstream.put(self.generate_upstream_message(data))
                 else:
                     await self.transport.send_str(self.generate_upstream_message(data))
-         except (EOFError, ConnectionResetError):
-             #ToDo add debug statement
-            # output.display(f"Client {self.identifier} disconnected unexpectedly")
-            pass
+            except (EOFError, ConnectionResetError):
+                #ToDo add debug statement
+                # output.display(f"Client {self.identifier} disconnected unexpectedly")
+                break
+        data = b'close'
+        if self.transport == 'http':
+            await self.upstream.put(self.generate_upstream_message(data))
+        else:
+            if not self.transport.closed:
+                await self.transport.send_str(self.generate_upstream_message(data))
 
     def generate_upstream_message(self, msg: bytes):
         return json.dumps({
@@ -182,8 +188,7 @@ class SocksServer:
     async def expiration(self):
         while True:
             await asyncio.sleep(10)
-            now = time.time()
-            expired = int(now - self.last_check_in)
+            expired = int(time.time() - self.last_check_in)
             if expired >= 30:
                 await self.stop()
                 break
@@ -210,7 +215,7 @@ class SocksServer:
                 self.port = port
         if self.transport == 'http': asyncio.create_task(self.expiration())
         self.name = f"Socks Server ({'HTTP' if self.transport == 'http' else 'WS'}) on port {self.port}"
-        output.display(f"{self.name } has started")
+        output.display(f"{self.name} has started")
 
     async def stop(self):
         if self.socks_server:
@@ -229,5 +234,8 @@ class SocksServer:
         msg = convert.base64_to_bytes(msg)
         for client in self.clients:
             if client.identifier == identifier:
+                if msg == b'close':
+                    print('closing')
+                    client.writer.close()
                 if not client.writer.transport.is_closing():
                     client.writer.write(msg)

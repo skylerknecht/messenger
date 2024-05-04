@@ -7,7 +7,9 @@ import random
 import socket
 import ssl
 import sys
+import time
 import urllib
+import traceback
 
 from urllib import request
 
@@ -21,14 +23,21 @@ HTTP_ROUTE = 'http'
 WS_ROUTE = 'ws'
 
 
+class Client:
+
+    def __init__(self, reader, writer):
+        self.reader = reader
+        self.writer = writer
+
+
 class MessengerClient:
     NAME = 'MessengerClient'
-    CLIENT = collections.namedtuple('Client', 'reader writer')
 
     def __init__(self, uri, buffer_size):
         self.uri = uri
         self.buffer_size = buffer_size
         self.clients = {}
+        self.downstream = asyncio.Queue()
         # Accept Self Signed SSL Certs
         self.ssl_context = ssl.create_default_context()
         self.ssl_context.check_hostname = False
@@ -57,6 +66,7 @@ class MessengerClient:
     def connect(self):
         return NotImplementedError(f'{self.NAME} does not implement stream')
 
+
     def generate_downstream_msg(self, identifier, msg: bytes):
         return json.dumps({
             'identifier': identifier,
@@ -82,13 +92,14 @@ class MessengerClient:
         port = int(msg.get('port'))
         try:
             reader, writer = await asyncio.open_connection(address, port)
-            self.clients[msg.get('identifier')] = self.CLIENT(reader, writer)
+            self.clients[msg.get('identifier')] = Client(reader, writer)
             bind_addr, bind_port = writer.get_extra_info('sockname')
-            return self.socks_connect_results(identifier, 0, atype, bind_addr, bind_port), True
+            asyncio.create_task(self.stream(identifier))
+            return self.socks_connect_results(identifier, 0, atype, bind_addr, bind_port)
         except Exception as e:  #ToDo add more exceptions and update the rep.
-            return self.socks_connect_results(identifier, 1, atype, None, None), False
+            return self.socks_connect_results(identifier, 1, atype, None, None)
 
-    def stream(self, identifier, transport):
+    async def stream(self, identifier):
         return NotImplementedError(f'{self.NAME} does not implement stream')
 
 
@@ -96,38 +107,55 @@ class WebSocketMessengerClient(MessengerClient):
 
     def __init__(self, uri, buffer_size):
         super().__init__(uri, buffer_size)
+        self.ws = None
 
     async def connect(self):
         async with aiohttp.ClientSession() as session:
             async with session.ws_connect(self.uri, ssl=self.ssl_context) as ws:
+                self.ws = ws
                 async for msg in ws:
+                    print(len(self.clients))
                     msg = json.loads(msg.data)
                     identifier = msg.get('identifier', None)
                     if not identifier:
-                        return
-                    if identifier in self.clients:
-                        self.clients[identifier].writer.write(self.base64_to_bytes(msg.get('msg')))
                         continue
-                    socks_connect_results, stream = await self.socks_connect(identifier, msg)
-                    await ws.send_str(socks_connect_results)
-                    if stream:
-                        asyncio.create_task(self.stream(identifier, ws))
+                    if identifier not in self.clients and msg.get('atype'):
+                        socks_connect_results = await self.socks_connect(identifier, msg)
+                        await ws.send_str(socks_connect_results)
+                        continue
+                    if not msg.get('msg'):
+                        continue
+                    msg = self.base64_to_bytes(msg.get('msg'))
+                    if msg == b'close' and identifier in self.clients:
+                        self.clients[identifier].writer.close()
+                        continue
+                    if identifier in self.clients:
+                        self.clients[identifier].writer.write(msg)
+                        continue
 
-    async def stream(self, identifier, ws):
+    async def stream(self, identifier):
         client = self.clients[identifier]
         while True:
-            msg = await client.reader.read(self.buffer_size)
-            if not msg:
+            print(len(self.clients))
+            try:
+                msg = await client.reader.read(self.buffer_size)
+                if not msg:
+                    break
+                downstream_msg = self.generate_downstream_msg(identifier, msg)
+                await self.ws.send_str(downstream_msg)
+            except (EOFError, ConnectionResetError):
+                # ToDo add debug statement
+                # output.display(f"Client {self.identifier} disconnected unexpectedly")
                 break
-            downstream_msg = self.generate_downstream_msg(identifier, msg)
-            await ws.send_str(downstream_msg)
+        downstream_msg = self.generate_downstream_msg(identifier, b'close')
+        await self.ws.send_str(downstream_msg)
+        del self.clients[identifier]
 
 
 class HTTPMessengerClient(MessengerClient):
     def __init__(self, uri, buffer_size):
         super().__init__(uri, buffer_size)
         self.socks_server_id = None
-        self.downstream = asyncio.Queue()
 
     async def connect(self):
         with request.urlopen(self.uri, context=self.ssl_context) as response:
@@ -137,11 +165,11 @@ class HTTPMessengerClient(MessengerClient):
             bytes([random.randint(100, 252), random.randint(100, 252), random.randint(100, 252)])
         )
         while True:
+            print(len(self.clients))
             await asyncio.sleep(0.1)
             downstream_data = []
             while not self.downstream.empty() and len(downstream_data) < 10:
                 downstream_data.append(await self.downstream.get())
-            # Check if there is no data after processing the queue
             if not downstream_data:
                 downstream_data.append(check_in)
             retrieve_data = request.Request(self.uri, data=json.dumps(downstream_data).encode('utf-8'), method='POST')
@@ -154,39 +182,52 @@ class HTTPMessengerClient(MessengerClient):
                     identifier = msg.get('identifier', None)
                     if not identifier:
                         continue
-                    if identifier in self.clients:
-                        self.clients[identifier].writer.write(self.base64_to_bytes(msg.get('msg')))
+                    if identifier not in self.clients and msg.get('atype'):
+                        socks_connect_results = await self.socks_connect(identifier, msg)
+                        self.downstream.put(socks_connect_results)
                         continue
-                    socks_connect_results, stream = await self.socks_connect(f'{self.socks_server_id}:{identifier}',
-                                                                             msg)
-                    await self.downstream.put(socks_connect_results)
-                    if stream:
-                        asyncio.create_task(self.stream(identifier, 'http'))
+                    if not msg.get('msg'):
+                        continue
+                    msg = self.base64_to_bytes(msg.get('msg'))
+                    if msg == b'close' and identifier in self.clients:
+                        self.clients[identifier].writer.close()
+                        continue
+                    if identifier in self.clients:
+                        self.clients[identifier].writer.write(msg)
+                        continue
 
-    async def stream(self, identifier, _):
+    async def stream(self, identifier):
         client = self.clients[identifier]
         while True:
-            msg = await client.reader.read(self.buffer_size)
-            if not msg:
+            try:
+                msg = await client.reader.read(self.buffer_size)
+                if not msg:
+                    break
+                downstream_msg = self.generate_downstream_msg(f'{self.socks_server_id}:{identifier}', msg)
+                await self.downstream.put(downstream_msg)
+            except (EOFError, ConnectionResetError):
+                # ToDo add debug statement
+                # output.display(f"Client {self.identifier} disconnected unexpectedly")
                 break
-            downstream_msg = self.generate_downstream_msg(f'{self.socks_server_id}:{identifier}', msg)
-            await self.downstream.put(downstream_msg)
+        downstream_msg = self.generate_downstream_msg(f'{self.socks_server_id}:{identifier}', b'close')
+        await self.downstream.put(downstream_msg)
+        del self.clients[identifier]
 
 
 async def main(args):
-    try:
-        messenger_client = WebSocketMessengerClient(f'{args.uri}{WS_ROUTE}', BUFFER_SIZE)
-        await messenger_client.connect()
-        sys.exit(0)
-    except Exception as e:
-        print(f'Failed to connect to MessengerServer over WS: {e}')
+    # try:
+    messenger_client = WebSocketMessengerClient(f'{args.uri}{WS_ROUTE}', BUFFER_SIZE)
+    await messenger_client.connect()
+    sys.exit(0)
+    # except Exception as e:
+    #     print(f'Failed to connect to MessengerServer over WS:\n {traceback.format_exc()}')
 
-    try:
-        messenger_client = HTTPMessengerClient(f'{args.uri}{HTTP_ROUTE}', BUFFER_SIZE)
-        await messenger_client.connect()
-        sys.exit(0)
-    except Exception as e:
-        print(f'Failed to connect to MessengerServer over HTTP: {e}')
+    # try:
+    messenger_client = HTTPMessengerClient(f'{args.uri}{HTTP_ROUTE}', BUFFER_SIZE)
+    await messenger_client.connect()
+    sys.exit(0)
+    # except Exception as e:
+    #     print(f'Failed to connect to MessengerServer over HTTP:\n {traceback.format_exc()}')
 
 
 if __name__ == '__main__':
