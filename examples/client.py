@@ -37,7 +37,6 @@ class MessengerClient:
         self.uri = uri
         self.buffer_size = buffer_size
         self.clients = {}
-        self.downstream = asyncio.Queue()
         # Accept Self Signed SSL Certs
         self.ssl_context = ssl.create_default_context()
         self.ssl_context.check_hostname = False
@@ -87,17 +86,7 @@ class MessengerClient:
         )
 
     async def socks_connect(self, identifier, msg):
-        atype = msg.get('atype')
-        address = msg.get('address')
-        port = int(msg.get('port'))
-        try:
-            reader, writer = await asyncio.open_connection(address, port)
-            self.clients[msg.get('identifier')] = Client(reader, writer)
-            bind_addr, bind_port = writer.get_extra_info('sockname')
-            asyncio.create_task(self.stream(identifier))
-            return self.socks_connect_results(identifier, 0, atype, bind_addr, bind_port)
-        except Exception as e:  #ToDo add more exceptions and update the rep.
-            return self.socks_connect_results(identifier, 1, atype, None, None)
+        return NotImplementedError(f'{self.NAME} does not implement socks_connect')
 
     async def stream(self, identifier):
         return NotImplementedError(f'{self.NAME} does not implement stream')
@@ -120,8 +109,7 @@ class WebSocketMessengerClient(MessengerClient):
                     if not identifier:
                         continue
                     if identifier not in self.clients and msg.get('atype'):
-                        socks_connect_results = await self.socks_connect(identifier, msg)
-                        await ws.send_str(socks_connect_results)
+                        asyncio.create_task(self.socks_connect(identifier, msg))
                         continue
                     if not msg.get('msg'):
                         continue
@@ -132,6 +120,19 @@ class WebSocketMessengerClient(MessengerClient):
                     if identifier in self.clients:
                         self.clients[identifier].writer.write(msg)
                         continue
+
+    async def socks_connect(self, identifier, msg):
+        atype = msg.get('atype')
+        address = msg.get('address')
+        port = int(msg.get('port'))
+        try:
+            reader, writer = await asyncio.open_connection(address, port)
+            self.clients[msg.get('identifier')] = Client(reader, writer)
+            bind_addr, bind_port = writer.get_extra_info('sockname')
+            await self.ws.send_str(self.socks_connect_results(identifier, 0, atype, bind_addr, bind_port))
+            asyncio.create_task(self.stream(identifier))
+        except Exception as e:  #ToDo add more exceptions and update the rep.
+            await self.ws.send_str(self.socks_connect_results(identifier, 1, atype, None, None))
 
     async def stream(self, identifier):
         client = self.clients[identifier]
@@ -156,6 +157,7 @@ class HTTPMessengerClient(MessengerClient):
     def __init__(self, uri, buffer_size):
         super().__init__(uri, buffer_size)
         self.socks_server_id = None
+        self.downstream = asyncio.Queue()
 
     async def connect(self):
         with request.urlopen(self.uri, context=self.ssl_context) as response:
@@ -183,8 +185,7 @@ class HTTPMessengerClient(MessengerClient):
                     if not identifier:
                         continue
                     if identifier not in self.clients and msg.get('atype'):
-                        socks_connect_results = await self.socks_connect(identifier, msg)
-                        self.downstream.put(socks_connect_results)
+                        asyncio.create_task(self.socks_connect(identifier, msg))
                         continue
                     if not msg.get('msg'):
                         continue
@@ -195,6 +196,19 @@ class HTTPMessengerClient(MessengerClient):
                     if identifier in self.clients:
                         self.clients[identifier].writer.write(msg)
                         continue
+
+    async def socks_connect(self, identifier, msg):
+        atype = msg.get('atype')
+        address = msg.get('address')
+        port = int(msg.get('port'))
+        try:
+            reader, writer = await asyncio.open_connection(address, port)
+            self.clients[msg.get('identifier')] = Client(reader, writer)
+            bind_addr, bind_port = writer.get_extra_info('sockname')
+            await self.downstream.put(self.socks_connect_results(identifier, 0, atype, bind_addr, bind_port))
+            asyncio.create_task(self.stream(identifier))
+        except Exception as e:  #ToDo add more exceptions and update the rep.
+            await self.downstream.put(self.socks_connect_results(identifier, 1, atype, None, None))
 
     async def stream(self, identifier):
         client = self.clients[identifier]
