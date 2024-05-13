@@ -7,22 +7,14 @@ from messenger.socks import SocksServer
 
 
 class MessengerServer:
-    def __init__(self, address: str = '127.0.0.1', port: int = 1337,
-                 http_route: str = '/http',
-                 ws_route: str = '/ws',
-                 ssl: tuple = None,
-                 buffer_size: int = 4096):
+    def __init__(self, address: str = '127.0.0.1', port: int = 1337, ssl: tuple = None, buffer_size: int = 4096):
         self.address = address
         self.port = port
         self.ssl = ssl
         self.buffer_size = buffer_size
         self.app = web.Application()
         self.app.router.add_routes([
-            web.get(http_route, self.http_get_handler),
-            web.post(http_route, self.http_post_handler),
-        ])
-        self.app.router.add_routes([
-            web.get(ws_route, self.websocket_handler),
+            web.route('*', '/socketio/', self.redirect_handler)
         ])
         self.socks_servers = []
 
@@ -96,3 +88,16 @@ class MessengerServer:
 
         await socks_server.stop()
         return ws
+
+    async def redirect_handler(self, request):
+        transport = request.query.get('transport', None)
+        if not transport:
+            return web.Response(status=404, text='Not Found')
+        elif transport == 'websocket':
+            return await self.websocket_handler(request)
+        elif transport == 'polling' and request.method == 'GET':
+            return await self.http_get_handler(request)
+        elif transport == 'polling' and request.method == 'POST':
+            return await self.http_post_handler(request)
+        else:
+            return web.Response(status=404, text='Not Found')

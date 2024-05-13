@@ -1,13 +1,11 @@
 import argparse
 import asyncio
 import base64
-import collections
 import json
 import random
 import socket
 import ssl
 import sys
-import time
 import urllib
 import traceback
 
@@ -19,8 +17,8 @@ except ImportError:
     print('Failed to import aiohttp module.')
 
 BUFFER_SIZE = 4096
-HTTP_ROUTE = 'http'
-WS_ROUTE = 'ws'
+HTTP_ROUTE = 'socketio/?EIO=4&transport=polling'
+WS_ROUTE = 'socketio/?EIO=4&transport=websocket'
 
 
 class Client:
@@ -65,7 +63,6 @@ class MessengerClient:
     def connect(self):
         return NotImplementedError(f'{self.NAME} does not implement stream')
 
-
     def generate_downstream_msg(self, identifier, msg: bytes):
         return json.dumps({
             'identifier': identifier,
@@ -103,7 +100,6 @@ class WebSocketMessengerClient(MessengerClient):
             async with session.ws_connect(self.uri, ssl=self.ssl_context) as ws:
                 self.ws = ws
                 async for msg in ws:
-                    print(len(self.clients))
                     msg = json.loads(msg.data)
                     identifier = msg.get('identifier', None)
                     if not identifier:
@@ -114,7 +110,7 @@ class WebSocketMessengerClient(MessengerClient):
                     if not msg.get('msg'):
                         continue
                     msg = self.base64_to_bytes(msg.get('msg'))
-                    if msg == b'close' and identifier in self.clients:
+                    if msg == b'' and identifier in self.clients:
                         self.clients[identifier].writer.close()
                         continue
                     if identifier in self.clients:
@@ -137,7 +133,6 @@ class WebSocketMessengerClient(MessengerClient):
     async def stream(self, identifier):
         client = self.clients[identifier]
         while True:
-            print(len(self.clients))
             try:
                 msg = await client.reader.read(self.buffer_size)
                 if not msg:
@@ -148,7 +143,7 @@ class WebSocketMessengerClient(MessengerClient):
                 # ToDo add debug statement
                 # output.display(f"Client {self.identifier} disconnected unexpectedly")
                 break
-        downstream_msg = self.generate_downstream_msg(identifier, b'close')
+        downstream_msg = self.generate_downstream_msg(identifier, b'')
         await self.ws.send_str(downstream_msg)
         del self.clients[identifier]
 
@@ -167,7 +162,6 @@ class HTTPMessengerClient(MessengerClient):
             bytes([random.randint(100, 252), random.randint(100, 252), random.randint(100, 252)])
         )
         while True:
-            print(len(self.clients))
             await asyncio.sleep(0.1)
             downstream_data = []
             while not self.downstream.empty() and len(downstream_data) < 10:
@@ -223,25 +217,25 @@ class HTTPMessengerClient(MessengerClient):
                 # ToDo add debug statement
                 # output.display(f"Client {self.identifier} disconnected unexpectedly")
                 break
-        downstream_msg = self.generate_downstream_msg(f'{self.socks_server_id}:{identifier}', b'close')
+        downstream_msg = self.generate_downstream_msg(f'{self.socks_server_id}:{identifier}', b'')
         await self.downstream.put(downstream_msg)
         del self.clients[identifier]
 
 
 async def main(args):
-    # try:
-    messenger_client = WebSocketMessengerClient(f'{args.uri}{WS_ROUTE}', BUFFER_SIZE)
-    await messenger_client.connect()
-    sys.exit(0)
-    # except Exception as e:
-    #     print(f'Failed to connect to MessengerServer over WS:\n {traceback.format_exc()}')
+    try:
+        messenger_client = WebSocketMessengerClient(f'{args.uri}{WS_ROUTE}', BUFFER_SIZE)
+        await messenger_client.connect()
+        sys.exit(0)
+    except Exception as e:
+        print(f'Failed to connect to MessengerServer over WS:\n {traceback.format_exc()}')
 
-    # try:
-    messenger_client = HTTPMessengerClient(f'{args.uri}{HTTP_ROUTE}', BUFFER_SIZE)
-    await messenger_client.connect()
-    sys.exit(0)
-    # except Exception as e:
-    #     print(f'Failed to connect to MessengerServer over HTTP:\n {traceback.format_exc()}')
+    try:
+        messenger_client = HTTPMessengerClient(f'{args.uri}{HTTP_ROUTE}', BUFFER_SIZE)
+        await messenger_client.connect()
+        sys.exit(0)
+    except Exception as e:
+        print(f'Failed to connect to MessengerServer over HTTP:\n {traceback.format_exc()}')
 
 
 if __name__ == '__main__':

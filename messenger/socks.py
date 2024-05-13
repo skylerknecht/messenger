@@ -154,12 +154,11 @@ class Client:
                 #ToDo add debug statement
                 # output.display(f"Client {self.identifier} disconnected unexpectedly")
                 break
-        data = b'close'
-        if self.transport == 'http':
-            await self.upstream.put(self.generate_upstream_message(data))
-        else:
-            if not self.transport.closed:
-                await self.transport.send_str(self.generate_upstream_message(data))
+        # data = b'close'
+        # if self.transport == 'http':
+        #     await self.upstream.put(self.generate_upstream_message(data))
+        # elif not self.transport.closed:
+        #     await self.transport.send_str(self.generate_upstream_message(data))
 
     def generate_upstream_message(self, msg: bytes):
         return json.dumps({
@@ -170,8 +169,10 @@ class Client:
 
 class SocksServer:
 
+    PORT_RANGE = 9000, 9999
+
     def __init__(self, transport='http', buffer_size=4096):
-        self.host, self.port = '127.0.0.1', random.randint(9050, 9100)
+        self.host, self.port = '127.0.0.1', random.randint(*self.PORT_RANGE)
         self.transport = transport
         self.buffer_size = buffer_size
         self.clients = []
@@ -210,8 +211,8 @@ class SocksServer:
                 self.socks_server = await asyncio.start_server(self.handle_client, self.host, self.port)
                 break
             except OSError as e:
-                port = random.randint(9050, 9100)
-                output.display(f'{self.port} is already is use trying {port}')
+                port = random.randint(*self.PORT_RANGE)
+                output.display(f'{self.port} is already in use trying {port}')
                 self.port = port
         if self.transport == 'http': asyncio.create_task(self.expiration())
         self.name = f"Socks Server ({'HTTP' if self.transport == 'http' else 'WS'}) on port {self.port}"
@@ -235,7 +236,6 @@ class SocksServer:
         for client in self.clients:
             if client.identifier == identifier:
                 if msg == b'close':
-                    print('closing')
                     client.writer.close()
                 if not client.writer.transport.is_closing():
                     client.writer.write(msg)
