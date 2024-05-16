@@ -1,3 +1,7 @@
+#ssl
+certificate.crt
+private.key
+
 #idea
 .idea/
 

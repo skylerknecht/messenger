@@ -14,7 +14,7 @@ class MessengerServer:
         self.buffer_size = buffer_size
         self.app = web.Application()
         self.app.router.add_routes([
-            web.route('*', '/socketio/', self.redirect_handler)
+            web.route('*', '/{tail:.*}', self.redirect_handler)
         ])
         self.socks_servers = []
 
@@ -29,7 +29,7 @@ class MessengerServer:
         else:
             site = web.TCPSite(runner, self.address, self.port)
             await site.start()
-        print(f"Messenger Server is running on http{'s' if self.ssl else ''}://{self.address}:{self.port}/")
+        print(f"Messenger Server is running on ws{'s' if self.ssl else ''}://{self.address}:{self.port}/")
 
     async def http_get_handler(self, request):
         socks_server = SocksServer(buffer_size=self.buffer_size)
