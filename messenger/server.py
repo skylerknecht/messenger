@@ -38,15 +38,12 @@ class MessengerServer:
         return web.Response(status=200, text=str(id(socks_server)))
 
     async def http_post_handler(self, request):
-        messages = json.loads(await request.text())
+        messages = await request.json()
         upstream_data = []
         for msg in messages:
-            msg = json.loads(msg)
             identifier = msg.get('identifier', None)
             msg = msg.get('msg', None)
             if not identifier:
-                return web.Response(status=404, text='Not Found')
-            if not msg:
                 return web.Response(status=404, text='Not Found')
             socks_server_identifier, client_identifier = identifier.split(':')
             current_socks_server = None

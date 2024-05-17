@@ -127,17 +127,17 @@ class Client:
         if not await self.negotiate_address():
             return
 
-        socks_connect_msg = json.dumps({
+        socks_connect_msg = {
             'identifier': self.identifier,
             'atype': self.address_type,
             'address': self.remote_address,
             'port': self.remote_port
-        })
+        }
 
         if self.transport == 'http':
-            await self.upstream.put(socks_connect_msg)
+            await self.upstream.put(json.dumps(socks_connect_msg))
         else:
-            await self.transport.send_str(socks_connect_msg)
+            await self.transport.send_json(socks_connect_msg)
         await self.stream()
 
     async def stream(self):
@@ -147,9 +147,9 @@ class Client:
                 if not data:
                     break
                 if self.transport == 'http':
-                    await self.upstream.put(self.generate_upstream_message(data))
+                    await self.upstream.put(json.dumps(self.generate_upstream_message(data)))
                 else:
-                    await self.transport.send_str(self.generate_upstream_message(data))
+                    await self.transport.send_json(self.generate_upstream_message(data))
             except (EOFError, ConnectionResetError):
                 #ToDo add debug statement
                 # output.display(f"Client {self.identifier} disconnected unexpectedly")
@@ -161,10 +161,10 @@ class Client:
         #     await self.transport.send_str(self.generate_upstream_message(data))
 
     def generate_upstream_message(self, msg: bytes):
-        return json.dumps({
+        return {
             'identifier': self.identifier,
             'msg': convert.bytes_to_base64(msg)
-        })
+        }
 
 
 class SocksServer:

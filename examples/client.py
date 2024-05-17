@@ -64,10 +64,10 @@ class MessengerClient:
         return NotImplementedError(f'{self.NAME} does not implement stream')
 
     def generate_downstream_msg(self, identifier, msg: bytes):
-        return json.dumps({
+        return {
             'identifier': identifier,
             'msg': self.bytes_to_base64(msg),
-        })
+        }
 
     def socks_connect_results(self, identifier, rep, atype, bind_addr, bind_port):
         return self.generate_downstream_msg(
@@ -100,7 +100,7 @@ class WebSocketMessengerClient(MessengerClient):
             async with session.ws_connect(self.uri, ssl=self.ssl_context) as ws:
                 self.ws = ws
                 async for msg in ws:
-                    msg = json.loads(msg.data)
+                    msg = msg.json()
                     identifier = msg.get('identifier', None)
                     if not identifier:
                         continue
@@ -125,10 +125,10 @@ class WebSocketMessengerClient(MessengerClient):
             reader, writer = await asyncio.open_connection(address, port)
             self.clients[msg.get('identifier')] = Client(reader, writer)
             bind_addr, bind_port = writer.get_extra_info('sockname')
-            await self.ws.send_str(self.socks_connect_results(identifier, 0, atype, bind_addr, bind_port))
+            await self.ws.send_json(self.socks_connect_results(identifier, 0, atype, bind_addr, bind_port))
             asyncio.create_task(self.stream(identifier))
         except Exception as e:  #ToDo add more exceptions and update the rep.
-            await self.ws.send_str(self.socks_connect_results(identifier, 1, atype, None, None))
+            await self.ws.send_json(self.socks_connect_results(identifier, 1, atype, None, None))
 
     async def stream(self, identifier):
         client = self.clients[identifier]
@@ -138,13 +138,13 @@ class WebSocketMessengerClient(MessengerClient):
                 if not msg:
                     break
                 downstream_msg = self.generate_downstream_msg(identifier, msg)
-                await self.ws.send_str(downstream_msg)
+                await self.ws.send_json(downstream_msg)
             except (EOFError, ConnectionResetError):
                 # ToDo add debug statement
                 # output.display(f"Client {self.identifier} disconnected unexpectedly")
                 break
         downstream_msg = self.generate_downstream_msg(identifier, b'')
-        await self.ws.send_str(downstream_msg)
+        await self.ws.send_json(downstream_msg)
         del self.clients[identifier]
 
 
@@ -169,6 +169,7 @@ class HTTPMessengerClient(MessengerClient):
             if not downstream_data:
                 downstream_data.append(check_in)
             retrieve_data = request.Request(self.uri, data=json.dumps(downstream_data).encode('utf-8'), method='POST')
+            retrieve_data.add_header('Content-Type', 'application/json')
             with request.urlopen(retrieve_data, context=self.ssl_context) as response:
                 messages = json.loads(response.read().decode('utf-8'))
                 if response.status != 200:
@@ -199,10 +200,10 @@ class HTTPMessengerClient(MessengerClient):
             reader, writer = await asyncio.open_connection(address, port)
             self.clients[msg.get('identifier')] = Client(reader, writer)
             bind_addr, bind_port = writer.get_extra_info('sockname')
-            await self.downstream.put(self.socks_connect_results(identifier, 0, atype, bind_addr, bind_port))
+            await self.downstream.put(self.socks_connect_results(f'{self.socks_server_id}:{identifier}', 0, atype, bind_addr, bind_port))
             asyncio.create_task(self.stream(identifier))
         except Exception as e:  #ToDo add more exceptions and update the rep.
-            await self.downstream.put(self.socks_connect_results(identifier, 1, atype, None, None))
+            await self.downstream.put(self.socks_connect_results(f'{self.socks_server_id}:{identifier}', 1, atype, None, None))
 
     async def stream(self, identifier):
         client = self.clients[identifier]
