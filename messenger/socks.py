@@ -201,9 +201,16 @@ class SocksServer:
                 output.display(f'{self.name} has not checked in and will stop within the next 25 seconds')
 
     def is_stopped(self):
-        if not self.socks_server:
-            return True
-        return all(sock.fileno() == -1 for sock in self.socks_server.sockets)
+        """Check if the server socket is still bound and listening."""
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind((self.host, self.port))
+        except socket.error as e:
+            if e.errno == socket.errno.EADDRINUSE:
+                # The address and port are already in use, so the server is still bound and listening
+                return True
+        # The address and port are not in use, so the server is stopped
+        return False
 
     async def start(self):
         while True:
