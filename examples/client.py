@@ -224,12 +224,12 @@ class HTTPMessengerClient(MessengerClient):
 
 
 async def main(args):
-    try:
-        messenger_client = WebSocketMessengerClient(f'{args.uri}{WS_ROUTE}', BUFFER_SIZE)
-        await messenger_client.connect()
-        sys.exit(0)
-    except Exception as e:
-        print(f'Failed to connect to MessengerServer over WS:\n {traceback.format_exc()}')
+    # try:
+    #     messenger_client = WebSocketMessengerClient(f'{args.uri}{WS_ROUTE}', BUFFER_SIZE)
+    #     await messenger_client.connect()
+    #     sys.exit(0)
+    # except Exception as e:
+    #     print(f'Failed to connect to MessengerServer over WS:\n {traceback.format_exc()}')
 
     try:
         messenger_client = HTTPMessengerClient(f'{args.uri}{HTTP_ROUTE}', BUFFER_SIZE)

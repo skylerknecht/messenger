@@ -208,9 +208,9 @@ class SocksServer:
         except socket.error as e:
             if e.errno == socket.errno.EADDRINUSE:
                 # The address and port are already in use, so the server is still bound and listening
-                return True
+                return False
         # The address and port are not in use, so the server is stopped
-        return False
+        return True
 
     async def start(self):
         while True:
