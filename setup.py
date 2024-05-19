@@ -1,8 +1,4 @@
 import os
-
-from setuptools import setup, find_packages
-
-import os
 import re
 import sys
 
@@ -29,7 +25,7 @@ if match is None:
 version = match.group('version')
 
 DESCRIPTION = """\
-Messenger uses a client-server architecture to establish a SOCKS5 tunnel. Once the the client connects the \ 
+Messenger uses a client-server architecture to establish a SOCKS5 tunnel. Once the client connects, the \
 server will create a local SOCKS5 tunnel that can be used to interact with the local network the client is connected to.\
 """
 
@@ -37,13 +33,12 @@ setup(
     name='messenger',
     version=version,
     packages=find_packages(),
-    py_modules=['messenger'],
     install_requires=[
         'aiohttp',
         'aioconsole'
     ],
     author='Skyler Knecht',
-    author_email='skyler.knecht@outlook.com.com',
+    author_email='skyler.knecht@outlook.com',
     description=DESCRIPTION,
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -57,7 +52,7 @@ setup(
     python_requires='>=3.6',
     entry_points={
         'console_scripts': [
-            'messenger=messenger:run',
+            'messenger=messenger.__main__:run',
         ],
     },
 )

@@ -5,9 +5,9 @@ import argparse
 from messenger import cli
 from messenger import server
 
-__version__ = '0.0.0'
+__version__ = '0.1.0'
 
-banner = f"""
+BANNER = f"""
  __  __                                    
 |  \/  | ___  ___ ___  ___ _ __   __ _  ___ _ __ 
 | |\/| |/ _ \/ __/ __|/ _ \ '_ \ / _` |/ _ \ '__|
@@ -38,11 +38,11 @@ async def main(banner, cli, server):
 
 
 def run():
-    asyncio.run(main(banner, cli, server))
+    asyncio.run(main(BANNER, cli, server))
 
 
 if __name__ == '__main__':
     try:
-        asyncio.run(main(banner, cli, server))
+        asyncio.run(main(BANNER, cli, server))
     except KeyboardInterrupt:
         print('\rMessenger Server stopped.')
