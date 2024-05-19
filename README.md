@@ -10,7 +10,7 @@ must be used since the environment’s proxy does not support WebSockets.
 The following example demonstrates the basic usage of running a Messenger Server and then connecting two Messenger Clients to the server. 
 
 ```
-skyler.knecht@debian~# python3 messenger.py  
+skyler.knecht@debian~# python3 messenger.py
 
  __  __                                    
 |  \/  | ___  ___ ___  ___ _ __   __ _  ___ _ __ 
@@ -20,7 +20,7 @@ skyler.knecht@debian~# python3 messenger.py
 by Skyler Knecht and Kevin Clark |___/ v0.0.0
 
 Welcome to the Messenger CLI, type exit or socks.
-Messenger Server is running on wss://172.16.100.2:1337/
+Messenger Server is running on http+ws://172.16.100.2:1337/
 (messenger)~#
 Socks Server (HTTP) on port 9050 has stopped
 Socks Server (WS) on port 9051 has started
@@ -45,8 +45,9 @@ skyler.knecht@debian~# python3 examples/client.py wss://172.16.100.2:1337
 
 ### Messenger Client Arguments
 
-Messenger client expects on argument to be provided, the URI to connect to. By default, if no protocol is provided Messenger Client will attempt the following protocols in order, ws, http, wss 
-and https. 
+Messenger Client requires the Messenger Server's URI. This argument can be of many formats, depending on the protool the Messenger Server
+is listening on. By default, if no protocol is provided Messenger Client will attempt ws, http, wss and https. Once successful, no further
+attempts will be made. 
 
 ```
 skyler.knecht@debian~# python3 examples/client.py 172.16.100.2:1337
@@ -55,8 +56,7 @@ skyler.knecht@debian~# python3 examples/client.py 172.16.100.2:1337
 [+] Successfully connected to wss://172.16.100.2:1337/socketio/?EIO=4&transport=websocket
 ```
 
-Alternatively, The operator can specify a single protocol to attempt as in example usage or, a list of protocols to attempt 
-by using `+` as a delimiter. 
+Alternatively, the operator can specify one or more protocols, delimited by `+`, to make connection attempts with. 
 
 ```
 skyler.knecht@debian~# python3 examples/client.py ws+http+http+http+wss+https://172.16.100.2:1337
@@ -85,18 +85,19 @@ proxy_dns
 remote_dns_subnet 224
 tcp_read_time_out 15000 #Defaults to 150,000
 tcp_connect_time_out 10000
-socks5 127.0.0.1 9521
+socks5 127.0.0.1 9050
 ```
 
 ### Future Development
 
-Currently, we're looking into several features to add. Please feel free to open a PR or issue request if anything comes up.
+The following are several features that may be added in the future.
 
 |                Feature                |                                                       Description                                                       |
 |:-------------------------------------:|:-----------------------------------------------------------------------------------------------------------------------:|
-|            Auto Reconnect             |                       Currently, if the Messenger Server stops, all Messenger Clients disconnect.                       |
+|    Messenger Client Auto Reconnect    |                     When a Messenger Client disconnects it'll attempt an auto-reconnect procedure.                      |
 |      Proxychains Auto Generation      | When a new Messenger Client connects, generate a new proxychains configuration file in an operator-specified directory. |   
-| Messenger Client Port Forward Tasking |      Refactor the Messenger Client to connect and wait for incoming tasks to create local and remote port forwards.      |
+| Messenger Client Port Forward Tasking |     Refactor the Messenger Client to connect and wait for incoming tasks to create local and remote port forwards.      |
+|       Messenger Server Profiles       |                  Create profile to mimic the traffic of common web services such as SocketIO and AWS.                   |
 
 ### Credits 
 
