@@ -6,23 +6,44 @@ The server and clients are written in an asynchronous model to support large ban
 These include, within a C2 that supports execute-assembly but not SOCKS5, a C2 that only supports synchronous HTTP SOCKS5, or within an environment where HTTP 
 must be used since the environment’s proxy does not support WebSockets. 
 
-### Example Usage
-The following example demonstrates the basic usage of running a Messenger Server and then connecting two Messenger Clients to the server. 
+### Installation
+
+Messenger comes with a setup.py configured for pipx. Alternativelly, using `pip` to install the requirements.txt file will also work.
 
 ```
-skyler.knecht@debian~# python3 messenger.py
+skyler.knecht@debian~# pipx install git+https://github.com/skylerknecht/messenger 
+skyler.knecht@debian~# pipx ensurepath # Make sure pipx is added to your path
+skyler.knecht@debian~# messenger
 
  __  __                                    
 |  \/  | ___  ___ ___  ___ _ __   __ _  ___ _ __ 
 | |\/| |/ _ \/ __/ __|/ _ \ '_ \ / _` |/ _ \ '__|
 | |  | |  __/\__ \__ \  __/ | | | (_| |  __/ |   
 |_|  |_|\___||___/___/\___|_| |_|\__, |\___|_|   
-by Skyler Knecht and Kevin Clark |___/ v0.0.0
+by Skyler Knecht and Kevin Clark |___/ v0.1.0
+
+Welcome to the Messenger CLI, type exit or socks.
+Messenger Server is running on http+ws://127.0.0.1:1337/
+(messenger)~# 
+```
+
+### Example Usage
+The following example demonstrates the basic usage of running a Messenger Server and then connecting two Messenger Clients to the server. 
+
+```
+skyler.knecht@debian~# messenger
+
+ __  __                                    
+|  \/  | ___  ___ ___  ___ _ __   __ _  ___ _ __ 
+| |\/| |/ _ \/ __/ __|/ _ \ '_ \ / _` |/ _ \ '__|
+| |  | |  __/\__ \__ \  __/ | | | (_| |  __/ |   
+|_|  |_|\___||___/___/\___|_| |_|\__, |\___|_|   
+by Skyler Knecht and Kevin Clark |___/ v0.1.0
 
 Welcome to the Messenger CLI, type exit or socks.
 Messenger Server is running on http+ws://172.16.100.2:1337/
 (messenger)~#
-Socks Server (HTTP) on port 9050 has stopped
+Socks Server (HTTP) on port 9050 has started
 Socks Server (WS) on port 9051 has started
 (messenger)~# socks
             SOCKS SERVERS             
@@ -34,13 +55,13 @@ transport   port   client(s) listening
 ```
 
 ```
-skyler.knecht@debian~# python3 examples/client.py https://172.16.100.2:1337
-[+] Successfully connected to https://172.16.100.2:1337/socketio/?EIO=4&transport=polling
+skyler.knecht@debian~# python3 examples/client.py http://172.16.100.2:1337
+[+] Successfully connected to http://172.16.100.2:1337/socketio/?EIO=4&transport=polling
 ```
 
 ```
-skyler.knecht@debian~# python3 examples/client.py wss://172.16.100.2:1337
-[+] Successfully connected to wss://172.16.100.2:1337/socketio/?EIO=4&transport=websocket
+skyler.knecht@debian~# python3 examples/client.py ws://172.16.100.2:1337
+[+] Successfully connected to ws://172.16.100.2:1337/socketio/?EIO=4&transport=websocket
 ```
 
 ### Messenger Client Arguments
