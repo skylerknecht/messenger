@@ -17,7 +17,7 @@ skyler.knecht@debian~# python3 messenger.py
 | |\/| |/ _ \/ __/ __|/ _ \ '_ \ / _` |/ _ \ '__|
 | |  | |  __/\__ \__ \  __/ | | | (_| |  __/ |   
 |_|  |_|\___||___/___/\___|_| |_|\__, |\___|_|   
-   by Skyler Knecht              |___/ v0.0.0
+by Skyler Knecht and Kevin Clark |___/ v0.0.0
 
 Welcome to the Messenger CLI, type exit or socks.
 Messenger Server is running on wss://172.16.100.2:1337/
