@@ -99,6 +99,7 @@ class WebSocketMessengerClient(MessengerClient):
         async with aiohttp.ClientSession() as session:
             async with session.ws_connect(self.uri, ssl=self.ssl_context) as ws:
                 self.ws = ws
+                print(f'[+] Successfully connected to {self.uri}')
                 async for msg in ws:
                     msg = msg.json()
                     identifier = msg.get('identifier', None)
@@ -161,6 +162,7 @@ class HTTPMessengerClient(MessengerClient):
             f'{self.socks_server_id}:',
             bytes([random.randint(100, 252), random.randint(100, 252), random.randint(100, 252)])
         )
+        print(f'[+] Successfully connected to {self.uri}')
         while True:
             await asyncio.sleep(0.1)
             downstream_data = []
@@ -223,29 +225,63 @@ class HTTPMessengerClient(MessengerClient):
         del self.clients[identifier]
 
 
-async def main(args):
-    # try:
-    #     messenger_client = WebSocketMessengerClient(f'{args.uri}{WS_ROUTE}', BUFFER_SIZE)
-    #     await messenger_client.connect()
-    #     sys.exit(0)
-    # except Exception as e:
-    #     print(f'Failed to connect to MessengerServer over WS:\n {traceback.format_exc()}')
-
+async def try_http(url):
     try:
-        messenger_client = HTTPMessengerClient(f'{args.uri}{HTTP_ROUTE}', BUFFER_SIZE)
+        messenger_client = HTTPMessengerClient(f'{url}{HTTP_ROUTE}', BUFFER_SIZE)
         await messenger_client.connect()
-        sys.exit(0)
+        return True
     except Exception as e:
-        print(f'Failed to connect to MessengerServer over HTTP:\n {traceback.format_exc()}')
+        print(f'[!] Failed to connect to {url}')
+        return False
+
+
+async def try_ws(url):
+    try:
+        messenger_client = WebSocketMessengerClient(f'{url}{WS_ROUTE}', BUFFER_SIZE)
+        await messenger_client.connect()
+        return True
+    except Exception as e:
+        print(f'[!] Failed to connect to {url}')
+        return False
+
+
+async def main(args):
+    uri = args.uri.strip('/')
+    attempts = []
+
+    if "://" in uri:
+        scheme, uri = uri.split("://", 1)
+        attempts = scheme.split('+')
+    else:
+        attempts = ["ws", "http", "wss", "https"]
+
+    for attempt in attempts:
+        attempt_url = f"{attempt}://{uri}/"
+        if "http" in attempt:
+            success = await try_http(attempt_url)
+            if success:
+                sys.exit(0)
+        elif "ws" in attempt:
+            success = await try_ws(attempt_url)
+            if success:
+                sys.exit(0)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('uri', type=str)
     args = parser.parse_args()
-    url = urllib.parse.urlparse(args.uri)
-    args.uri = f'{url.scheme}://{url.netloc}/'
     try:
         asyncio.run(main(args))
     except KeyboardInterrupt:
         print('\rMessenger Client stopped.')
+
+
+
+
+
+
+
+
+
+
