@@ -56,7 +56,7 @@ skyler.knecht@debian~# messenger-client http://172.16.100.2:1337
 ```
 
 ```
-skyler.knecht@debian~# messenger-client examples/client.py ws://172.16.100.2:1337
+skyler.knecht@debian~# messenger-client ws://172.16.100.2:1337
 [+] Successfully connected to ws://172.16.100.2:1337/socketio/?EIO=4&transport=websocket
 ```
 
