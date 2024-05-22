@@ -13,14 +13,14 @@ Messenger comes with a setup.py configured for pipx. Alternativelly, using `pip`
 ```
 skyler.knecht@debian~# pipx install git+https://github.com/skylerknecht/messenger 
 skyler.knecht@debian~# pipx ensurepath # Make sure pipx is added to your path
-skyler.knecht@debian~# messenger
+skyler.knecht@debian~# messenger-client
 
  __  __                                    
 |  \/  | ___  ___ ___  ___ _ __   __ _  ___ _ __ 
 | |\/| |/ _ \/ __/ __|/ _ \ '_ \ / _` |/ _ \ '__|
 | |  | |  __/\__ \__ \  __/ | | | (_| |  __/ |   
 |_|  |_|\___||___/___/\___|_| |_|\__, |\___|_|   
-by Skyler Knecht and Kevin Clark |___/ v0.1.0
+by Skyler Knecht and Kevin Clark |___/ v0.1.1
 
 Welcome to the Messenger CLI, type exit or socks.
 Messenger Server is running on http+ws://127.0.0.1:1337/
@@ -31,15 +31,7 @@ Messenger Server is running on http+ws://127.0.0.1:1337/
 The following example demonstrates the basic usage of running a Messenger Server and then connecting two Messenger Clients to the server. 
 
 ```
-skyler.knecht@debian~# messenger
-
- __  __                                    
-|  \/  | ___  ___ ___  ___ _ __   __ _  ___ _ __ 
-| |\/| |/ _ \/ __/ __|/ _ \ '_ \ / _` |/ _ \ '__|
-| |  | |  __/\__ \__ \  __/ | | | (_| |  __/ |   
-|_|  |_|\___||___/___/\___|_| |_|\__, |\___|_|   
-by Skyler Knecht and Kevin Clark |___/ v0.1.0
-
+skyler.knecht@debian~# messenger -q 
 Welcome to the Messenger CLI, type exit or socks.
 Messenger Server is running on http+ws://172.16.100.2:1337/
 (messenger)~#

@@ -7,7 +7,6 @@ from messenger import server
 from messenger import BANNER
 
 async def main(banner, cli, server):
-    print(banner)
     parser = argparse.ArgumentParser()
     parser.add_argument("--address", type=str, default="127.0.0.1",
                         help="IP address the server should listen on. Default is '127.0.0.1'.")
@@ -19,7 +18,10 @@ async def main(banner, cli, server):
     parser.add_argument("--buffer_size", type=int, default=4096,
                         help="Size of the packet buffer in bytes. Default is 4096. This should match the client's "
                              "buffer_size.")
+    parser.add_argument("-q", "--quiet", action="store_true", help="Suppress the banner.")
     args = parser.parse_args()
+    if not args.quiet:
+        print(banner)
     messenger_server = server.MessengerServer(address=args.address, port=args.port, ssl=args.ssl)
     asyncio.create_task(messenger_server.start())
     messenger_cli = cli.MessengerCLI(messenger_server)
