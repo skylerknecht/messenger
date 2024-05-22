@@ -12,8 +12,12 @@ Messenger comes with a setup.py configured for pipx. Alternativelly, using `pip`
 
 ```
 skyler.knecht@debian~# pipx install git+https://github.com/skylerknecht/messenger 
+installed package messenger 0.1.1, installed using Python 3.12.3
+These apps are now globally available
+    - messenger-client
+    - messenger-server
 skyler.knecht@debian~# pipx ensurepath # Make sure pipx is added to your path
-skyler.knecht@debian~# messenger-client
+skyler.knecht@debian~# messenger-server
 
  __  __                                    
 |  \/  | ___  ___ ___  ___ _ __   __ _  ___ _ __ 
@@ -47,12 +51,12 @@ transport   port   client(s) listening
 ```
 
 ```
-skyler.knecht@debian~# python3 examples/client.py http://172.16.100.2:1337
+skyler.knecht@debian~# messenger-client http://172.16.100.2:1337
 [+] Successfully connected to http://172.16.100.2:1337/socketio/?EIO=4&transport=polling
 ```
 
 ```
-skyler.knecht@debian~# python3 examples/client.py ws://172.16.100.2:1337
+skyler.knecht@debian~# messenger-client examples/client.py ws://172.16.100.2:1337
 [+] Successfully connected to ws://172.16.100.2:1337/socketio/?EIO=4&transport=websocket
 ```
 
@@ -63,7 +67,7 @@ is listening on. By default, if no protocol is provided Messenger Client will at
 attempts will be made. 
 
 ```
-skyler.knecht@debian~# python3 examples/client.py 172.16.100.2:1337
+skyler.knecht@debian~# messenger-client 172.16.100.2:1337
 [!] Failed to connect to ws://172.16.100.2:1337/
 [!] Failed to connect to http://172.16.100.2:1337/
 [+] Successfully connected to wss://172.16.100.2:1337/socketio/?EIO=4&transport=websocket
@@ -72,7 +76,7 @@ skyler.knecht@debian~# python3 examples/client.py 172.16.100.2:1337
 Alternatively, the operator can specify one or more protocols, delimited by `+`, to make connection attempts with. 
 
 ```
-skyler.knecht@debian~# python3 examples/client.py ws+http+http+http+wss+https://172.16.100.2:1337
+skyler.knecht@debian~# messenger-client ws+http+http+http+wss+https://172.16.100.2:1337
 [!] Failed to connect to ws://172.16.100.2:1337/
 [!] Failed to connect to http://172.16.100.2:1337/
 [!] Failed to connect to http://172.16.100.2:1337/
