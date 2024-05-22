@@ -35,7 +35,7 @@ Messenger Server is running on http+ws://127.0.0.1:1337/
 The following example demonstrates the basic usage of running a Messenger Server and then connecting two Messenger Clients to the server. 
 
 ```
-skyler.knecht@debian~# messenger -q 
+skyler.knecht@debian~# messenger-server --quiet
 Welcome to the Messenger CLI, type exit or socks.
 Messenger Server is running on http+ws://172.16.100.2:1337/
 (messenger)~#
