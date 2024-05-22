@@ -15,7 +15,7 @@ try:
     with open(os.path.join(base_directory, 'README.md')) as file_h:
         long_description = file_h.read()
 except OSError:
-    sys.stderr.write('README.md is unavailable, can not generate the long description\n')
+    sys.stderr.write('README.md is unavailable, cannot generate the long description\n')
     long_description = None
 
 with open(os.path.join(base_directory, 'messenger', '__init__.py')) as file_h:
@@ -50,9 +50,5 @@ setup(
         'Operating System :: OS Independent',
     ],
     python_requires='>=3.6',
-    entry_points={
-        'console_scripts': [
-            'messenger=messenger.__main__:run',
-        ],
-    },
+    scripts=['messenger-server', 'messenger-client']
 )

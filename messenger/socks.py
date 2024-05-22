@@ -51,6 +51,9 @@ class Client:
         :return: bool
         """
         version, number_of_methods = await self.reader.read(2)
+        if version != 5:
+            output.display(f'SOCKS{str(version)} is not supported')
+            return False
         methods = [ord(await self.reader.read(1)) for _ in range(number_of_methods)]
         if 0 not in methods:
             disconnect_reply = bytes([
