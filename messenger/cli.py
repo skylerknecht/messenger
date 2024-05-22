@@ -1,7 +1,4 @@
 import aioconsole
-import atexit
-import os
-import readline
 import sys
 
 
@@ -48,14 +45,10 @@ class MessengerCLI:
                 socks_servers = []
                 for socks_server in self.messenger_server.socks_servers:
                     transport = 'HTTP' if socks_server.transport == 'http' else 'WS'
-                    listening = True if socks_server.socks_server else False
                     socks_servers.append({
                         'transport': transport,
                         'port': socks_server.port,
                         'client(s)': len(socks_server.clients),
-                        'listening': listening
+                        'listening': not socks_server.is_stopped()
                     })
                 print(self.create_table('SOCKS SERVERS', ['transport', 'port', 'client(s)', 'listening'], socks_servers))
-
-
-
