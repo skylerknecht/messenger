@@ -13,10 +13,16 @@ class MessengerServer:
         self.ssl = ssl
         self.buffer_size = buffer_size
         self.app = web.Application()
+        self.app.on_response_prepare.append(self.remove_server_header)
         self.app.router.add_routes([
             web.route('*', '/{tail:.*}', self.redirect_handler)
         ])
         self.socks_servers = []
+
+    @staticmethod
+    async def remove_server_header(request, response):
+        if 'Server' in response.headers:
+            del response.headers['Server']
 
     async def start(self):
         runner = web.AppRunner(self.app)
