@@ -1,5 +1,6 @@
 import aioconsole
 import sys
+from . import output
 
 
 class MessengerCLI:
@@ -38,10 +39,21 @@ class MessengerCLI:
             user_input = await aioconsole.ainput(self.PROMPT)
             if not user_input.strip():
                 continue
-            user_input = user_input.strip()
-            if user_input == 'exit':
+            user_input = user_input.split(' ')
+            command = user_input[0]
+            args = user_input[1:]
+            if command == 'exit':
                 sys.exit(0)
-            if user_input == 'socks':
+            if command == 'debug':
+                if len(args) != 1:
+                    print('Usage: messenger debug [level]')
+                    continue
+                if isinstance(args[0], int):
+                    print('Level must be an integer')
+                    continue
+                output.current_status_level = int(args[0])
+                output.display('Set current status level to {}'.format(output.current_status_level), 'information')
+            if command == 'socks':
                 socks_servers = []
                 for socks_server in self.messenger_server.socks_servers:
                     transport = 'HTTP' if socks_server.transport == 'http' else 'WS'

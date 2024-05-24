@@ -137,6 +137,12 @@ class Client:
             'port': self.remote_port
         }
 
+        output.display(
+            f'Connecting to {self.remote_address}:{self.remote_port}',
+            status='debug',
+            status_level=1
+        )
+
         if self.transport == 'http':
             await self.upstream.put(json.dumps(socks_connect_msg))
         else:
@@ -149,6 +155,11 @@ class Client:
                 data = await self.reader.read(self.buffer_size)
                 if not data:
                     break
+                output.display(
+                    f'Sending {len(data)} byte(s) to {self.remote_address}:{self.remote_port}',
+                    status='debug',
+                    status_level=2
+                )
                 if self.transport == 'http':
                     await self.upstream.put(json.dumps(self.generate_upstream_message(data)))
                 else:
@@ -171,7 +182,6 @@ class Client:
 
 
 class SocksServer:
-
     PORT_RANGE = 9000, 9999
 
     def __init__(self, transport='http', buffer_size=4096):
@@ -226,7 +236,7 @@ class SocksServer:
                 self.port = port
         if self.transport == 'http': asyncio.create_task(self.expiration())
         self.name = f"Socks Server ({'HTTP' if self.transport == 'http' else 'WS'}) on port {self.port}"
-        output.display(f"{self.name} has started")
+        output.display(f"{self.name} has started", status='success')
 
     async def stop(self):
         if self.socks_server:
@@ -248,4 +258,9 @@ class SocksServer:
                 if msg == b'close':
                     client.writer.close()
                 if not client.writer.transport.is_closing():
+                    output.display(
+                        f'Receiving {len(msg)} byte(s) from {client.remote_address}:{client.remote_port}',
+                        status='debug',
+                        status_level=2
+                    )
                     client.writer.write(msg)

@@ -12,7 +12,7 @@ Messenger comes with a setup.py configured for pipx. Alternativelly, using `pip`
 
 ```
 skyler.knecht@debian~# pipx install git+https://github.com/skylerknecht/messenger 
-installed package messenger 0.1.1, installed using Python 3.12.3
+installed package messenger 0.1.2, installed using Python 3.12.3
 These apps are now globally available
     - messenger-client
     - messenger-server
@@ -103,6 +103,43 @@ remote_dns_subnet 224
 tcp_read_time_out 15000 #Defaults to 150,000
 tcp_connect_time_out 10000
 socks5 127.0.0.1 9050
+```
+
+### Debugging
+
+To identify what may be causing issues Messenger Server supports a debug command. 
+The debug command will alter that status level permitting Messenger Server to verbose status messages. 
+
+
+|       Status Level        |                               Description                              |
+|:-------------------------:|:----------------------------------------------------------------------:|
+|             0             |                 Only show the standard status messages.                |
+|             1             |                      Show all connection attempts.                     |   
+|             2             | Show all level 1 status messages and all upstream and downstream data. |
+
+There are two primary scenarios that will occur and the operator should be able to determine if it's a server or client
+issue.
+
+In the scenario you're not receiving any connection attempts, level 1 status messages, the SOCKS5 server is either not 
+listening, you're using a version of SOCKS that's not supported, or you cannot connect to the SOCKS5 port. 
+
+In the scenario you're receiving connection attempts with no level 2 messages then the client either did not receive 
+the connection attempt or did not have the ability to respond. 
+
+Below is an example of a successful connection attempt and upstream/downstream messages.
+
+```
+skyler.knecht@debian~# messegner-server -q
+Welcome to the Messenger CLI, type exit or socks.
+[*] Messenger Server is running on http+ws://172.16.100.2:1337/
+[+] Socks Server (WS) on port 9707 has started
+(messenger)~# debug 2
+[*] Set current status level to 2
+[DBG]-1 Connecting to 172.16.110.201:3389
+[DBG]-2 Receiving 10 byte(s) from 172.16.110.201:3389
+[DBG]-2 Sending 51 byte(s) to 172.16.110.201:3389
+[DBG]-2 Receiving 19 byte(s) from 172.16.110.201:3389
+[DBG]-2 Sending 322 byte(s) to 172.16.110.201:3389
 ```
 
 ### Future Development
