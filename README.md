@@ -24,7 +24,7 @@ skyler.knecht@debian~# messenger-server
 | |\/| |/ _ \/ __/ __|/ _ \ '_ \ / _` |/ _ \ '__|
 | |  | |  __/\__ \__ \  __/ | | | (_| |  __/ |   
 |_|  |_|\___||___/___/\___|_| |_|\__, |\___|_|   
-by Skyler Knecht and Kevin Clark |___/ v0.1.1
+by Skyler Knecht and Kevin Clark |___/ v0.1.2
 
 Welcome to the Messenger CLI, type exit or socks.
 Messenger Server is running on http+ws://127.0.0.1:1337/
