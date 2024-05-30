@@ -8,7 +8,7 @@ must be used since the environment’s proxy does not support WebSockets.
 
 ### Installation
 
-Messenger comes with a setup.py configured for pipx. Alternativelly, using `pip` to install the requirements.txt file will also work.
+Messenger comes with a setup.py configured for pipx. Alternatively, using `pip` to install the requirements.txt file will also work.
 
 ```
 skyler.knecht@debian~# pipx install git+https://github.com/skylerknecht/messenger 
@@ -86,7 +86,7 @@ skyler.knecht@debian~# messenger-client ws+http+http+http+wss+https://172.16.100
 
 ### Messenger Client (C#)
 
-The Messenger Client exists in Python and C#. The C# version lives on a separate GitHub [repo](https://github.com/skylerknecht/messenger-client). 
+The Messenger Client exists in Python and C#. The C# version lives on a separate [GitHub repository](https://github.com/skylerknecht/messenger-client). 
 All the same arguments as discussed above apply. The client is written in .NET Framework and uses dnMerge to statically compile all it's depencides.  
 
 ### Proxychains and Network Scanning 
@@ -108,17 +108,16 @@ socks5 127.0.0.1 9050
 ### Debugging
 
 To identify what may be causing issues Messenger Server supports a debug command. 
-The debug command will alter that status level permitting Messenger Server to verbose status messages. 
+The debug command will alter that status level permitting Messenger Server to output verbose status messages. 
 
 
-|       Status Level        |                               Description                              |
-|:-------------------------:|:----------------------------------------------------------------------:|
-|             0             |                 Only show the standard status messages.                |
-|             1             |                      Show all connection attempts.                     |   
-|             2             | Show all level 1 status messages and all upstream and downstream data. |
+|       Status Level        |              Description               |
+|:-------------------------:|:--------------------------------------:|
+|             0             | Only show the standard status messages |
+|             1             |          Connection attempts           |   
+|             2             |     Upstream and Downstream data.      |
 
-There are two primary scenarios that will occur and the operator should be able to determine if it's a server or client
-issue.
+The operator should be able to determine if it's a client or server issue with the following two scenarios.
 
 In the scenario you're not receiving any connection attempts, level 1 status messages, the SOCKS5 server is either not 
 listening, you're using a version of SOCKS that's not supported, or you cannot connect to the SOCKS5 port. 
