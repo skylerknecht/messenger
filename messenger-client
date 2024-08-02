@@ -20,7 +20,7 @@ except ImportError:
 BUFFER_SIZE = 4096
 HTTP_ROUTE = 'socketio/?EIO=4&transport=polling'
 WS_ROUTE = 'socketio/?EIO=4&transport=websocket'
-
+USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:128.0) Gecko/20100101 Firefox/128.0'
 
 class Client:
 
@@ -40,6 +40,10 @@ class MessengerClient:
         self.ssl_context = ssl.create_default_context()
         self.ssl_context.check_hostname = False
         self.ssl_context.verify_mode = ssl.CERT_NONE
+        # Change User Agent
+        self.headers = {'User-Agent': USER_AGENT}
+        self.req = request.Request(self.uri, headers=self.headers)
+
 
     @staticmethod
     def bytes_to_base64(data) -> str:
@@ -97,7 +101,7 @@ class WebSocketMessengerClient(MessengerClient):
         self.ws = None
 
     async def connect(self):
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(headers=self.headers) as session:
             async with session.ws_connect(self.uri, ssl=self.ssl_context) as ws:
                 self.ws = ws
                 print(f'[+] Successfully connected to {self.uri}')
@@ -157,7 +161,7 @@ class HTTPMessengerClient(MessengerClient):
         self.downstream = asyncio.Queue()
 
     async def connect(self):
-        with request.urlopen(self.uri, context=self.ssl_context) as response:
+        with request.urlopen(self.req, context=self.ssl_context) as response:
             self.socks_server_id = response.read().decode('utf-8')
         check_in = self.generate_downstream_msg(
             f'{self.socks_server_id}:',
@@ -171,7 +175,7 @@ class HTTPMessengerClient(MessengerClient):
                 downstream_data.append(await self.downstream.get())
             if not downstream_data:
                 downstream_data.append(check_in)
-            retrieve_data = request.Request(self.uri, data=json.dumps(downstream_data).encode('utf-8'), method='POST')
+            retrieve_data = request.Request(self.uri, headers=self.headers, data=json.dumps(downstream_data).encode('utf-8'), method='POST')
             retrieve_data.add_header('Content-Type', 'application/json')
             with request.urlopen(retrieve_data, context=self.ssl_context) as response:
                 messages = json.loads(response.read().decode('utf-8'))
