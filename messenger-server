@@ -1,10 +1,24 @@
 #!/usr/bin/env python3
 import asyncio
 import argparse
+import random
+import string
+import hashlib
 
 from messenger import cli
 from messenger import server
 from messenger import BANNER
+
+def generate_key(min_len=10, max_len=20):
+    length = random.randint(min_len, max_len)  # Random length between min_length and max_length
+    letters = string.ascii_letters   # Contains both uppercase and lowercase letters
+    return ''.join(random.choice(letters) for _ in range(length))
+
+def hash(hash_input: str) -> bytes:
+    hasher = hashlib.sha256()
+    hash_input = hash_input.encode('utf-8')
+    hasher.update(hash_input)
+    return hasher.digest()
 
 async def main(banner, cli, server):
     parser = argparse.ArgumentParser()
@@ -18,11 +32,14 @@ async def main(banner, cli, server):
     parser.add_argument("--buffer_size", type=int, default=4096,
                         help="Size of the packet buffer in bytes. Default is 4096. This should match the client's "
                              "buffer_size.")
+    parser.add_argument("-e", "--encryption_key", type=str, default=generate_key(),
+                        help="The encryption key to use for AES encryption.")
     parser.add_argument("-q", "--quiet", action="store_true", help="Suppress the banner.")
     args = parser.parse_args()
     if not args.quiet:
         print(banner)
-    messenger_server = server.MessengerServer(address=args.address, port=args.port, ssl=args.ssl)
+    print(f"-- The AES encryption key is {args.encryption_key}")
+    messenger_server = server.MessengerServer(address=args.address, port=args.port, ssl=args.ssl, encryption_key=hash(args.encryption_key))
     asyncio.create_task(messenger_server.start())
     messenger_cli = cli.MessengerCLI(messenger_server)
     await messenger_cli.run()

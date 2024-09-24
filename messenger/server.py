@@ -5,14 +5,16 @@ import time
 from aiohttp import web
 from messenger.socks import SocksServer
 from messenger import output
+from messenger import aes
 
 
 class MessengerServer:
-    def __init__(self, address: str = '127.0.0.1', port: int = 1337, ssl: tuple = None, buffer_size: int = 4096):
+    def __init__(self, address: str = '127.0.0.1', port: int = 1337, ssl: tuple = None, buffer_size: int = 4096, encryption_key: bytes = b''):
         self.address = address
         self.port = port
         self.ssl = ssl
         self.buffer_size = buffer_size
+        self.encryption_key = encryption_key
         self.app = web.Application()
         self.app.on_response_prepare.append(self.remove_server_header)
         self.app.router.add_routes([
@@ -45,7 +47,9 @@ class MessengerServer:
         return web.Response(status=200, text=str(id(socks_server)))
 
     async def http_post_handler(self, request):
-        messages = await request.json()
+        ciphertext = await request.read()
+        request = aes.decrypt(key=self.encryption_key, ciphertext=ciphertext)
+        messages = json.loads(request.decode('utf-8'))
         upstream_data = []
         for msg in messages:
             identifier = msg.get('identifier', None)
@@ -69,7 +73,7 @@ class MessengerServer:
             if not client_identifier:
                 continue
             current_socks_server.send_downstream(client_identifier, msg)
-        return web.Response(status=200, text=json.dumps(upstream_data))
+        return web.Response(status=200, body=aes.encrypt(self.encryption_key, json.dumps(upstream_data).encode('utf-8')))
 
     async def websocket_handler(self, request):
         ws = web.WebSocketResponse()
@@ -79,7 +83,8 @@ class MessengerServer:
         await socks_server.start()
 
         async for msg in ws:
-            msg = json.loads(msg.data)
+            request = aes.decrypt(key=self.encryption_key, ciphertext=msg.data)
+            msg = json.loads(request)
             identifier = msg.get('identifier', None)
             msg = msg.get('msg', None)
             if not identifier:
