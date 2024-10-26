@@ -7,6 +7,8 @@ import uuid
 
 from messenger import convert
 from messenger import output
+from messenger import aes
+
 
 
 class Client:
@@ -20,11 +22,12 @@ class Client:
     to the client.
     """
 
-    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, transport, buffer_size: int):
+    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, transport, buffer_size: int, key):
         self.reader = reader
         self.writer = writer
         self.transport = transport
         self.buffer_size = buffer_size
+        self.key = key
         self.identifier = str(uuid.uuid4().hex)
         self.upstream = asyncio.Queue()
         self.address_type = None
@@ -146,7 +149,7 @@ class Client:
         if self.transport == 'http':
             await self.upstream.put(json.dumps(socks_connect_msg))
         else:
-            await self.transport.send_json(socks_connect_msg)
+            await self.transport.send_bytes(aes.encrypt(self.key, json.dumps(socks_connect_msg).encode('utf-8')))
         await self.stream()
 
     async def stream(self):
@@ -163,7 +166,7 @@ class Client:
                 if self.transport == 'http':
                     await self.upstream.put(json.dumps(self.generate_upstream_message(data)))
                 else:
-                    await self.transport.send_json(self.generate_upstream_message(data))
+                    await self.transport.send_bytes(aes.encrypt(self.key, self.generate_upstream_message(data).encode('utf-8')))
             except (EOFError, ConnectionResetError):
                 #ToDo add debug statement
                 # output.display(f"Client {self.identifier} disconnected unexpectedly")
@@ -184,17 +187,18 @@ class Client:
 class SocksServer:
     PORT_RANGE = 9000, 9999
 
-    def __init__(self, transport='http', buffer_size=4096):
+    def __init__(self, key, transport='http', buffer_size=4096):
         self.host, self.port = '127.0.0.1', random.randint(*self.PORT_RANGE)
         self.transport = transport
         self.buffer_size = buffer_size
+        self.key = key
         self.clients = []
         self.last_check_in = time.time()
         self.socks_server = None
         self.name = 'Socks Server'
 
     async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-        client = Client(reader, writer, self.transport, self.buffer_size)
+        client = Client(reader, writer, self.transport, self.buffer_size, self.key)
         self.clients.append(client)
         await client.setup()
         self.clients.remove(client)

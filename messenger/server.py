@@ -78,7 +78,7 @@ class MessengerServer:
     async def websocket_handler(self, request):
         ws = web.WebSocketResponse()
         await ws.prepare(request)
-        socks_server = SocksServer(transport=ws, buffer_size=self.buffer_size)
+        socks_server = SocksServer(self.encryption_key, transport=ws, buffer_size=self.buffer_size)
         self.socks_servers.append(socks_server)
         await socks_server.start()
 

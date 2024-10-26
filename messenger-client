@@ -402,10 +402,12 @@ class WebSocketMessengerClient(MessengerClient):
             reader, writer = await asyncio.open_connection(address, port)
             self.clients[msg.get('identifier')] = Client(reader, writer)
             bind_addr, bind_port = writer.get_extra_info('sockname')
-            await self.ws.send_json(self.socks_connect_results(identifier, 0, atype, bind_addr, bind_port))
+            msg = json.dumps(self.socks_connect_results(identifier, 0, atype, bind_addr, bind_port))
+            await self.ws.send_bytes(encrypt(self.key, msg.encode('utf-8')))
             asyncio.create_task(self.stream(identifier))
         except Exception as e:  #ToDo add more exceptions and update the rep.
-            await self.ws.send_json(self.socks_connect_results(identifier, 1, atype, None, None))
+            msg = json.dumps(self.socks_connect_results(identifier, 1, atype, None, None))
+            await self.ws.send_bytes(encrypt(self.key,msg.encode('utf-8')))
 
     async def stream(self, identifier):
         client = self.clients[identifier]
@@ -414,14 +416,14 @@ class WebSocketMessengerClient(MessengerClient):
                 msg = await client.reader.read(self.buffer_size)
                 if not msg:
                     break
-                downstream_msg = self.generate_downstream_msg(identifier, msg)
-                await self.ws.send_json(downstream_msg)
+                downstream_msg = json.dumps(self.generate_downstream_msg(identifier, msg))
+                await self.ws.send_bytes(encrypt(self.key, downstream_msg.encode('utf-8')))
             except (EOFError, ConnectionResetError):
                 # ToDo add debug statement
                 # output.display(f"Client {self.identifier} disconnected unexpectedly")
                 break
-        downstream_msg = self.generate_downstream_msg(identifier, b'')
-        await self.ws.send_json(downstream_msg)
+        downstream_msg = json.dumps(self.generate_downstream_msg(identifier, b''))
+        await self.ws.send_bytes(encrypt(self.key, downstream_msg.encode('utf-8')))
         del self.clients[identifier]
 
 
@@ -509,18 +511,20 @@ async def try_http(url, key):
         await messenger_client.connect()
         return True
     except Exception as e:
+        print(e)
         print(f'[!] Failed to connect to {url}')
         return False
 
 
 async def try_ws(url, key):
-    try:
-        messenger_client = WebSocketMessengerClient(f'{url}{WS_ROUTE}', BUFFER_SIZE, key)
-        await messenger_client.connect()
-        return True
-    except Exception as e:
-        print(f'[!] Failed to connect to {url}')
-        return False
+    # try:
+    messenger_client = WebSocketMessengerClient(f'{url}{WS_ROUTE}', BUFFER_SIZE, key)
+    await messenger_client.connect()
+    return True
+    # except Exception as e:
+    #     print(e)
+    #     print(f'[!] Failed to connect to {url}')
+    #     return False
 
 
 async def main(args):
