@@ -166,7 +166,7 @@ class Client:
                 if self.transport == 'http':
                     await self.upstream.put(json.dumps(self.generate_upstream_message(data)))
                 else:
-                    await self.transport.send_bytes(aes.encrypt(self.key, self.generate_upstream_message(data).encode('utf-8')))
+                    await self.transport.send_bytes(aes.encrypt(self.key, json.dumps(self.generate_upstream_message(data)).encode('utf-8')))
             except (EOFError, ConnectionResetError):
                 #ToDo add debug statement
                 # output.display(f"Client {self.identifier} disconnected unexpectedly")

@@ -41,7 +41,7 @@ class MessengerServer:
         output.display(f"Messenger Server is running on http{'s' if self.ssl else ''}+ws{'s' if self.ssl else ''}://{self.address}:{self.port}/")
 
     async def http_get_handler(self, request):
-        socks_server = SocksServer(buffer_size=self.buffer_size)
+        socks_server = SocksServer(self.encryption_key, buffer_size=self.buffer_size)
         self.socks_servers.append(socks_server)
         await socks_server.start()
         return web.Response(status=200, text=str(id(socks_server)))

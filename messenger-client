@@ -517,14 +517,13 @@ async def try_http(url, key):
 
 
 async def try_ws(url, key):
-    # try:
-    messenger_client = WebSocketMessengerClient(f'{url}{WS_ROUTE}', BUFFER_SIZE, key)
-    await messenger_client.connect()
-    return True
-    # except Exception as e:
-    #     print(e)
-    #     print(f'[!] Failed to connect to {url}')
-    #     return False
+    try:
+        messenger_client = WebSocketMessengerClient(f'{url}{WS_ROUTE}', BUFFER_SIZE, key)
+        await messenger_client.connect()
+    except Exception as e:
+        print(e)
+        print(f'[!] Failed to connect to {url}')
+        return False
 
 
 async def main(args):
