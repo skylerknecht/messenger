@@ -2,11 +2,11 @@
 import asyncio
 import argparse
 
-from messenger import cli
-from messenger import server
+from messenger.manager import Manager
 from messenger import BANNER
 
-async def main(banner, cli, server):
+
+async def main(banner, Manager):
     parser = argparse.ArgumentParser()
     parser.add_argument("--address", type=str, default="127.0.0.1",
                         help="IP address the server should listen on. Default is '127.0.0.1'.")
@@ -15,20 +15,15 @@ async def main(banner, cli, server):
     parser.add_argument("--ssl", nargs=2, metavar=('CERT', 'KEY'), default=None,
                         help="SSL certificate and key files. Expect two strings: path to the certificate and path to "
                              "the key.")
-    parser.add_argument("--buffer_size", type=int, default=4096,
-                        help="Size of the packet buffer in bytes. Default is 4096. This should match the client's "
-                             "buffer_size.")
     parser.add_argument("-q", "--quiet", action="store_true", help="Suppress the banner.")
     args = parser.parse_args()
     if not args.quiet:
         print(banner)
-    messenger_server = server.MessengerServer(address=args.address, port=args.port, ssl=args.ssl)
-    asyncio.create_task(messenger_server.start())
-    messenger_cli = cli.MessengerCLI(messenger_server)
-    await messenger_cli.run()
+    messenger_manager = Manager(args.address, args.port, args.ssl)
+    await messenger_manager.start_command_line_interface()
 
 if __name__ == '__main__':
     try:
-        asyncio.run(main(BANNER, cli, server))
+        asyncio.run(main(BANNER, Manager))
     except KeyboardInterrupt:
         print('\rMessenger Server stopped.')

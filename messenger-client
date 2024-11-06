@@ -1,258 +1,276 @@
 #!/usr/bin/env python3
-import argparse
+import aiohttp
 import asyncio
-import base64
-import json
-import random
-import socket
+import argparse
 import ssl
 import sys
-import urllib
-import traceback
 
+from messenger.message import MessageParser
+from messenger.message import MessageBuilder
+
+from abc import ABC, abstractmethod
 from urllib import request
+from collections import namedtuple
 
-try:
-    import aiohttp
-except ImportError:
-    print('Failed to import aiohttp module.')
+ForwarderClient = namedtuple('ForwarderClient', 'reader writer')
 
-BUFFER_SIZE = 4096
 HTTP_ROUTE = 'socketio/?EIO=4&transport=polling'
 WS_ROUTE = 'socketio/?EIO=4&transport=websocket'
 USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:128.0) Gecko/20100101 Firefox/128.0'
 
-class Client:
 
-    def __init__(self, reader, writer):
-        self.reader = reader
-        self.writer = writer
+class MessengerClient(ABC):
+    def __init__(self):
+        self.forwarder_clients = {}
 
-
-class MessengerClient:
-    NAME = 'MessengerClient'
-
-    def __init__(self, uri, buffer_size):
-        self.uri = uri
-        self.buffer_size = buffer_size
-        self.clients = {}
         # Accept Self Signed SSL Certs
         self.ssl_context = ssl.create_default_context()
         self.ssl_context.check_hostname = False
         self.ssl_context.verify_mode = ssl.CERT_NONE
         # Change User Agent
         self.headers = {'User-Agent': USER_AGENT}
-        self.req = request.Request(self.uri, headers=self.headers)
+
+    async def handle_initiate_forwarder_client_req(self, message):
+        try:
+            reader, writer = await asyncio.wait_for(
+                asyncio.open_connection(message['IP Address'], message['Port']),
+                timeout=5  # Timeout after 5 seconds
+            )
+            self.forwarder_clients[message['Forwarder Client ID']] = ForwarderClient(reader, writer)
+            bind_addr, bind_port = writer.get_extra_info('sockname')
+            downstream_message = MessageBuilder.initiate_forwarder_client_rep(message['Forwarder Client ID'],
+                                                                              bind_addr, bind_port, 0, 0)
+            asyncio.create_task(self.stream(message['Forwarder Client ID']))
+        except Exception:
+            downstream_message = MessageBuilder.initiate_forwarder_client_rep(message['Forwarder Client ID'], '', 0,
+                                                                              0, 1)
+        await self.send_downstream_message(downstream_message)
+
+    async def start_remote_port_forwards(self, remote_port_forwards):
+        for remote_port_forward in remote_port_forwards:
+            remote_forward = RemoteForwarder(self, remote_port_forward)
+            await remote_forward.start()
+
+    @abstractmethod
+    async def stream(self, message_id):
+        raise NotImplementedError
+
+    @abstractmethod
+    async def send_downstream_message(self, message_data):
+        raise NotImplementedError
 
 
-    @staticmethod
-    def bytes_to_base64(data) -> str:
-        """
-        Base64 encode a bytes object.
-        :param data: A python bytes object.
-        :return: A base64 encoded string
-        :rtype: str
-        """
-        return base64.b64encode(data).decode('utf-8')
 
-    @staticmethod
-    def base64_to_bytes(data) -> bytes:
-        """
-        Base64 encode a bytes object.
-        :param data: A base64 string.
-        :return: A bytes object.
-        :rtype: bytes
-        """
-        return base64.b64decode(data)
-
-    def connect(self):
-        return NotImplementedError(f'{self.NAME} does not implement stream')
-
-    def generate_downstream_msg(self, identifier, msg: bytes):
-        return {
-            'identifier': identifier,
-            'msg': self.bytes_to_base64(msg),
-        }
-
-    def socks_connect_results(self, identifier, rep, atype, bind_addr, bind_port):
-        return self.generate_downstream_msg(
-            identifier,
-            b''.join([
-                b'\x05',
-                int(rep).to_bytes(1, 'big'),
-                int(0).to_bytes(1, 'big'),
-                int(1).to_bytes(1, 'big'),
-                socket.inet_aton(bind_addr) if bind_addr else int(0).to_bytes(1, 'big'),
-                bind_port.to_bytes(2, 'big') if bind_port else int(0).to_bytes(1, 'big')
-            ])
-        )
-
-    async def socks_connect(self, identifier, msg):
-        return NotImplementedError(f'{self.NAME} does not implement socks_connect')
-
-    async def stream(self, identifier):
-        return NotImplementedError(f'{self.NAME} does not implement stream')
+"""
++-------------------------------+
+|       Web Socket Client       |     
++-------------------------------+
+"""
 
 
-class WebSocketMessengerClient(MessengerClient):
-
-    def __init__(self, uri, buffer_size):
-        super().__init__(uri, buffer_size)
+class WebSocketClient(MessengerClient):
+    def __init__(self, uri: str, remote_port_forwards: str):
+        super().__init__()
+        self.uri = uri
+        self.remote_port_forwards = remote_port_forwards
         self.ws = None
 
     async def connect(self):
+        await self.send_downstream_message(self.remote_port_forwards)
         async with aiohttp.ClientSession(headers=self.headers) as session:
             async with session.ws_connect(self.uri, ssl=self.ssl_context) as ws:
+                print("Connected to WebSocket server")
                 self.ws = ws
-                print(f'[+] Successfully connected to {self.uri}')
+                # Listen for incoming messages and parse them
                 async for msg in ws:
-                    msg = msg.json()
-                    identifier = msg.get('identifier', None)
-                    if not identifier:
-                        continue
-                    if identifier not in self.clients and msg.get('atype'):
-                        asyncio.create_task(self.socks_connect(identifier, msg))
-                        continue
-                    if not msg.get('msg'):
-                        continue
-                    msg = self.base64_to_bytes(msg.get('msg'))
-                    if msg == b'' and identifier in self.clients:
-                        self.clients[identifier].writer.close()
-                        continue
-                    if identifier in self.clients:
-                        self.clients[identifier].writer.write(msg)
-                        continue
+                    if msg.type == aiohttp.WSMsgType.BINARY:
+                        asyncio.create_task(self.handle_message(msg.data))
+                    elif msg.type == aiohttp.WSMsgType.CLOSED:
+                        print("Connection closed")
+                        break
+                    elif msg.type == aiohttp.WSMsgType.ERROR:
+                        print("Error received:", ws.exception())
+                        break
 
-    async def socks_connect(self, identifier, msg):
-        atype = msg.get('atype')
-        address = msg.get('address')
-        port = int(msg.get('port'))
-        try:
-            reader, writer = await asyncio.open_connection(address, port)
-            self.clients[msg.get('identifier')] = Client(reader, writer)
-            bind_addr, bind_port = writer.get_extra_info('sockname')
-            await self.ws.send_json(self.socks_connect_results(identifier, 0, atype, bind_addr, bind_port))
-            asyncio.create_task(self.stream(identifier))
-        except Exception as e:  #ToDo add more exceptions and update the rep.
-            await self.ws.send_json(self.socks_connect_results(identifier, 1, atype, None, None))
+    async def handle_message(self, data: bytes):
+        # Parse the header to understand the message type
+        header_info = MessageParser.header(data)
+        message_type = header_info['Message Type']
+        remaining_data = header_info['Value']
 
-    async def stream(self, identifier):
-        client = self.clients[identifier]
+        # Handle each message type based on protocol
+        if message_type == 0x01:  # Initiate Forwarder Client Request
+            message = MessageParser.initiate_forwarder_client_req(remaining_data)
+            await self.handle_initiate_forwarder_client_req(message)
+        elif message_type == 0x02:
+            message = MessageParser.initiate_forwarder_client_rep(remaining_data)
+            asyncio.create_task(self.stream(message['Forwarder Client ID']))
+        elif message_type == 0x03:
+            message = MessageParser.send_data(remaining_data)
+            forwarder_client = self.forwarder_clients[message['Forwarder Client ID']]
+            forwarder_client.writer.write(message['Data'])
+
+    async def send_downstream_message(self, downstream_message):
+        encrypted_downstream_message = downstream_message  # ToDo Update to Encrypted with AES
+        await self.ws.send_bytes(encrypted_downstream_message)
+
+    async def stream(self, forwarder_client_identifier):
+        forwarder_client = self.forwarder_clients[forwarder_client_identifier]
         while True:
             try:
-                msg = await client.reader.read(self.buffer_size)
+                msg = await forwarder_client.reader.read(4096)
                 if not msg:
                     break
-                downstream_msg = self.generate_downstream_msg(identifier, msg)
-                await self.ws.send_json(downstream_msg)
+                downstream_message = MessageBuilder.send_data(forwarder_client_identifier, msg)
+                await self.send_downstream_message(downstream_message)
             except (EOFError, ConnectionResetError):
                 # ToDo add debug statement
                 # output.display(f"Client {self.identifier} disconnected unexpectedly")
                 break
-        downstream_msg = self.generate_downstream_msg(identifier, b'')
-        await self.ws.send_json(downstream_msg)
-        del self.clients[identifier]
+        downstream_message = MessageBuilder.send_data(forwarder_client_identifier, b'')
+        await self.send_downstream_message(downstream_message)
+        del self.forwarder_clients[forwarder_client_identifier]
 
 
-class HTTPMessengerClient(MessengerClient):
-    def __init__(self, uri, buffer_size):
-        super().__init__(uri, buffer_size)
-        self.socks_server_id = None
-        self.downstream = asyncio.Queue()
+"""
++-------------------------------------+
+|       HTTP Messenger Client         |
++-------------------------------------+
+"""
+
+
+class HTTPClient(MessengerClient):
+
+    def __init__(self, uri, remote_port_forwards: str):
+        super().__init__()
+        self.uri = uri
+        self.remote_port_forwards = remote_port_forwards
+        self.messenger_id = None
+        self.downstream_messages = asyncio.Queue()
 
     async def connect(self):
-        with request.urlopen(self.req, context=self.ssl_context) as response:
-            self.socks_server_id = response.read().decode('utf-8')
-        check_in = self.generate_downstream_msg(
-            f'{self.socks_server_id}:',
-            bytes([random.randint(100, 252), random.randint(100, 252), random.randint(100, 252)])
-        )
+        await self.start_remote_port_forwards(self.remote_port_forwards)
+        with request.urlopen(request.Request(self.uri, headers=self.headers), context=self.ssl_context) as response:
+            self.messenger_id = response.read().decode('utf-8')
         print(f'[+] Successfully connected to {self.uri}')
         while True:
-            await asyncio.sleep(0.1)
-            downstream_data = []
-            while not self.downstream.empty() and len(downstream_data) < 10:
-                downstream_data.append(await self.downstream.get())
-            if not downstream_data:
-                downstream_data.append(check_in)
-            retrieve_data = request.Request(self.uri, headers=self.headers, data=json.dumps(downstream_data).encode('utf-8'), method='POST')
-            retrieve_data.add_header('Content-Type', 'application/json')
-            with request.urlopen(retrieve_data, context=self.ssl_context) as response:
-                messages = json.loads(response.read().decode('utf-8'))
+            downstream_messages = MessageBuilder.check_in(self.messenger_id)
+            while not self.downstream_messages.empty():
+                downstream_messages += await self.downstream_messages.get()
+            check_in = request.Request(self.uri, headers=self.headers, data=downstream_messages)
+            with request.urlopen(check_in, context=self.ssl_context) as response:
                 if response.status != 200:
                     break
-                for msg in messages:
-                    msg = json.loads(msg)
-                    identifier = msg.get('identifier', None)
-                    if not identifier:
-                        continue
-                    if identifier not in self.clients and msg.get('atype'):
-                        asyncio.create_task(self.socks_connect(identifier, msg))
-                        continue
-                    if not msg.get('msg'):
-                        continue
-                    msg = self.base64_to_bytes(msg.get('msg'))
-                    if msg == b'close' and identifier in self.clients:
-                        self.clients[identifier].writer.close()
-                        continue
-                    if identifier in self.clients:
-                        self.clients[identifier].writer.write(msg)
-                        continue
+                data = response.read()
+                # Parse the blob into individual messages using MessageParser
+                messages = MessageParser.parse_messages(data)
 
-    async def socks_connect(self, identifier, msg):
-        atype = msg.get('atype')
-        address = msg.get('address')
-        port = int(msg.get('port'))
-        try:
-            reader, writer = await asyncio.open_connection(address, port)
-            self.clients[msg.get('identifier')] = Client(reader, writer)
-            bind_addr, bind_port = writer.get_extra_info('sockname')
-            await self.downstream.put(self.socks_connect_results(f'{self.socks_server_id}:{identifier}', 0, atype, bind_addr, bind_port))
-            asyncio.create_task(self.stream(identifier))
-        except Exception as e:  #ToDo add more exceptions and update the rep.
-            await self.downstream.put(self.socks_connect_results(f'{self.socks_server_id}:{identifier}', 1, atype, None, None))
+                # Process each message individually
+                for message in messages:
+                    try:
+                        await self.handle_message(message)
+                    except:
+                        continue
+            await asyncio.sleep(1.0)
 
-    async def stream(self, identifier):
-        client = self.clients[identifier]
+    async def handle_message(self, message):
+        # Parse the header to understand the message type
+        message_type = message['Message Type']
+
+        # Handle each message type based on protocol
+        if message_type == 0x01:  # Initiate Forwarder Client Request
+            await self.handle_initiate_forwarder_client_req(message)
+        elif message_type == 0x02:
+            asyncio.create_task(self.stream(message['Forwarder Client ID']))
+        elif message_type == 0x03:
+            forwarder_client = self.forwarder_clients[message['Forwarder Client ID']]
+            forwarder_client.writer.write(message['Data'])
+
+    async def send_downstream_message(self, downstream_message):
+        encrypted_downstream_message = downstream_message  # ToDo Update to Encrypted with AES
+        await self.downstream_messages.put(encrypted_downstream_message)
+
+    async def stream(self, forwarder_client_identifier):
+        forwarder_client = self.forwarder_clients[forwarder_client_identifier]
         while True:
             try:
-                msg = await client.reader.read(self.buffer_size)
+                msg = await forwarder_client.reader.read(4096)
                 if not msg:
                     break
-                downstream_msg = self.generate_downstream_msg(f'{self.socks_server_id}:{identifier}', msg)
-                await self.downstream.put(downstream_msg)
+                downstream_message = MessageBuilder.send_data(forwarder_client_identifier, msg)
+                await self.send_downstream_message(downstream_message)
             except (EOFError, ConnectionResetError):
                 # ToDo add debug statement
                 # output.display(f"Client {self.identifier} disconnected unexpectedly")
                 break
-        downstream_msg = self.generate_downstream_msg(f'{self.socks_server_id}:{identifier}', b'')
-        await self.downstream.put(downstream_msg)
-        del self.clients[identifier]
+        downstream_message = MessageBuilder.send_data(forwarder_client_identifier, b'')
+        await self.send_downstream_message(downstream_message)
+        del self.forwarder_clients[forwarder_client_identifier]
 
 
-async def try_http(url):
+"""
++-------------------------------+
+|       Remote Forwarder        |     
++-------------------------------+
+"""
+
+
+class RemoteForwarder:
+    def __init__(self, messenger, config):
+        self.messenger = messenger
+        self.local_host, self.local_port, self.remote_host, self.remote_port = self.parse_config(config)
+        self.name = 'Remote Forwarder'
+
+    async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        forwarder_client = ForwarderClient(reader, writer)
+        downstream_message = MessageBuilder.initiate_forwarder_client_req(str(id(forwarder_client)), self.remote_host,
+                                                                          int(self.remote_port))
+        await self.messenger.send_downstream_message(downstream_message)
+        self.messenger.forwarder_clients[str(id(forwarder_client))] = forwarder_client
+
+    def parse_config(self, config):
+        parts = config.split(':')
+        return parts
+
+    async def start(self):
+        try:
+            await asyncio.start_server(self.handle_client, self.local_host, self.local_port)
+        except OSError:
+            print(f'{self.local_host}:{self.local_port} is already in use.')
+            return
+        print(f'{self.name} {id(self)} is listening on {self.local_host}:{self.local_port}')
+
+
+"""
++--------------------+
+|       Main         |
++--------------------+
+"""
+
+
+async def try_http(url, remote_port_forwards):
+    # try:
+    messenger_client = HTTPClient(f'{url}{HTTP_ROUTE}', remote_port_forwards)
+    await messenger_client.connect()
+        # return True
+    # except Exception:
+    #     print(f'[!] Failed to connect to {url}')
+    #     return False
+
+
+async def try_ws(url, remote_port_forwards):
     try:
-        messenger_client = HTTPMessengerClient(f'{url}{HTTP_ROUTE}', BUFFER_SIZE)
+        messenger_client = WebSocketClient(f'{url}{WS_ROUTE}', remote_port_forwards)
         await messenger_client.connect()
         return True
-    except Exception as e:
-        print(f'[!] Failed to connect to {url}')
-        return False
-
-
-async def try_ws(url):
-    try:
-        messenger_client = WebSocketMessengerClient(f'{url}{WS_ROUTE}', BUFFER_SIZE)
-        await messenger_client.connect()
-        return True
-    except Exception as e:
+    except Exception:
         print(f'[!] Failed to connect to {url}')
         return False
 
 
 async def main(args):
     uri = args.uri.strip('/')
-    attempts = []
+    remote_port_forwards = args.remote_port_forwards
 
     if "://" in uri:
         scheme, uri = uri.split("://", 1)
@@ -263,11 +281,11 @@ async def main(args):
     for attempt in attempts:
         attempt_url = f"{attempt}://{uri}/"
         if "http" in attempt:
-            success = await try_http(attempt_url)
+            success = await try_http(attempt_url, remote_port_forwards)
             if success:
                 sys.exit(0)
         elif "ws" in attempt:
-            success = await try_ws(attempt_url)
+            success = await try_ws(attempt_url, remote_port_forwards)
             if success:
                 sys.exit(0)
 
@@ -275,18 +293,9 @@ async def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('uri', type=str)
+    parser.add_argument('remote_port_forwards', type=str, nargs='*')
     args = parser.parse_args()
     try:
         asyncio.run(main(args))
     except KeyboardInterrupt:
         print('\rMessenger Client stopped.')
-
-
-
-
-
-
-
-
-
-
