@@ -35,7 +35,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         'aiohttp',
-        'aioconsole'
+        'prompt-toolkit'
     ],
     author='Skyler Knecht',
     author_email='skyler.knecht@outlook.com',
