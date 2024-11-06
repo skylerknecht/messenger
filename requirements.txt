@@ -1,2 +1,2 @@
 aiohttp
-aioconsole
+prompt-toolkit
