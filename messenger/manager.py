@@ -1,5 +1,6 @@
 import inspect
 import sys
+import re
 import traceback
 from collections import namedtuple
 
@@ -81,8 +82,10 @@ class UpdateCLI:
             'yellow': '\033[93m',
             'red': '\033[91m',
             'green': '\033[92m',
+            'blue': '\033[94m',
             'reset': '\033[0m'
         }
+
         return colors.get(color, colors['reset']) + text + colors['reset']
 
 
@@ -127,9 +130,23 @@ class Manager:
         self.messenger_server = Server(self.messengers, self.update_cli, address=server_ip, port=server_port, ssl=ssl)
 
     @staticmethod
+    def strip_ansi_codes(text):
+        """
+        Remove ANSI color codes from a string.
+
+        Args:
+            text (str): Text that may contain ANSI color codes.
+
+        Returns:
+            str: Text without ANSI color codes.
+        """
+        ansi_escape = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
+        return ansi_escape.sub('', text)
+
+    @staticmethod
     def create_table(title, columns, items):
         """
-        Create a formatted table for display.
+        Create a formatted table for display with proper centering, even with color codes.
 
         Args:
             title (str): Table title.
@@ -139,19 +156,35 @@ class Manager:
         Returns:
             str: Formatted table string.
         """
-        col_widths = [len(col) for col in columns]
+        # Prepare items without ANSI codes for calculating column widths
+        items_no_ansi = []
         for item in items:
-            for idx, col in enumerate(columns):
-                col_widths[idx] = max(col_widths[idx], len(str(item.get(col, ''))) + 4)
+            item_no_ansi = {col: Manager.strip_ansi_codes(str(item.get(col, ''))) for col in columns}
+            items_no_ansi.append(item_no_ansi)
 
+        # Calculate column widths based on the items without ANSI codes
+        col_widths = [len(col) for col in columns]
+        for item in items_no_ansi:
+            for idx, col in enumerate(columns):
+                col_widths[idx] = max(col_widths[idx], len(item.get(col, '')) + 4)  # Padding for readability
+
+        # Create table header
         header = f"{title:^{sum(col_widths) + len(columns) - 1}}\n"
         header += ' '.join([f"{col:^{width}}" for col, width in zip(columns, col_widths)]) + '\n'
         header += ' '.join(['-' * width for width in col_widths]) + '\n'
 
+        # Use the original items list with ANSI codes for the final output
         rows = []
         for item in items:
-            row = ' '.join([f"{str(item.get(col, '')):^{width}}" for col, width in zip(columns, col_widths)]) + '\n'
-            rows.append(row)
+            row_parts = []
+            for col, width in zip(columns, col_widths):
+                cell_value = str(item.get(col, ''))
+                stripped_value = Manager.strip_ansi_codes(cell_value)
+                # Calculate padding needed based on stripped text length
+                padding = (width - len(stripped_value)) // 2
+                padded_value = ' ' * padding + cell_value + ' ' * (width - len(stripped_value) - padding)
+                row_parts.append(padded_value)
+            rows.append(' '.join(row_parts) + '\n')
 
         table = header + ''.join(rows)
         return table
@@ -230,7 +263,10 @@ class Manager:
 
         table columns:
           Type               Type of the forwarder (e.g., "Local Port Forwarder" or "Remote Port Forwarder").
-          ID                 Unique identifier for the forwarder instance.
+          ID                 Unique identifier for the forwarder instance, color-coded:
+                              - Remote forwarders in red.
+                              - SOCKS proxies in blue.
+                              - Local forwarders in green.
           Clients            Number of clients currently connected to the forwarder.
           Listening Host     Host on which the forwarder is listening for incoming connections.
           Listening Port     Port on which the forwarder is listening for incoming connections.
@@ -248,9 +284,18 @@ class Manager:
             if messenger_id and str(id(messenger)) != messenger_id:
                 continue
             for forwarder in messenger.forwarders:
+                # Determine color based on type and configuration
+                forwarder_id = str(id(forwarder))
+                if isinstance(forwarder, RemotePortForwarder):
+                    colored_id = self.update_cli.color_text(forwarder_id, 'red')
+                elif forwarder.destination_host == '*' and forwarder.destination_port == '*':
+                    colored_id = self.update_cli.color_text(forwarder_id, 'blue')
+                else:
+                    colored_id = self.update_cli.color_text(forwarder_id, 'green')
+
                 items.append({
                     "Type": forwarder.name,
-                    "ID": id(forwarder),
+                    "ID": colored_id,
                     "Clients": len(forwarder.clients),
                     "Listening Host": forwarder.listening_host,
                     "Listening Port": forwarder.listening_port,
@@ -267,7 +312,10 @@ class Manager:
           ID                 Unique identifier for the messenger instance.
           Transport          Type of transport used by the messenger (e.g., "HTTP" or "Websocket").
           Alive              Status indicating if the messenger is actively connected.
-          Forwarders         List of forwarder IDs associated with the messenger.
+          Forwarders         List of forwarder IDs associated with the messenger, color-coded:
+                              - Remote forwarders in red.
+                              - SOCKS proxies in blue.
+                              - Local forwarders in green.
 
         examples:
           messengers
@@ -276,15 +324,23 @@ class Manager:
         items = []
 
         for messenger in self.messengers:
-            forwarder_ids = [id(forwarder) for forwarder in messenger.forwarders]
+            forwarder_ids = [
+                self.update_cli.color_text(
+                    str(id(forwarder)),
+                    'red' if isinstance(forwarder, RemotePortForwarder)
+                    else 'blue' if forwarder.destination_host == '*' and forwarder.destination_port == '*'
+                    else 'green'
+                )
+                for forwarder in messenger.forwarders
+            ]
+
             items.append({
                 "ID": id(messenger),
                 "Transport": messenger.transport,
                 "Alive": messenger.alive,
-                "Forwarders": ', '.join(map(str, forwarder_ids)) if forwarder_ids else None,
+                "Forwarders": ', '.join(forwarder_ids) if forwarder_ids else None,
             })
         print(self.create_table('Messengers', columns, items))
-
     async def start_command_line_interface(self):
         """
         Start the CLI, display banner, and manage user input.

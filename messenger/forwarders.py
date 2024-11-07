@@ -239,7 +239,7 @@ class LocalPortForwarder(Forwarder):
             raise ValueError(f"Invalid TCP port for destination_port: {destination_port}")
 
         return listening_host, int(listening_port), destination_host, int(
-            destination_port) if destination_port != '*' else None
+            destination_port) if destination_port != '*' else destination_port
 
     async def start(self):
         try:
