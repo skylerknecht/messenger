@@ -369,8 +369,8 @@ class Manager:
 
         positional arguments:
           forwarder_config   Configuration string for the local forwarder, in one of the following formats:
-                               - "8080"                          : Listening port only.
-                               - "192.168.1.10:8080"             : Listening host and port.
+                               - "8080"                               : Listening port only.
+                               - "192.168.1.10:8080"                  : Listening host and port.
                                - "192.168.1.10:8080:example.com:9090" : Full configuration with listening and destination details.
 
                              Defaults:

@@ -1,7 +1,6 @@
 import asyncio
 import socket
 import uuid
-import json
 
 from messenger.convert import bytes_to_base64, base64_to_bytes
 from messenger.message import MessageBuilder
