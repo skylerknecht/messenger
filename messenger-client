@@ -76,7 +76,7 @@ class WebSocketClient(MessengerClient):
         self.ws = None
 
     async def connect(self):
-        await self.send_downstream_message(self.remote_port_forwards)
+        await self.start_remote_port_forwards(self.remote_port_forwards)
         async with aiohttp.ClientSession(headers=self.headers) as session:
             async with session.ws_connect(self.uri, ssl=self.ssl_context) as ws:
                 print("Connected to WebSocket server")
@@ -259,13 +259,13 @@ async def try_http(url, remote_port_forwards):
 
 
 async def try_ws(url, remote_port_forwards):
-    try:
-        messenger_client = WebSocketClient(f'{url}{WS_ROUTE}', remote_port_forwards)
-        await messenger_client.connect()
-        return True
-    except Exception:
-        print(f'[!] Failed to connect to {url}')
-        return False
+    # try:
+    messenger_client = WebSocketClient(f'{url}{WS_ROUTE}', remote_port_forwards)
+    await messenger_client.connect()
+        # return True
+    # except Exception:
+    #     print(f'[!] Failed to connect to {url}')
+    #     return False
 
 
 async def main(args):
