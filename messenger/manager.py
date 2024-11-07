@@ -6,9 +6,8 @@ from collections import namedtuple
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import Completer, Completion
 
-from . import BANNER
 from messenger.server import Server
-from messenger.forwarders import LocalForwarder, RemoteForwarder
+from messenger.forwarders import LocalPortForwarder, RemotePortForwarder
 
 
 class UpdateCLI:
@@ -117,6 +116,7 @@ class Manager:
             'messengers': (self.print_messengers, "Display a list of messengers in a table format."),
             'local': (self.start_local_forwarder, "Start a local forwarder for the specified messenger."),
             'remote': (self.start_remote_forwarder, "Start a remote forwarder."),
+            'socks': (self.start_local_forwarder, "Start a socks proxy."),
             'stop': (self.stop, "Stop a forwarder."),
             'help': (self.print_help, "Print a list of commands and their descriptions.")
         }
@@ -170,6 +170,12 @@ class Manager:
             return
 
         func, _ = self.commands[command]
+
+        if len(args) > 0 and (args[0] == '-h' or args[0] == '--help'):
+            docstring = inspect.getdoc(func)
+            print(docstring)
+            return
+
         sig = inspect.signature(func)
         params = sig.parameters
 
@@ -219,10 +225,23 @@ class Manager:
         """
         Display active forwarders in a table format.
 
-        Args:
-            messenger_id (str or None): ID of a specific messenger (optional).
+        optional arguments:
+          messenger_id       ID of a specific messenger (optional). If provided, only displays forwarders for that messenger.
+
+        table columns:
+          Type               Type of the forwarder (e.g., "Local Port Forwarder" or "Remote Port Forwarder").
+          ID                 Unique identifier for the forwarder instance.
+          Clients            Number of clients currently connected to the forwarder.
+          Listening Host     Host on which the forwarder is listening for incoming connections.
+          Listening Port     Port on which the forwarder is listening for incoming connections.
+          Destination Host   Host to which the forwarder relays connections.
+          Destination Port   Port to which the forwarder relays connections.
+
+        examples:
+          forwarders
+          forwarders 4369562880
         """
-        columns = ["Type", "ID", "Clients", "Local Host", "Local Port", "Remote Host", "Remote Port"]
+        columns = ["Type", "ID", "Clients", "Listening Host", "Listening Port", "Destination Host", "Destination Port"]
         items = []
 
         for messenger in self.messengers:
@@ -233,16 +252,25 @@ class Manager:
                     "Type": forwarder.name,
                     "ID": id(forwarder),
                     "Clients": len(forwarder.clients),
-                    "Local Host": forwarder.local_host,
-                    "Local Port": forwarder.local_port,
-                    "Remote Host": forwarder.remote_host,
-                    "Remote Port": forwarder.remote_port,
+                    "Listening Host": forwarder.listening_host,
+                    "Listening Port": forwarder.listening_port,
+                    "Destination Host": forwarder.destination_host,
+                    "Destination Port": forwarder.destination_port,
                 })
         print(self.create_table('Forwarders', columns, items))
 
     async def print_messengers(self):
         """
         Display messengers in a table format.
+
+        table columns:
+          ID                 Unique identifier for the messenger instance.
+          Transport          Type of transport used by the messenger (e.g., "HTTP" or "Websocket").
+          Alive              Status indicating if the messenger is actively connected.
+          Forwarders         List of forwarder IDs associated with the messenger.
+
+        examples:
+          messengers
         """
         columns = ["ID", "Transport", "Alive", "Forwarders"]
         items = []
@@ -281,11 +309,25 @@ class Manager:
 
     async def start_local_forwarder(self, forwarder_config, messenger_id):
         """
-        Start a local forwarder for a specified messenger.
+        Start a socks proxy or local forwarder for a specified messenger.
 
-        Args:
-            forwarder_config: Configuration for the local forwarder.
-            messenger_id (str): ID of the messenger.
+        positional arguments:
+          forwarder_config   Configuration string for the local forwarder, in one of the following formats:
+                               - "8080"                          : Listening port only.
+                               - "192.168.1.10:8080"             : Listening host and port.
+                               - "192.168.1.10:8080:example.com:9090" : Full configuration with listening and destination details.
+
+                             Defaults:
+                               - listening_host: "127.0.0.1"
+                               - destination_host: "*"
+                               - destination_port: "*"
+
+          messenger_id       ID of the messenger to which this forwarder will be attached.
+
+        examples:
+          socks 8080 4369562880
+          socks 192.168.1.10:8080
+          local 192.168.1.10:8080:example.com:9090
         """
         if not messenger_id:
             self.update_cli.display(f'Please provide a Messenger ID.', 'warning', reprompt=False)
@@ -296,22 +338,32 @@ class Manager:
             self.update_cli.display(f'\'{messenger_id}\' is not a valid Messenger ID.', 'error', reprompt=False)
             return
         for messenger in self.messengers:
-            if id(messenger) != messenger_id:
+            if id(messenger) != messenger_id or not messenger.alive:
                 continue
-            forwarder = LocalForwarder(messenger, forwarder_config, self.update_cli)
+            forwarder = LocalPortForwarder(messenger, forwarder_config, self.update_cli)
             success = await forwarder.start()
             if success:
                 messenger.forwarders.append(forwarder)
             return
-        self.update_cli.display(f'Messenger \'{messenger_id}\' not found', 'error', reprompt=False)
+        self.update_cli.display(f'Messenger \'{messenger_id}\' not found or is not alive.', 'error', reprompt=False)
 
     async def start_remote_forwarder(self, forwarder_config, messenger_id):
         """
         Start a remote forwarder for a specified messenger.
 
-        Args:
-            forwarder_config: Configuration for the remote forwarder.
-            messenger_id (str): ID of the messenger.
+        positional arguments:
+          forwarder_config   Configuration string for the remote forwarder, in one of the following formats:
+                               - "9090"                : Destination port only.
+                               - "example.com:9090"    : Destination host and port.
+
+                             Defaults:
+                               - destination_host: "127.0.0.1" if only a port is provided.
+
+          messenger_id       ID of the messenger to which this forwarder will be attached.
+
+        examples:
+          remote 9090 4369562880
+          remote example.com:9090 4369562880
         """
         if not messenger_id:
             self.update_cli.display(f'Please provide a Messenger ID.', 'warning', reprompt=False)
@@ -322,26 +374,29 @@ class Manager:
             self.update_cli.display(f'\'{messenger_id}\' is not a valid Messenger ID.', 'error', reprompt=False)
             return
         for messenger in self.messengers:
-            if id(messenger) != messenger_id:
+            if id(messenger) != messenger_id or not messenger.alive:
                 continue
-            forwarder = RemoteForwarder(messenger, forwarder_config, self.update_cli)
+            forwarder = RemotePortForwarder(messenger, forwarder_config, self.update_cli)
             await forwarder.start()
             messenger.forwarders.append(forwarder)
             return
-        self.update_cli.display(f'Messenger \'{messenger_id}\' not found', 'error', reprompt=False)
+        self.update_cli.display(f'Messenger \'{messenger_id}\' not found or is not alive.', 'error', reprompt=False)
 
     async def stop(self, forwarder_id):
         """
         Stop and remove a forwarder by ID.
 
-        Args:
-            forwarder_id (str): ID of the forwarder.
+        positional arguments:
+          forwarder_id       ID of the forwarder to stop and remove.
+
+        examples:
+          stop 4369562880
         """
         for messenger in self.messengers:
             for forwarder in messenger.forwarders:
                 if str(id(forwarder)) != forwarder_id:
                     continue
-                if isinstance(forwarder, LocalForwarder):
+                if isinstance(forwarder, LocalPortForwarder):
                     await forwarder.stop()
                 messenger.forwarders.remove(forwarder)
                 self.update_cli.display(f'Removed \'{forwarder_id}\' from forwarders.', 'information', reprompt=False)
@@ -380,7 +435,8 @@ class DynamicCompleter(Completer):
         word_before_cursor = document.get_word_before_cursor()
         options = list(self.manager.commands.keys())
         options.extend(str(id(messenger)) for messenger in self.manager.messengers)
-        options.extend(str(id(forwarder)) for messenger in self.manager.messengers for forwarder in messenger.forwarders)
+        options.extend(
+            str(id(forwarder)) for messenger in self.manager.messengers for forwarder in messenger.forwarders)
 
         for option in options:
             if option.startswith(word_before_cursor):
