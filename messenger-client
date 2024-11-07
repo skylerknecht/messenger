@@ -107,7 +107,9 @@ class WebSocketClient(MessengerClient):
             asyncio.create_task(self.stream(message['Forwarder Client ID']))
         elif message_type == 0x03:
             message = MessageParser.send_data(remaining_data)
-            forwarder_client = self.forwarder_clients[message['Forwarder Client ID']]
+            forwarder_client = self.forwarder_clients.get(message['Forwarder Client ID'], None)
+            if not forwarder_client:
+                return
             forwarder_client.writer.write(message['Data'])
 
     async def send_downstream_message(self, downstream_message):
@@ -183,7 +185,9 @@ class HTTPClient(MessengerClient):
         elif message_type == 0x02:
             asyncio.create_task(self.stream(message['Forwarder Client ID']))
         elif message_type == 0x03:
-            forwarder_client = self.forwarder_clients[message['Forwarder Client ID']]
+            forwarder_client = self.forwarder_clients.get(message['Forwarder Client ID'], None)
+            if not forwarder_client:
+                return
             forwarder_client.writer.write(message['Data'])
 
     async def send_downstream_message(self, downstream_message):
