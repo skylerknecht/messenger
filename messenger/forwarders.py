@@ -38,14 +38,14 @@ class ForwarderClient:
         self.writer.write(base64_decoded_data)
 
 
-class LocalForwarderClient(ForwarderClient):
-    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, remote_host, remote_port, messenger):
-        self.remote_host = remote_host
-        self.remote_port = remote_port
+class LocalPortForwarderClient(ForwarderClient):
+    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, destination_host, destination_port, messenger):
+        self.destination_host = destination_host
+        self.destination_port = destination_port
         super().__init__(reader, writer, messenger)
 
     async def start(self):
-        upstream_message = MessageBuilder.initiate_forwarder_client_req(self.identifier, self.remote_host, int(self.remote_port))
+        upstream_message = MessageBuilder.initiate_forwarder_client_req(self.identifier, self.destination_host, int(self.destination_port))
         await self.messenger.send_upstream_message(upstream_message)
         await self.stream()
 
@@ -54,28 +54,7 @@ class LocalForwarderClient(ForwarderClient):
 
 
 class SocksForwarderClient(ForwarderClient):
-    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, messenger):
-        super().__init__(reader, writer, messenger)
-
     async def negotiate_authentication_method(self) -> bool:
-        """
-        The SOCKS5 protocol supports multiple authenticate methods. Depending on the
-        methods sent from the client, the server can select and response with the following
-        bytes.
-
-        NO_AUTHENTICATION_REQUIRED = 0
-        GSSAPI = 1
-        USERNAME/PASSWORD = 2
-        IANA_ASSIGNED = 3
-        RESERVED_FOR_PRIVATE_METHODS = 80
-        NO_ACCEPTABLE_AUTHENTICATION_METHOD = FF
-
-        This SOCK5 implementation does not support authentication. Therefore, if zero is not
-        provided then reply with FF or NO_ACCEPTABLE_AUTHENTICATION_METHOD and return False.
-        Otherwise, send 0 or NO_AUTHENTICATION_REQUIRED and return True.
-
-        :return: bool
-        """
         version, number_of_methods = await self.reader.read(2)
         if version != 5:
             print(f'SOCKS{str(version)} is not supported')
@@ -96,38 +75,10 @@ class SocksForwarderClient(ForwarderClient):
         return True
 
     async def negotiate_transport(self) -> bool:
-        """
-        The SOCKS5 protocol supports multiple transport methods. The following maps CMD bits sent
-        that will be sent from the client to transport methods.
-
-        CONNECT = 1
-        BIND = 2
-        UDP ASSOCIATE = 3
-
-        This SOCKS5 implementation does not support BIND and UDP ASSOCIATE. Therefore, if one is
-        not provided then return False.
-
-        :return: bool
-        """
         version, cmd, reserved_bit = await self.reader.read(3)
         return cmd == 1
 
-    import socket
-
     async def negotiate_address(self) -> bool:
-        """
-        The SOCKS5 protocol supports multiple address methods. The following maps address_type bits
-        that will be sent from the client to address types.
-
-        IPV4 = 1
-        FQDN = 3
-        IPv6 = 4
-
-        This SOCKS5 implementation supports all address types and will parse the address type
-        according to the address_type bit sent. If an invalid address_type bit is sent, return False.
-
-        :return: bool
-        """
         self.address_type = int.from_bytes(await self.reader.read(1), byteorder='big')
         if self.address_type == 1:  # IPv4
             self.remote_address = socket.inet_ntoa(await self.reader.read(4))
@@ -137,7 +88,7 @@ class SocksForwarderClient(ForwarderClient):
         elif self.address_type == 3:  # FQDN
             fqdn_length = int.from_bytes(await self.reader.read(1), byteorder='big')
             fqdn = await self.reader.read(fqdn_length)
-            self.remote_address = fqdn.decode('utf-8')  # Assuming UTF-8 encoding
+            self.remote_address = fqdn.decode('utf-8')
             self.remote_port = int.from_bytes(await self.reader.read(2), byteorder='big')
             return True
 
@@ -157,9 +108,7 @@ class SocksForwarderClient(ForwarderClient):
             return
 
         upstream_message = MessageBuilder.initiate_forwarder_client_req(self.identifier, self.remote_address, self.remote_port)
-
         await self.messenger.send_upstream_message(upstream_message)
-
         await self.stream()
 
     @staticmethod
@@ -180,72 +129,150 @@ class SocksForwarderClient(ForwarderClient):
 
 
 class Forwarder:
-    def __init__(self, local_host, local_port, remote_host, remote_port, update_cli):
-        self.local_host = local_host
-        self.local_port = local_port
-        self.remote_host = remote_host
-        self.remote_port = remote_port
+    def __init__(self, listening_host, listening_port, destination_host, destination_port, update_cli):
+        self.listening_host = listening_host
+        self.listening_port = listening_port
+        self.destination_host = destination_host
+        self.destination_port = destination_port
         self.update_cli = update_cli
         self.clients = []
         self.name = "Unnamed Forwarder"
 
+    @staticmethod
+    def is_valid_ip(ip):
+        """
+        Validate if the given string is a valid IPv4 or IPv6 address.
 
-class LocalForwarder(Forwarder):
+        :param ip: IP address as a string
+        :return: True if valid IP address, False otherwise
+        """
+        try:
+            socket.inet_aton(ip)  # Check for valid IPv4
+            return True
+        except socket.error:
+            try:
+                socket.inet_pton(socket.AF_INET6, ip)  # Check for valid IPv6
+                return True
+            except socket.error:
+                return False
+
+    @staticmethod
+    def is_valid_port(port):
+        """
+        Validate if the given port is a valid TCP port.
+
+        :param port: Port number as an integer or string
+        :return: True if valid TCP port, False otherwise
+        """
+        try:
+            port = int(port)
+            return 1 <= port <= 65535
+        except ValueError:
+            return False
+
+
+class LocalPortForwarder(Forwarder):
     def __init__(self, messenger, config, update_cli):
         self.messenger = messenger
-        local_host, local_port, remote_host, remote_port = self.parse_config(config)
-        super().__init__(local_host, local_port, remote_host, remote_port, update_cli)
-        self.socks = True if self.remote_port == '*' and self.remote_host == '*' else False
-        self.name = "Socks Proxy" if self.socks else "Local Forwarder"
-        self.server = None  # Event to signal stop
+        listening_host, listening_port, destination_host, destination_port = self.parse_config(config)
+        super().__init__(listening_host, listening_port, destination_host, destination_port, update_cli)
+        self.socks = True if self.destination_port == '*' and self.destination_host == '*' else False
+        self.name = "Socks Proxy" if self.socks else "Local Port Forwarder"
+        self.server = None
 
     async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         if self.socks:
             client = SocksForwarderClient(reader, writer, self.messenger)
         else:
-            client = LocalForwarderClient(reader, writer, self.remote_host, self.remote_port, self.messenger)
+            client = LocalPortForwarderClient(reader, writer, self.destination_host, self.destination_port, self.messenger)
         self.clients.append(client)
         await client.start()
         self.clients.remove(client)
 
     def parse_config(self, config):
+        """
+        Parse the configuration string for LocalPortForwarder with the following input expectations:
+        - listening_host:listening_port:destination_host:destination_port
+        - Only listening_port is required. If other values are not provided, apply defaults:
+            - listening_host defaults to '127.0.0.1'
+            - destination_host and destination_port default to '*'
+
+        :param config: Configuration string
+        :return: A tuple (listening_host, listening_port, destination_host, destination_port)
+        """
         parts = config.split(':')
+
+        # Default values for LocalPortForwarder
+        listening_host = '127.0.0.1'
+        destination_host = '*'
+        destination_port = '*'
+
+        # Ensure listening_port is specified in the configuration
         if len(parts) == 1:
-            parts = ('127.0.0.1', parts[0], '*', '*')
+            # Only listening_port is provided
+            listening_port = parts[0]
+
         elif len(parts) == 2:
-            parts = (parts[0], parts[1], '*', '*')
-        return parts
+            # listening_host and listening_port are provided
+            listening_host, listening_port = parts
+
+        elif len(parts) == 4:
+            # Full config: listening_host:listening_port:destination_host:destination_port
+            listening_host, listening_port, destination_host, destination_port = parts
+
+        else:
+            raise ValueError("Invalid configuration format for LocalPortForwarder.")
+
+        # Validate listening_host and destination_host if they are specified
+        if listening_host != '*' and not self.is_valid_ip(listening_host):
+            raise ValueError(f"Invalid IP address for listening_host: {listening_host}")
+
+        if destination_host != '*' and not self.is_valid_ip(destination_host):
+            raise ValueError(f"Invalid IP address for destination_host: {destination_host}")
+
+        # Validate listening_port
+        if not self.is_valid_port(listening_port):
+            raise ValueError(f"Invalid TCP port for listening_port: {listening_port}")
+
+        # Validate destination_port if it is not '*'
+        if destination_port != '*' and not self.is_valid_port(destination_port):
+            raise ValueError(f"Invalid TCP port for destination_port: {destination_port}")
+
+        return listening_host, int(listening_port), destination_host, int(
+            destination_port) if destination_port != '*' else None
 
     async def start(self):
         try:
-            self.server = await asyncio.start_server(self.handle_client, self.local_host, int(self.local_port))
-            self.update_cli.display(f'{self.name} {id(self)} is listening on {self.local_host}:{self.local_port}', 'information', reprompt=False)
+            self.server = await asyncio.start_server(self.handle_client, self.listening_host, int(self.listening_port))
+            self.update_cli.display(
+                f'Messenger {id(self.messenger)} now forwarding ({self.listening_host}:{self.listening_port}) -> (*:*).',
+                'information', reprompt=False)
             return True
         except OSError:
-            self.update_cli.display(f'{self.local_host}:{self.local_port} is already in use.', 'warning', reprompt=False)
+            self.update_cli.display(f'{self.listening_host}:{self.listening_port} is already in use.', 'warning', reprompt=False)
             return False
 
     async def stop(self):
-        # Sets the stop_event to trigger shutdown
-        self.server.close()  # Stop accepting new connections
-        await self.server.wait_closed()  # Wait until the server is closed
-        self.update_cli.display(f'{self.name} {id(self)} has stopped listening on {self.local_host}:{self.local_port}.', 'information', reprompt=False)
+        self.server.close()
+        await self.server.wait_closed()
+        self.update_cli.display(f'Messenger {id(self.messenger)} has stopped forwarding ({self.listening_host}:{self.listening_port}) -> (*:*).', 'information', reprompt=False)
 
 
-class RemoteForwarder(Forwarder):
+class RemotePortForwarder(Forwarder):
     def __init__(self, messenger, config, update_cli):
         self.messenger = messenger
-        local_host, local_port = self.parse_config(config)
-        super().__init__(local_host, local_port, '*', '*', update_cli)
-        self.name = "Remote Forwarder"
+        destination_host, destination_port = self.parse_config(config)
+        super().__init__('*', '*', destination_host, destination_port, update_cli)
+        self.name = "Remote Port Forwarder"
 
     async def create_client(self, client_identifier):
         try:
-            reader, writer = await asyncio.open_connection(self.local_host, self.local_port)
+            reader, writer = await asyncio.open_connection(self.destination_host, self.destination_port)
             bind_addr, bind_port = writer.get_extra_info('sockname')
             upstream_message = MessageBuilder.initiate_forwarder_client_rep(client_identifier, bind_addr, bind_port, 0, 0)
             await self.messenger.send_upstream_message(upstream_message)
         except:
+            self.update_cli.display(f'Remote Port Forwarder {id(self)} could not connect to {self.destination_host}:{self.destination_port}', 'error')
             upstream_message = MessageBuilder.initiate_forwarder_client_rep(client_identifier, '', 0, 0, 1)
             await self.messenger.send_upstream_message(upstream_message)
             return
@@ -253,12 +280,46 @@ class RemoteForwarder(Forwarder):
         client.identifier = client_identifier
         self.clients.append(client)
         await client.start()
+        self.clients.remove(client)
 
-    @staticmethod
-    def parse_config(config):
+    def parse_config(self, config):
+        """
+        Parse the configuration string for RemotePortForwarder with the following input expectations:
+        - destination_host:destination_port
+        - Exceptions:
+            - If only a port is given, treat it as the destination_port and default other values.
+            - If only an IP is given, treat it as the destination_host and default other values.
+
+        :param config: Configuration string
+        :return: A tuple ('*', '*', destination_host, destination_port)
+        """
         parts = config.split(':')
-        return parts
+
+        # Default values for RemotePortForwarder
+        destination_host = '127.0.0.1'
+        destination_port = None
+
+        # Parse configuration based on the number of parts
+        if len(parts) == 1:
+            # Only a port is provided
+            destination_port = parts[0]
+
+        elif len(parts) == 2:
+            # IP and port are provided
+            destination_host, destination_port = parts
+
+        else:
+            raise ValueError("Invalid configuration format for RemotePortForwarder.")
+
+        # Validate IP and port
+        if not self.is_valid_ip(destination_host):
+            raise ValueError(f"Invalid IP address for destination_host: {destination_host}")
+
+        if not self.is_valid_port(destination_port):
+            raise ValueError(f"Invalid TCP port for destination_port: {destination_port}")
+
+        return destination_host, int(destination_port)
 
     async def start(self):
-        self.update_cli.display(f'{self.name} {id(self)} forwarding traffic to {self.local_host}:{self.local_port}', 'information', reprompt=False)
-
+        self.update_cli.display(f'Messenger {id(self.messenger)} now forwarding (*:*) -> ({self.destination_host}:{self.destination_port}).', 'information', reprompt=False)
+        #self.update_cli.display(f'{self.name} {id(self)} is now forwarding traffic to {self.destination_host}:{self.destination_port}', 'information', reprompt=False)
