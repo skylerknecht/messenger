@@ -5,9 +5,7 @@ import argparse
 import ssl
 import sys
 
-from messenger.message import MessageParser
-from messenger.message import MessageBuilder
-
+from messenger.message import MessageParser, MessageBuilder
 from abc import ABC, abstractmethod
 from urllib import request
 from collections import namedtuple
@@ -38,17 +36,19 @@ class MessengerClient(ABC):
             )
             self.forwarder_clients[message['Forwarder Client ID']] = ForwarderClient(reader, writer)
             bind_addr, bind_port = writer.get_extra_info('sockname')
-            downstream_message = MessageBuilder.initiate_forwarder_client_rep(message['Forwarder Client ID'],
-                                                                              bind_addr, bind_port, 0, 0)
+            downstream_message = MessageBuilder.initiate_forwarder_client_rep(
+                message['Forwarder Client ID'], bind_addr, bind_port, 0, 0
+            )
             asyncio.create_task(self.stream(message['Forwarder Client ID']))
         except Exception:
-            downstream_message = MessageBuilder.initiate_forwarder_client_rep(message['Forwarder Client ID'], '', 0,
-                                                                              0, 1)
+            downstream_message = MessageBuilder.initiate_forwarder_client_rep(
+                message['Forwarder Client ID'], '', 0, 0, 1
+            )
         await self.send_downstream_message(downstream_message)
 
     async def start_remote_port_forwards(self, remote_port_forwards):
         for remote_port_forward in remote_port_forwards:
-            remote_forward = RemoteForwarder(self, remote_port_forward)
+            remote_forward = RemotePortForwarder(self, remote_port_forward)
             await remote_forward.start()
 
     @abstractmethod
@@ -58,14 +58,6 @@ class MessengerClient(ABC):
     @abstractmethod
     async def send_downstream_message(self, message_data):
         raise NotImplementedError
-
-
-
-"""
-+-------------------------------+
-|       Web Socket Client       |     
-+-------------------------------+
-"""
 
 
 class WebSocketClient(MessengerClient):
@@ -81,7 +73,6 @@ class WebSocketClient(MessengerClient):
             async with session.ws_connect(self.uri, ssl=self.ssl_context) as ws:
                 print("Connected to WebSocket server")
                 self.ws = ws
-                # Listen for incoming messages and parse them
                 async for msg in ws:
                     if msg.type == aiohttp.WSMsgType.BINARY:
                         asyncio.create_task(self.handle_message(msg.data))
@@ -93,13 +84,11 @@ class WebSocketClient(MessengerClient):
                         break
 
     async def handle_message(self, data: bytes):
-        # Parse the header to understand the message type
         header_info = MessageParser.header(data)
         message_type = header_info['Message Type']
         remaining_data = header_info['Value']
 
-        # Handle each message type based on protocol
-        if message_type == 0x01:  # Initiate Forwarder Client Request
+        if message_type == 0x01:
             message = MessageParser.initiate_forwarder_client_req(remaining_data)
             await self.handle_initiate_forwarder_client_req(message)
         elif message_type == 0x02:
@@ -126,23 +115,13 @@ class WebSocketClient(MessengerClient):
                 downstream_message = MessageBuilder.send_data(forwarder_client_identifier, msg)
                 await self.send_downstream_message(downstream_message)
             except (EOFError, ConnectionResetError):
-                # ToDo add debug statement
-                # output.display(f"Client {self.identifier} disconnected unexpectedly")
                 break
         downstream_message = MessageBuilder.send_data(forwarder_client_identifier, b'')
         await self.send_downstream_message(downstream_message)
         del self.forwarder_clients[forwarder_client_identifier]
 
 
-"""
-+-------------------------------------+
-|       HTTP Messenger Client         |
-+-------------------------------------+
-"""
-
-
 class HTTPClient(MessengerClient):
-
     def __init__(self, uri, remote_port_forwards: str):
         super().__init__()
         self.uri = uri
@@ -164,10 +143,7 @@ class HTTPClient(MessengerClient):
                 if response.status != 200:
                     break
                 data = response.read()
-                # Parse the blob into individual messages using MessageParser
                 messages = MessageParser.parse_messages(data)
-
-                # Process each message individually
                 for message in messages:
                     try:
                         await self.handle_message(message)
@@ -176,11 +152,8 @@ class HTTPClient(MessengerClient):
             await asyncio.sleep(1.0)
 
     async def handle_message(self, message):
-        # Parse the header to understand the message type
         message_type = message['Message Type']
-
-        # Handle each message type based on protocol
-        if message_type == 0x01:  # Initiate Forwarder Client Request
+        if message_type == 0x01:
             await self.handle_initiate_forwarder_client_req(message)
         elif message_type == 0x02:
             asyncio.create_task(self.stream(message['Forwarder Client ID']))
@@ -204,31 +177,23 @@ class HTTPClient(MessengerClient):
                 downstream_message = MessageBuilder.send_data(forwarder_client_identifier, msg)
                 await self.send_downstream_message(downstream_message)
             except (EOFError, ConnectionResetError):
-                # ToDo add debug statement
-                # output.display(f"Client {self.identifier} disconnected unexpectedly")
                 break
         downstream_message = MessageBuilder.send_data(forwarder_client_identifier, b'')
         await self.send_downstream_message(downstream_message)
         del self.forwarder_clients[forwarder_client_identifier]
 
 
-"""
-+-------------------------------+
-|       Remote Forwarder        |     
-+-------------------------------+
-"""
-
-
-class RemoteForwarder:
+class RemotePortForwarder:
     def __init__(self, messenger, config):
         self.messenger = messenger
-        self.local_host, self.local_port, self.remote_host, self.remote_port = self.parse_config(config)
-        self.name = 'Remote Forwarder'
+        self.listening_host, self.listening_port, self.destination_host, self.destination_port = self.parse_config(config)
+        self.name = 'Remote Port Forwarder'
 
     async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         forwarder_client = ForwarderClient(reader, writer)
-        downstream_message = MessageBuilder.initiate_forwarder_client_req(str(id(forwarder_client)), self.remote_host,
-                                                                          int(self.remote_port))
+        downstream_message = MessageBuilder.initiate_forwarder_client_req(
+            str(id(forwarder_client)), self.destination_host, int(self.destination_port)
+        )
         await self.messenger.send_downstream_message(downstream_message)
         self.messenger.forwarder_clients[str(id(forwarder_client))] = forwarder_client
 
@@ -238,38 +203,21 @@ class RemoteForwarder:
 
     async def start(self):
         try:
-            await asyncio.start_server(self.handle_client, self.local_host, self.local_port)
+            await asyncio.start_server(self.handle_client, self.listening_host, int(self.listening_port))
         except OSError:
-            print(f'{self.local_host}:{self.local_port} is already in use.')
+            print(f'{self.listening_host}:{self.listening_port} is already in use.')
             return
-        print(f'{self.name} {id(self)} is listening on {self.local_host}:{self.local_port}')
-
-
-"""
-+--------------------+
-|       Main         |
-+--------------------+
-"""
+        print(f'{self.name} {id(self)} is listening on {self.listening_host}:{self.listening_port}')
 
 
 async def try_http(url, remote_port_forwards):
-    # try:
     messenger_client = HTTPClient(f'{url}{HTTP_ROUTE}', remote_port_forwards)
     await messenger_client.connect()
-        # return True
-    # except Exception:
-    #     print(f'[!] Failed to connect to {url}')
-    #     return False
 
 
 async def try_ws(url, remote_port_forwards):
-    # try:
     messenger_client = WebSocketClient(f'{url}{WS_ROUTE}', remote_port_forwards)
     await messenger_client.connect()
-        # return True
-    # except Exception:
-    #     print(f'[!] Failed to connect to {url}')
-    #     return False
 
 
 async def main(args):
@@ -295,9 +243,27 @@ async def main(args):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('uri', type=str)
-    parser.add_argument('remote_port_forwards', type=str, nargs='*')
+    parser = argparse.ArgumentParser(
+        description="Messenger Client for establishing HTTP or WebSocket connections with remote port forwarding."
+    )
+
+    parser.add_argument(
+        'uri',
+        type=str,
+        help="The URI of the server to connect to. This should include the scheme (e.g., ws://, wss://, http://, https://) and the domain or IP address. "
+             "For example: 'ws://example.com' or 'https://example.com'. If no scheme is provided, it will try to connect using 'ws', 'wss', 'http', and 'https'."
+    )
+
+    parser.add_argument(
+        'remote_port_forwards',
+        type=str,
+        nargs='*',
+        help="A list of remote port forwarding configurations. Each configuration should be in the format "
+             "'listening_host:listening_port:destination_host:destination_port'. "
+             "For example: '127.0.0.1:8080:example.com:80'. This sets up port forwarding from a local listening address and port "
+             "to a remote destination address and port."
+    )
+
     args = parser.parse_args()
     try:
         asyncio.run(main(args))

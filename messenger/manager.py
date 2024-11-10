@@ -338,7 +338,7 @@ class Manager:
                 "ID": id(messenger),
                 "Transport": messenger.transport,
                 "Alive": messenger.alive,
-                "Forwarders": ', '.join(forwarder_ids) if forwarder_ids else None,
+                "Forwarders": ', '.join(forwarder_ids) if forwarder_ids else '•••',
             })
         print(self.create_table('Messengers', columns, items))
     async def start_command_line_interface(self):
