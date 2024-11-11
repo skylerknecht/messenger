@@ -387,11 +387,6 @@ class Manager:
         if not messenger_id:
             self.update_cli.display(f'Please provide a Messenger ID.', 'warning', reprompt=False)
             return
-        try:
-            messenger_id = int(messenger_id)
-        except:
-            self.update_cli.display(f'\'{messenger_id}\' is not a valid Messenger ID.', 'error', reprompt=False)
-            return
         for messenger in self.messengers:
             if messenger.identifier != messenger_id or not messenger.alive:
                 continue
@@ -422,11 +417,6 @@ class Manager:
         """
         if not messenger_id:
             self.update_cli.display(f'Please provide a Messenger ID.', 'warning', reprompt=False)
-            return
-        try:
-            messenger_id = int(messenger_id)
-        except:
-            self.update_cli.display(f'\'{messenger_id}\' is not a valid Messenger ID.', 'error', reprompt=False)
             return
         for messenger in self.messengers:
             if messenger.identifier != messenger_id or not messenger.alive:

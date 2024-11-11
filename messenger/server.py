@@ -43,8 +43,11 @@ class Server:
                     await messenger.handle_message(downstream_message)
                 break
         else:
-            self.update_cli.display(f'Messenger {messenger_id} not found, discarding {len(downstream_messages)} message(s)!', 'error')
-            return web.Response(status=404, text=f'Not Found')
+            messenger = HTTPMessenger(self.update_cli)
+            messenger.identifier = messenger_id
+            self.messengers.append(messenger)
+            self.update_cli.display(f'{messenger.transport} Messenger {messenger.identifier} has successfully connected.', 'success')
+            return web.Response(status=200)
         return web.Response(status=200, body=upstream_messages)
 
     @staticmethod
