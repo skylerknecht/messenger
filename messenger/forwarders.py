@@ -4,11 +4,12 @@ import uuid
 
 from messenger.convert import bytes_to_base64, base64_to_bytes
 from messenger.message import MessageBuilder
+from messenger.generator import alphanumeric_identifier
 
 
 class ForwarderClient:
     def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, messenger):
-        self.identifier = str(uuid.uuid4())
+        self.identifier = alphanumeric_identifier()
         self.reader = reader
         self.writer = writer
         self.messenger = messenger
@@ -244,7 +245,7 @@ class LocalPortForwarder(Forwarder):
         try:
             self.server = await asyncio.start_server(self.handle_client, self.listening_host, int(self.listening_port))
             self.update_cli.display(
-                f'Messenger {id(self.messenger)} now forwarding ({self.listening_host}:{self.listening_port}) -> (*:*).',
+                f'Messenger {self.messenger.identifier} now forwarding ({self.listening_host}:{self.listening_port}) -> (*:*).',
                 'information', reprompt=False)
             return True
         except OSError:
@@ -254,7 +255,7 @@ class LocalPortForwarder(Forwarder):
     async def stop(self):
         self.server.close()
         await self.server.wait_closed()
-        self.update_cli.display(f'Messenger {id(self.messenger)} has stopped forwarding ({self.listening_host}:{self.listening_port}) -> (*:*).', 'information', reprompt=False)
+        self.update_cli.display(f'Messenger {self.messenger.identifier} has stopped forwarding ({self.listening_host}:{self.listening_port}) -> (*:*).', 'information', reprompt=False)
 
 
 class RemotePortForwarder(Forwarder):
@@ -262,6 +263,7 @@ class RemotePortForwarder(Forwarder):
         self.messenger = messenger
         destination_host, destination_port = self.parse_config(config)
         super().__init__('*', '*', destination_host, destination_port, update_cli)
+        self.identifier = alphanumeric_identifier()
         self.name = "Remote Port Forwarder"
 
     async def create_client(self, client_identifier):
@@ -271,7 +273,7 @@ class RemotePortForwarder(Forwarder):
             upstream_message = MessageBuilder.initiate_forwarder_client_rep(client_identifier, bind_addr, bind_port, 0, 0)
             await self.messenger.send_upstream_message(upstream_message)
         except:
-            self.update_cli.display(f'Remote Port Forwarder {id(self)} could not connect to {self.destination_host}:{self.destination_port}', 'error')
+            self.update_cli.display(f'Remote Port Forwarder {self.identifier} could not connect to {self.destination_host}:{self.destination_port}', 'error')
             upstream_message = MessageBuilder.initiate_forwarder_client_rep(client_identifier, '', 0, 0, 1)
             await self.messenger.send_upstream_message(upstream_message)
             return
@@ -320,5 +322,4 @@ class RemotePortForwarder(Forwarder):
         return destination_host, int(destination_port)
 
     async def start(self):
-        self.update_cli.display(f'Messenger {id(self.messenger)} now forwarding (*:*) -> ({self.destination_host}:{self.destination_port}).', 'information', reprompt=False)
-        #self.update_cli.display(f'{self.name} {id(self)} is now forwarding traffic to {self.destination_host}:{self.destination_port}', 'information', reprompt=False)
+        self.update_cli.display(f'Messenger {self.identifier} now forwarding (*:*) -> ({self.destination_host}:{self.destination_port}).', 'information', reprompt=False)

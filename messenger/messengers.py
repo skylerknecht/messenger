@@ -4,11 +4,13 @@ import time
 
 from abc import ABC, abstractmethod
 from messenger.message import MessageParser, MessageBuilder
+from messenger.generator import alphanumeric_identifier
 
 
 class Messenger(ABC):
     def __init__(self, update_cli):
         self.update_cli = update_cli
+        self.identifier = alphanumeric_identifier()
         self.alive = True
         self.transport = 'Not Assigned'
         self.forwarders = []
@@ -26,7 +28,7 @@ class Messenger(ABC):
                     continue
                 asyncio.create_task(forwarder.create_client(message['Forwarder Client ID']))
                 return
-            self.update_cli.display(f'Messenger {id(self)} has no Remote Port Forwarder configured for {destination_host}:{destination_port}, denying forward!', 'warning')
+            self.update_cli.display(f'Messenger {self.identifier} has no Remote Port Forwarder configured for {destination_host}:{destination_port}, denying forward!', 'warning')
         elif message_type == 0x02:  # Initiate Forwarder Client Response
             forwarder_client_id = message['Forwarder Client ID']
             forwarder_clients = [client for forwarder in self.forwarders for client in forwarder.clients]
@@ -66,7 +68,7 @@ class HTTPMessenger(Messenger):
 
     async def send_upstream_message(self, upstream_message):
         if not self.alive:
-            self.update_cli.display(f'Messenger {id(self)} is not alive, cannot send upstream message.', 'warning')
+            self.update_cli.display(f'Messenger {self.identifier} is not alive, cannot send upstream message.', 'warning')
             return
         await self.upstream_messages.put(upstream_message)
 
@@ -78,11 +80,11 @@ class HTTPMessenger(Messenger):
                 self.alive = False
                 break
             elif expired >= 25:
-                self.update_cli.display(f'Messenger {id(self)} has not checked in and will stop within the next 5 seconds', 'information')
+                self.update_cli.display(f'Messenger {self.identifier} has not checked in and will stop within the next 5 seconds', 'information')
             elif expired >= 15:
-                self.update_cli.display(f'Messenger {id(self)} has not checked in and will stop within the next 15 seconds', 'information')
+                self.update_cli.display(f'Messenger {self.identifier} has not checked in and will stop within the next 15 seconds', 'information')
             elif expired >= 5:
-                self.update_cli.display(f'Messenger {id(self)} has not checked in and will stop within the next 25 seconds', 'information')
+                self.update_cli.display(f'Messenger {self.identifier} has not checked in and will stop within the next 25 seconds', 'information')
 
 
 class WSMessenger(Messenger):
@@ -94,7 +96,7 @@ class WSMessenger(Messenger):
 
     async def send_upstream_message(self, upstream_message):
         if not self.alive:
-            self.update_cli.display(f'Messenger {id(self)} is not alive, cannot send upstream message.', 'warning')
+            self.update_cli.display(f'Messenger {self.identifier} is not alive, cannot send upstream message.', 'warning')
             return
         encrypted_upstream_message = upstream_message  # ToDo Update to Encrypted with AES
         await self.websocket.send_bytes(encrypted_upstream_message)

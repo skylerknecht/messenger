@@ -5,10 +5,12 @@ import argparse
 import ssl
 import sys
 
-from messenger.message import MessageParser, MessageBuilder
 from abc import ABC, abstractmethod
 from urllib import request
 from collections import namedtuple
+
+from messenger.message import MessageParser, MessageBuilder
+from messenger.generator import alphanumeric_identifier
 
 ForwarderClient = namedtuple('ForwarderClient', 'reader writer')
 
@@ -188,14 +190,16 @@ class RemotePortForwarder:
         self.messenger = messenger
         self.listening_host, self.listening_port, self.destination_host, self.destination_port = self.parse_config(config)
         self.name = 'Remote Port Forwarder'
+        self.identifier = alphanumeric_identifier()
 
     async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         forwarder_client = ForwarderClient(reader, writer)
+        forwarder_client_id = alphanumeric_identifier()
         downstream_message = MessageBuilder.initiate_forwarder_client_req(
-            str(id(forwarder_client)), self.destination_host, int(self.destination_port)
+            forwarder_client_id, self.destination_host, int(self.destination_port)
         )
         await self.messenger.send_downstream_message(downstream_message)
-        self.messenger.forwarder_clients[str(id(forwarder_client))] = forwarder_client
+        self.messenger.forwarder_clients[forwarder_client_id] = forwarder_client
 
     def parse_config(self, config):
         parts = config.split(':')
@@ -207,7 +211,7 @@ class RemotePortForwarder:
         except OSError:
             print(f'{self.listening_host}:{self.listening_port} is already in use.')
             return
-        print(f'{self.name} {id(self)} is listening on {self.listening_host}:{self.listening_port}')
+        print(f'{self.name} {self.identifier} is listening on {self.listening_host}:{self.listening_port}')
 
 
 async def try_http(url, remote_port_forwards):

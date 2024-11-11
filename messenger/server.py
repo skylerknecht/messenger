@@ -22,8 +22,8 @@ class Server:
     async def http_get_handler(self, request):
         messenger = HTTPMessenger(self.update_cli)
         self.messengers.append(messenger)
-        self.update_cli.display(f'{messenger.transport} Messenger {id(messenger)} has successfully connected.', 'success')
-        return web.Response(status=200, text=str(id(messenger)))
+        self.update_cli.display(f'{messenger.transport} Messenger {messenger.identifier} has successfully connected.', 'success')
+        return web.Response(status=200, text=messenger.identifier)
 
     async def http_post_handler(self, request):
         # Read the binary data from the request
@@ -34,9 +34,10 @@ class Server:
         check_in_message = downstream_messages[0]
         messenger_id = check_in_message.get('Messenger ID')
         if not messenger_id:
+            self.update_cli.display(f'HTTP Messenger Check-In missing a Messenger ID!', 'error')
             return web.Response(status=404, text=f'Not Found')
         for messenger in self.messengers:
-            if str(id(messenger)) == messenger_id:
+            if messenger.identifier == messenger_id:
                 upstream_messages += await messenger.get_upstream_messages()
                 for downstream_message in downstream_messages[1:]:
                     await messenger.handle_message(downstream_message)
@@ -69,7 +70,7 @@ class Server:
         await websocket.prepare(request)
         messenger = WSMessenger(websocket, self.update_cli)
         self.messengers.append(messenger)
-        self.update_cli.display(f'{messenger.transport} Messenger {id(messenger)} has successfully connected.', 'success')
+        self.update_cli.display(f'{messenger.transport} Messenger {messenger.identifier} has successfully connected.', 'success')
         async for downstream_message in websocket:
             messages = MessageParser.parse_messages(downstream_message.data)
             for message in messages:

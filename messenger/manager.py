@@ -277,25 +277,24 @@ class Manager:
           forwarders
           forwarders 4369562880
         """
-        columns = ["Type", "ID", "Clients", "Listening Host", "Listening Port", "Destination Host", "Destination Port"]
+        columns = ["Type", "Identifier", "Clients", "Listening Host", "Listening Port", "Destination Host", "Destination Port"]
         items = []
 
         for messenger in self.messengers:
-            if messenger_id and str(id(messenger)) != messenger_id:
+            if messenger_id and messenger.identifier != messenger_id:
                 continue
             for forwarder in messenger.forwarders:
                 # Determine color based on type and configuration
-                forwarder_id = str(id(forwarder))
                 if isinstance(forwarder, RemotePortForwarder):
-                    colored_id = self.update_cli.color_text(forwarder_id, 'red')
+                    colored_id = self.update_cli.color_text(forwarder.identifier, 'red')
                 elif forwarder.destination_host == '*' and forwarder.destination_port == '*':
-                    colored_id = self.update_cli.color_text(forwarder_id, 'blue')
+                    colored_id = self.update_cli.color_text(forwarder.identifier, 'blue')
                 else:
-                    colored_id = self.update_cli.color_text(forwarder_id, 'green')
+                    colored_id = self.update_cli.color_text(forwarder.identifier, 'green')
 
                 items.append({
                     "Type": forwarder.name,
-                    "ID": colored_id,
+                    "Identifier": colored_id,
                     "Clients": len(forwarder.clients),
                     "Listening Host": forwarder.listening_host,
                     "Listening Port": forwarder.listening_port,
@@ -320,13 +319,13 @@ class Manager:
         examples:
           messengers
         """
-        columns = ["ID", "Transport", "Alive", "Forwarders"]
+        columns = ["Identifier", "Transport", "Alive", "Forwarders"]
         items = []
 
         for messenger in self.messengers:
             forwarder_ids = [
                 self.update_cli.color_text(
-                    str(id(forwarder)),
+                    forwarder.identifier,
                     'red' if isinstance(forwarder, RemotePortForwarder)
                     else 'blue' if forwarder.destination_host == '*' and forwarder.destination_port == '*'
                     else 'green'
@@ -335,7 +334,7 @@ class Manager:
             ]
 
             items.append({
-                "ID": id(messenger),
+                "Identifier": messenger.identifier,
                 "Transport": messenger.transport,
                 "Alive": messenger.alive,
                 "Forwarders": ', '.join(forwarder_ids) if forwarder_ids else '•••',
@@ -394,7 +393,7 @@ class Manager:
             self.update_cli.display(f'\'{messenger_id}\' is not a valid Messenger ID.', 'error', reprompt=False)
             return
         for messenger in self.messengers:
-            if id(messenger) != messenger_id or not messenger.alive:
+            if messenger.identifier != messenger_id or not messenger.alive:
                 continue
             forwarder = LocalPortForwarder(messenger, forwarder_config, self.update_cli)
             success = await forwarder.start()
@@ -430,7 +429,7 @@ class Manager:
             self.update_cli.display(f'\'{messenger_id}\' is not a valid Messenger ID.', 'error', reprompt=False)
             return
         for messenger in self.messengers:
-            if id(messenger) != messenger_id or not messenger.alive:
+            if messenger.identifier != messenger_id or not messenger.alive:
                 continue
             forwarder = RemotePortForwarder(messenger, forwarder_config, self.update_cli)
             await forwarder.start()
@@ -450,7 +449,7 @@ class Manager:
         """
         for messenger in self.messengers:
             for forwarder in messenger.forwarders:
-                if str(id(forwarder)) != forwarder_id:
+                if forwarder.identifier != forwarder_id:
                     continue
                 if isinstance(forwarder, LocalPortForwarder):
                     await forwarder.stop()
@@ -490,9 +489,8 @@ class DynamicCompleter(Completer):
         """
         word_before_cursor = document.get_word_before_cursor()
         options = list(self.manager.commands.keys())
-        options.extend(str(id(messenger)) for messenger in self.manager.messengers)
-        options.extend(
-            str(id(forwarder)) for messenger in self.manager.messengers for forwarder in messenger.forwarders)
+        options.extend(messenger.identifier for messenger in self.manager.messengers)
+        options.extend(forwarder.identifier for messenger in self.manager.messengers for forwarder in messenger.forwarders)
 
         for option in options:
             if option.startswith(word_before_cursor):
