@@ -20,6 +20,7 @@ async def main(banner, Manager):
     if not args.quiet:
         print(banner)
     messenger_manager = Manager(args.address, args.port, args.ssl)
+
     await messenger_manager.start_command_line_interface()
 
 if __name__ == '__main__':

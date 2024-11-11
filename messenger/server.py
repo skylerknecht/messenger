@@ -1,18 +1,22 @@
+import aiohttp
 import ssl
-import json
-import time
 
-from aiohttp import web
+from aiohttp import web, web_protocol
+from messenger.aes import decrypt, encrypt
 from messenger.messengers import HTTPMessenger, WSMessenger
 from messenger.message import MessageBuilder, MessageParser
+from messenger.generator import alphanumeric_identifier, generate_encryption_key, generate_hash
+
 
 class Server:
-    def __init__(self, messengers, update_cli, address: str = '127.0.0.1', port: int = 1337, ssl: tuple = None):
+    def __init__(self, messengers, update_cli, address: str = '127.0.0.1', port: int = 1337, ssl: tuple = None, encryption_key: str = generate_encryption_key()):
         self.messengers = messengers
         self.update_cli = update_cli
         self.address = address
         self.port = port
         self.ssl = ssl
+        self.update_cli.display(f'The AES encryption key is {encryption_key}', 'Information', reprompt=False)
+        self.encryption_key = generate_hash(encryption_key)
         self.app = web.Application()
         self.app.on_response_prepare.append(self.remove_server_header)
         self.app.router.add_routes([
@@ -20,14 +24,14 @@ class Server:
         ])
 
     async def http_get_handler(self, request):
-        messenger = HTTPMessenger(self.update_cli)
+        messenger = HTTPMessenger(self.encryption_key, self.update_cli)
         self.messengers.append(messenger)
         self.update_cli.display(f'{messenger.transport} Messenger {messenger.identifier} has successfully connected.', 'success')
         return web.Response(status=200, text=messenger.identifier)
 
     async def http_post_handler(self, request):
         # Read the binary data from the request
-        data = await request.read()
+        data = decrypt(self.encryption_key, await request.read())
         # Parse the binary blob into individual messages
         downstream_messages = MessageParser.parse_messages(data)
         upstream_messages = b''
@@ -35,7 +39,7 @@ class Server:
         messenger_id = check_in_message.get('Messenger ID')
         if not messenger_id:
             self.update_cli.display(f'HTTP Messenger Check-In missing a Messenger ID!', 'error')
-            return web.Response(status=404, text=f'Not Found')
+            return web.Response(status=404)
         for messenger in self.messengers:
             if messenger.identifier == messenger_id:
                 upstream_messages += await messenger.get_upstream_messages()
@@ -48,7 +52,7 @@ class Server:
             self.messengers.append(messenger)
             self.update_cli.display(f'{messenger.transport} Messenger {messenger.identifier} has successfully connected.', 'success')
             return web.Response(status=200)
-        return web.Response(status=200, body=upstream_messages)
+        return web.Response(status=200, body=encrypt(self.encryption_key, upstream_messages))
 
     @staticmethod
     async def remove_server_header(request, response):
@@ -66,16 +70,17 @@ class Server:
         else:
             site = web.TCPSite(runner, self.address, self.port)
             await site.start()
-        print(f"Waiting for messengers on http{'s' if self.ssl else ''}+ws{'s' if self.ssl else ''}://{self.address}:{self.port}/")
+        self.update_cli.display(f"Waiting for messengers on http{'s' if self.ssl else ''}+ws{'s' if self.ssl else ''}://{self.address}:{self.port}/", 'Information', reprompt=False)
 
     async def websocket_handler(self, request):
         websocket = web.WebSocketResponse()
         await websocket.prepare(request)
-        messenger = WSMessenger(websocket, self.update_cli)
+        messenger = WSMessenger(websocket, self.encryption_key, self.update_cli)
         self.messengers.append(messenger)
         self.update_cli.display(f'{messenger.transport} Messenger {messenger.identifier} has successfully connected.', 'success')
         async for downstream_message in websocket:
-            messages = MessageParser.parse_messages(downstream_message.data)
+            decrypted_message = decrypt(self.encryption_key, downstream_message.data)
+            messages = MessageParser.parse_messages(decrypted_message)
             for message in messages:
                 await messenger.handle_message(message)
 

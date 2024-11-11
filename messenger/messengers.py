@@ -3,12 +3,13 @@ import json
 import time
 
 from abc import ABC, abstractmethod
-from messenger.message import MessageParser, MessageBuilder
+from messenger.aes import encrypt, decrypt
 from messenger.generator import alphanumeric_identifier
 
 
 class Messenger(ABC):
-    def __init__(self, update_cli):
+    def __init__(self, encryption_key, update_cli):
+        self.encryption_key = encryption_key
         self.update_cli = update_cli
         self.identifier = alphanumeric_identifier()
         self.alive = True
@@ -52,8 +53,8 @@ class Messenger(ABC):
 
 
 class HTTPMessenger(Messenger):
-    def __init__(self, update_cli):
-        super().__init__(update_cli)
+    def __init__(self, encryption_key, update_cli):
+        super().__init__(encryption_key, update_cli)
         self.transport = 'HTTP'
         self.upstream_messages = asyncio.Queue()
         self.last_check_in = time.time()
@@ -89,8 +90,8 @@ class HTTPMessenger(Messenger):
 
 class WSMessenger(Messenger):
 
-    def __init__(self, websocket, update_cli):
-        super().__init__(update_cli)
+    def __init__(self, websocket, encryption_key, update_cli):
+        super().__init__(encryption_key, update_cli)
         self.transport = 'Websocket'
         self.websocket = websocket
 
@@ -98,5 +99,5 @@ class WSMessenger(Messenger):
         if not self.alive:
             self.update_cli.display(f'Messenger {self.identifier} is not alive, cannot send upstream message.', 'warning')
             return
-        encrypted_upstream_message = upstream_message  # ToDo Update to Encrypted with AES
+        encrypted_upstream_message = encrypt(self.encryption_key, upstream_message)
         await self.websocket.send_bytes(encrypted_upstream_message)

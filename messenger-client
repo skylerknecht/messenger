@@ -9,8 +9,9 @@ from abc import ABC, abstractmethod
 from urllib import request
 from collections import namedtuple
 
+from messenger.aes import encrypt, decrypt
 from messenger.message import MessageParser, MessageBuilder
-from messenger.generator import alphanumeric_identifier
+from messenger.generator import alphanumeric_identifier, generate_hash
 
 ForwarderClient = namedtuple('ForwarderClient', 'reader writer')
 
@@ -63,9 +64,10 @@ class MessengerClient(ABC):
 
 
 class WebSocketClient(MessengerClient):
-    def __init__(self, uri: str, remote_port_forwards: str):
+    def __init__(self, uri: str, encryption_key, remote_port_forwards: str):
         super().__init__()
         self.uri = uri
+        self.encryption_key = encryption_key
         self.remote_port_forwards = remote_port_forwards
         self.ws = None
 
@@ -77,7 +79,8 @@ class WebSocketClient(MessengerClient):
                 self.ws = ws
                 async for msg in ws:
                     if msg.type == aiohttp.WSMsgType.BINARY:
-                        asyncio.create_task(self.handle_message(msg.data))
+                        decrypted_message = decrypt(self.encryption_key, msg.data)
+                        asyncio.create_task(self.handle_message(decrypted_message))
                     elif msg.type == aiohttp.WSMsgType.CLOSED:
                         print("Connection closed")
                         break
@@ -104,7 +107,7 @@ class WebSocketClient(MessengerClient):
             forwarder_client.writer.write(message['Data'])
 
     async def send_downstream_message(self, downstream_message):
-        encrypted_downstream_message = downstream_message  # ToDo Update to Encrypted with AES
+        encrypted_downstream_message = encrypt(self.encryption_key, downstream_message)
         await self.ws.send_bytes(encrypted_downstream_message)
 
     async def stream(self, forwarder_client_identifier):
@@ -124,9 +127,10 @@ class WebSocketClient(MessengerClient):
 
 
 class HTTPClient(MessengerClient):
-    def __init__(self, uri, remote_port_forwards: str):
+    def __init__(self, uri, encryption_key, remote_port_forwards: str):
         super().__init__()
         self.uri = uri
+        self.encryption_key = encryption_key
         self.remote_port_forwards = remote_port_forwards
         self.messenger_id = None
         self.downstream_messages = asyncio.Queue()
@@ -140,11 +144,11 @@ class HTTPClient(MessengerClient):
             downstream_messages = MessageBuilder.check_in(self.messenger_id)
             while not self.downstream_messages.empty():
                 downstream_messages += await self.downstream_messages.get()
-            check_in = request.Request(self.uri, headers=self.headers, data=downstream_messages)
+            check_in = request.Request(self.uri, headers=self.headers, data=encrypt(self.encryption_key, downstream_messages))
             with request.urlopen(check_in, context=self.ssl_context) as response:
                 if response.status != 200:
                     break
-                data = response.read()
+                data = decrypt(self.encryption_key, response.read())
                 messages = MessageParser.parse_messages(data)
                 for message in messages:
                     try:
@@ -166,8 +170,7 @@ class HTTPClient(MessengerClient):
             forwarder_client.writer.write(message['Data'])
 
     async def send_downstream_message(self, downstream_message):
-        encrypted_downstream_message = downstream_message  # ToDo Update to Encrypted with AES
-        await self.downstream_messages.put(encrypted_downstream_message)
+        await self.downstream_messages.put(downstream_message)
 
     async def stream(self, forwarder_client_identifier):
         forwarder_client = self.forwarder_clients[forwarder_client_identifier]
@@ -214,18 +217,19 @@ class RemotePortForwarder:
         print(f'{self.name} {self.identifier} is listening on {self.listening_host}:{self.listening_port}')
 
 
-async def try_http(url, remote_port_forwards):
-    messenger_client = HTTPClient(f'{url}{HTTP_ROUTE}', remote_port_forwards)
+async def try_http(url, encryption_key, remote_port_forwards):
+    messenger_client = HTTPClient(f'{url}{HTTP_ROUTE}', encryption_key, remote_port_forwards)
     await messenger_client.connect()
 
 
-async def try_ws(url, remote_port_forwards):
-    messenger_client = WebSocketClient(f'{url}{WS_ROUTE}', remote_port_forwards)
+async def try_ws(url, encryption_key, remote_port_forwards):
+    messenger_client = WebSocketClient(f'{url}{WS_ROUTE}', encryption_key, remote_port_forwards)
     await messenger_client.connect()
 
 
 async def main(args):
     uri = args.uri.strip('/')
+    encryption_key = generate_hash(args.encryption_key)
     remote_port_forwards = args.remote_port_forwards
 
     if "://" in uri:
@@ -237,11 +241,11 @@ async def main(args):
     for attempt in attempts:
         attempt_url = f"{attempt}://{uri}/"
         if "http" in attempt:
-            success = await try_http(attempt_url, remote_port_forwards)
+            success = await try_http(attempt_url, encryption_key, remote_port_forwards)
             if success:
                 sys.exit(0)
         elif "ws" in attempt:
-            success = await try_ws(attempt_url, remote_port_forwards)
+            success = await try_ws(attempt_url, encryption_key, remote_port_forwards)
             if success:
                 sys.exit(0)
 
@@ -257,6 +261,13 @@ if __name__ == '__main__':
         help="The URI of the server to connect to. This should include the scheme (e.g., ws://, wss://, http://, https://) and the domain or IP address. "
              "For example: 'ws://example.com' or 'https://example.com'. If no scheme is provided, it will try to connect using 'ws', 'wss', 'http', and 'https'."
     )
+
+    parser.add_argument(
+        'encryption_key',
+        type=str,
+        help="The AES encryption key to use for encryption."
+    )
+
 
     parser.add_argument(
         'remote_port_forwards',

@@ -54,6 +54,10 @@ class LocalPortForwarderClient(ForwarderClient):
 
 
 class SocksForwarderClient(ForwarderClient):
+
+    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, messenger):
+        super().__init__(reader, writer, messenger)
+
     async def negotiate_authentication_method(self) -> bool:
         version, number_of_methods = await self.reader.read(2)
         if version != 5:
@@ -135,6 +139,7 @@ class Forwarder:
         self.destination_host = destination_host
         self.destination_port = destination_port
         self.update_cli = update_cli
+        self.identifier = alphanumeric_identifier()
         self.clients = []
         self.name = "Unnamed Forwarder"
 
@@ -255,6 +260,11 @@ class LocalPortForwarder(Forwarder):
     async def stop(self):
         self.server.close()
         await self.server.wait_closed()
+
+        for client in self.clients:
+            if not client.writer.transport.is_closing():
+                client.writer.close()
+                await client.writer.wait_closed()
         self.update_cli.display(f'Messenger {self.messenger.identifier} has stopped forwarding ({self.listening_host}:{self.listening_port}) -> (*:*).', 'information', reprompt=False)
 
 
@@ -263,7 +273,6 @@ class RemotePortForwarder(Forwarder):
         self.messenger = messenger
         destination_host, destination_port = self.parse_config(config)
         super().__init__('*', '*', destination_host, destination_port, update_cli)
-        self.identifier = alphanumeric_identifier()
         self.name = "Remote Port Forwarder"
 
     async def create_client(self, client_identifier):

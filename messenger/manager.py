@@ -340,6 +340,7 @@ class Manager:
                 "Forwarders": ', '.join(forwarder_ids) if forwarder_ids else '•••',
             })
         print(self.create_table('Messengers', columns, items))
+
     async def start_command_line_interface(self):
         """
         Start the CLI, display banner, and manage user input.
