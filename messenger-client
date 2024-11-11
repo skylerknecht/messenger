@@ -227,22 +227,15 @@ class RemotePortForwarder:
 
 
 async def try_http(url, encryption_key, remote_port_forwards, proxy):
-    try:
-        messenger_client = HTTPClient(f'{url}{HTTP_ROUTE}', encryption_key, remote_port_forwards, proxy)
-        await messenger_client.connect()
-        return True
-    except:
-        print(f'[-] Failed to connect to {url}')
-        return False
+    messenger_client = HTTPClient(f'{url}{HTTP_ROUTE}', encryption_key, remote_port_forwards, proxy)
+    await messenger_client.connect()
+    return True
+
 
 async def try_ws(url, encryption_key, remote_port_forwards, proxy):
-    try:
-        messenger_client = WebSocketClient(f'{url}{WS_ROUTE}', encryption_key, remote_port_forwards, proxy)
-        await messenger_client.connect()
-        return True
-    except:
-        print(f'[-] Failed to connect to {url}')
-        return False
+    messenger_client = WebSocketClient(f'{url}{WS_ROUTE}', encryption_key, remote_port_forwards, proxy)
+    await messenger_client.connect()
+    return True
 
 
 async def main(args):
@@ -259,14 +252,19 @@ async def main(args):
 
     for attempt in attempts:
         attempt_url = f"{attempt}://{uri}/"
-        if "http" in attempt:
-            success = await try_http(attempt_url, encryption_key, remote_port_forwards, proxy)
+        try:
+            if "http" in attempt:
+                success = await try_http(attempt_url, encryption_key, remote_port_forwards, proxy)
+            elif "ws" in attempt:
+                success = await try_ws(attempt_url, encryption_key, remote_port_forwards, proxy)
+            else:
+                success = False
             if success:
-                sys.exit(0)
-        elif "ws" in attempt:
-            success = await try_ws(attempt_url, encryption_key, remote_port_forwards, proxy)
-            if success:
-                sys.exit(0)
+                return
+        except Exception as e:
+            print(f"[-] Error while connecting to {attempt_url}")
+
+    print("[-] All connection attempts failed.")
 
 
 if __name__ == '__main__':
