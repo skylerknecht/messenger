@@ -4,6 +4,7 @@ import asyncio
 import argparse
 import ssl
 import sys
+import urllib
 
 from abc import ABC, abstractmethod
 from urllib import request
@@ -64,17 +65,18 @@ class MessengerClient(ABC):
 
 
 class WebSocketClient(MessengerClient):
-    def __init__(self, uri: str, encryption_key, remote_port_forwards: str):
+    def __init__(self, uri: str, encryption_key, remote_port_forwards: str, proxy: str = None):
         super().__init__()
         self.uri = uri
         self.encryption_key = encryption_key
         self.remote_port_forwards = remote_port_forwards
+        self.proxy = proxy
         self.ws = None
 
     async def connect(self):
         await self.start_remote_port_forwards(self.remote_port_forwards)
         async with aiohttp.ClientSession(headers=self.headers) as session:
-            async with session.ws_connect(self.uri, ssl=self.ssl_context) as ws:
+            async with session.ws_connect(self.uri, ssl=self.ssl_context, proxy=self.proxy) as ws:
                 print("Connected to WebSocket server")
                 self.ws = ws
                 async for msg in ws:
@@ -127,11 +129,18 @@ class WebSocketClient(MessengerClient):
 
 
 class HTTPClient(MessengerClient):
-    def __init__(self, uri, encryption_key, remote_port_forwards: str):
+    def __init__(self, uri, encryption_key, remote_port_forwards: str, proxy: str = None):
         super().__init__()
         self.uri = uri
         self.encryption_key = encryption_key
         self.remote_port_forwards = remote_port_forwards
+        proxies = {
+            'http': '' if proxy is None else proxy,
+            'https': '' if proxy is None else proxy
+        }
+
+        # ToDo: Support Proxies with HTTPClient
+
         self.messenger_id = None
         self.downstream_messages = asyncio.Queue()
 
@@ -217,20 +226,30 @@ class RemotePortForwarder:
         print(f'{self.name} {self.identifier} is listening on {self.listening_host}:{self.listening_port}')
 
 
-async def try_http(url, encryption_key, remote_port_forwards):
-    messenger_client = HTTPClient(f'{url}{HTTP_ROUTE}', encryption_key, remote_port_forwards)
-    await messenger_client.connect()
+async def try_http(url, encryption_key, remote_port_forwards, proxy):
+    try:
+        messenger_client = HTTPClient(f'{url}{HTTP_ROUTE}', encryption_key, remote_port_forwards, proxy)
+        await messenger_client.connect()
+        return True
+    except:
+        print(f'[-] Failed to connect to {url}')
+        return False
 
-
-async def try_ws(url, encryption_key, remote_port_forwards):
-    messenger_client = WebSocketClient(f'{url}{WS_ROUTE}', encryption_key, remote_port_forwards)
-    await messenger_client.connect()
+async def try_ws(url, encryption_key, remote_port_forwards, proxy):
+    try:
+        messenger_client = WebSocketClient(f'{url}{WS_ROUTE}', encryption_key, remote_port_forwards, proxy)
+        await messenger_client.connect()
+        return True
+    except:
+        print(f'[-] Failed to connect to {url}')
+        return False
 
 
 async def main(args):
     uri = args.uri.strip('/')
     encryption_key = generate_hash(args.encryption_key)
     remote_port_forwards = args.remote_port_forwards
+    proxy = args.proxy
 
     if "://" in uri:
         scheme, uri = uri.split("://", 1)
@@ -241,11 +260,11 @@ async def main(args):
     for attempt in attempts:
         attempt_url = f"{attempt}://{uri}/"
         if "http" in attempt:
-            success = await try_http(attempt_url, encryption_key, remote_port_forwards)
+            success = await try_http(attempt_url, encryption_key, remote_port_forwards, proxy)
             if success:
                 sys.exit(0)
         elif "ws" in attempt:
-            success = await try_ws(attempt_url, encryption_key, remote_port_forwards)
+            success = await try_ws(attempt_url, encryption_key, remote_port_forwards, proxy)
             if success:
                 sys.exit(0)
 
@@ -277,6 +296,12 @@ if __name__ == '__main__':
              "'listening_host:listening_port:destination_host:destination_port'. "
              "For example: '127.0.0.1:8080:example.com:80'. This sets up port forwarding from a local listening address and port "
              "to a remote destination address and port."
+    )
+
+    parser.add_argument(
+        '--proxy',
+        type=str,
+        help="Optional proxy server URL."
     )
 
     args = parser.parse_args()
