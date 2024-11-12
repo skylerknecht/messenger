@@ -104,7 +104,7 @@ class Manager:
 
     PROMPT = '(messenger)~# '
 
-    def __init__(self, server_ip, server_port, ssl):
+    def __init__(self, server_ip, server_port, ssl, encryption_key):
         """
         Initialize Manager with command definitions, messengers, and prompt session.
 
@@ -127,7 +127,7 @@ class Manager:
         self.current_messenger = None
         self.session = PromptSession(completer=DynamicCompleter(self), reserve_space_for_menu=0)
         self.update_cli = UpdateCLI(self.PROMPT, self.session)
-        self.messenger_server = Server(self.messengers, self.update_cli, address=server_ip, port=server_port, ssl=ssl)
+        self.messenger_server = Server(self.messengers, self.update_cli, address=server_ip, port=server_port, ssl=ssl, encryption_key=encryption_key)
 
     @staticmethod
     def strip_ansi_codes(text):

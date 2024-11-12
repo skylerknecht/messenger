@@ -1,5 +1,6 @@
-import aiohttp
+import sys
 import ssl
+import traceback
 
 from aiohttp import web, web_protocol
 from messenger.aes import decrypt, encrypt
@@ -9,14 +10,15 @@ from messenger.generator import alphanumeric_identifier, generate_encryption_key
 
 
 class Server:
-    def __init__(self, messengers, update_cli, address: str = '127.0.0.1', port: int = 1337, ssl: tuple = None, encryption_key: str = generate_encryption_key()):
+    def __init__(self, messengers, update_cli, address: str = '127.0.0.1', port: int = 1337, ssl: tuple = None, encryption_key: str = None):
         self.messengers = messengers
         self.update_cli = update_cli
         self.address = address
         self.port = port
         self.ssl = ssl
-        self.update_cli.display(f'The AES encryption key is {encryption_key}', 'Information', reprompt=False)
-        self.encryption_key = generate_hash(encryption_key)
+        self.encryption_key = encryption_key if encryption_key is not None else generate_encryption_key()
+        self.update_cli.display(f'The AES encryption key is {self.encryption_key}', 'Information', reprompt=False)
+        self.encryption_key = generate_hash(self.encryption_key)
         self.app = web.Application()
         self.app.on_response_prepare.append(self.remove_server_header)
         self.app.router.add_routes([
@@ -62,15 +64,19 @@ class Server:
     async def start(self):
         runner = web.AppRunner(self.app)
         await runner.setup()
-        if self.ssl:
-            ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-            ssl_context.load_cert_chain(self.ssl[0], self.ssl[1])
-            site = web.TCPSite(runner, self.address, self.port, ssl_context=ssl_context)
-            await site.start()
-        else:
-            site = web.TCPSite(runner, self.address, self.port)
-            await site.start()
-        self.update_cli.display(f"Waiting for messengers on http{'s' if self.ssl else ''}+ws{'s' if self.ssl else ''}://{self.address}:{self.port}/", 'Information', reprompt=False)
+        try:
+            if self.ssl:
+                ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+                ssl_context.load_cert_chain(self.ssl[0], self.ssl[1])
+                site = web.TCPSite(runner, self.address, self.port, ssl_context=ssl_context)
+                await site.start()
+            else:
+                site = web.TCPSite(runner, self.address, self.port)
+                await site.start()
+            self.update_cli.display(f"Waiting for messengers on http{'s' if self.ssl else ''}+ws{'s' if self.ssl else ''}://{self.address}:{self.port}/", 'Information', reprompt=False)
+        except OSError:
+            self.update_cli.display(f'An error prevented the server from starting:\n{traceback.format_exc()}', 'error', reprompt=False)
+            sys.exit(1)
 
     async def websocket_handler(self, request):
         websocket = web.WebSocketResponse()

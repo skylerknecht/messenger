@@ -250,7 +250,7 @@ class LocalPortForwarder(Forwarder):
         try:
             self.server = await asyncio.start_server(self.handle_client, self.listening_host, int(self.listening_port))
             self.update_cli.display(
-                f'Messenger {self.messenger.identifier} now forwarding ({self.listening_host}:{self.listening_port}) -> (*:*).',
+                f'Messenger {self.messenger.identifier} now forwarding ({self.listening_host}:{self.listening_port}) -> ({self.destination_host}:{self.destination_port}).',
                 'information', reprompt=False)
             return True
         except OSError:
