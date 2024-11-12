@@ -79,13 +79,12 @@ class HTTPMessenger(Messenger):
             expired = int(time.time() - self.last_check_in)
             if expired >= 30:
                 self.alive = False
+                self.update_cli.display(f'{self.transport} Messenger {self.identifier} has disconnected.', 'warning')
                 break
-            elif expired >= 25:
-                self.update_cli.display(f'Messenger {self.identifier} has not checked in and will stop within the next 5 seconds', 'information')
-            elif expired >= 15:
-                self.update_cli.display(f'Messenger {self.identifier} has not checked in and will stop within the next 15 seconds', 'information')
-            elif expired >= 5:
-                self.update_cli.display(f'Messenger {self.identifier} has not checked in and will stop within the next 25 seconds', 'information')
+            elif expired >= 20:
+                self.update_cli.display(f'Messenger {self.identifier} has not checked in the past 20 seconds and will disconnect soon.', 'warning')
+            elif expired >= 10:
+                self.update_cli.display(f'Messenger {self.identifier} has not checked in the past 10 seconds and will disconnect soon.', 'warning')
 
 
 class WSMessenger(Messenger):

@@ -261,8 +261,18 @@ async def main(args):
                 success = False
             if success:
                 return
-        except Exception as e:
-            print(f"[-] Error while connecting to {attempt_url}")
+        except ValueError:
+            print(f"[-] Value Error occured while connected to {attempt_url}, is the encryption key correct?")
+            return
+        except urllib.error.HTTPError:
+            print(f"[-] Server Error occured while connected to: {attempt_url}")
+            return
+        except urllib.error.URLError:
+            print(f"[-] Failed to connect to {attempt_url}")
+            continue
+        except aiohttp.client_exceptions.ClientConnectorError:
+            print(f"[-] Failed to connect to {attempt_url}")
+            continue
 
     print("[-] All connection attempts failed.")
 

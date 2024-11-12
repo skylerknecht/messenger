@@ -33,7 +33,11 @@ class Server:
 
     async def http_post_handler(self, request):
         # Read the binary data from the request
-        data = decrypt(self.encryption_key, await request.read())
+        try:
+            data = decrypt(self.encryption_key, await request.read())
+        except:
+            self.update_cli.display(f'HTTP Messenger failed to decrypt message.', 'error')
+            return web.Response(status=500)
         # Parse the binary blob into individual messages
         downstream_messages = MessageParser.parse_messages(data)
         upstream_messages = b''
@@ -41,7 +45,7 @@ class Server:
         messenger_id = check_in_message.get('Messenger ID')
         if not messenger_id:
             self.update_cli.display(f'HTTP Messenger Check-In missing a Messenger ID!', 'error')
-            return web.Response(status=404)
+            return web.Response(status=500)
         for messenger in self.messengers:
             if messenger.identifier == messenger_id:
                 upstream_messages += await messenger.get_upstream_messages()
@@ -85,11 +89,16 @@ class Server:
         self.messengers.append(messenger)
         self.update_cli.display(f'{messenger.transport} Messenger {messenger.identifier} has successfully connected.', 'success')
         async for downstream_message in websocket:
-            decrypted_message = decrypt(self.encryption_key, downstream_message.data)
+            try:
+                decrypted_message = decrypt(self.encryption_key, downstream_message.data)
+            except:
+                self.update_cli.display(f'{messenger.transport} Messenger {messenger.identifier} failed to decrypt message.', 'error')
+                break
             messages = MessageParser.parse_messages(decrypted_message)
             for message in messages:
                 await messenger.handle_message(message)
 
+        self.update_cli.display(f'{messenger.transport} Messenger {messenger.identifier} has disconnected.', 'warning')
         messenger.alive = False
         return websocket
 
