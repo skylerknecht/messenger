@@ -194,6 +194,8 @@ The following are several features that may be added in the future.
 
 |                 Feature                  |                                                       Description                                                       |
 |:----------------------------------------:|:-----------------------------------------------------------------------------------------------------------------------:|
+|   Messenger Client HTTP Proxy Support    |                   Permit operators to specify the proxy to use when attempting outbound connections.                    |
+|  ~~Messenger Client WS Proxy Support~~   |                 ~~Permit operators to specify the proxy to use when attempting outbound connections.~~                  |
 | ~~Messenger Client HTTP Auto Reconnect~~ |                 ~~When a HTTP Messenger Client disconnects it'll attempt an auto-reconnect procedure.~~                 |
 |    Messenger Client WS Auto Reconnect    |                   When a HTTP Messenger Client disconnects it'll attempt an auto-reconnect procedure.                   |
 |       Proxychains Auto Generation        | When a new Messenger Client connects, generate a new proxychains configuration file in an operator-specified directory. |   
