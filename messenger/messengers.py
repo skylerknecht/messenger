@@ -11,6 +11,8 @@ class Messenger(ABC):
     def __init__(self, encryption_key, update_cli):
         self.encryption_key = encryption_key
         self.update_cli = update_cli
+        self.ip = None
+        self.user_agent = None
         self.identifier = alphanumeric_identifier()
         self.alive = True
         self.transport = 'Not Assigned'

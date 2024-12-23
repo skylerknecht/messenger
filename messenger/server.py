@@ -26,12 +26,18 @@ class Server:
         ])
 
     async def http_get_handler(self, request):
+        user_agent = request.headers.get('User-Agent', 'Unknown')
+        ip = request.remote
         messenger = HTTPMessenger(self.encryption_key, self.update_cli)
+        messenger.user_agent = user_agent
+        messenger.ip = ip
         self.messengers.append(messenger)
         self.update_cli.display(f'{messenger.transport} Messenger {messenger.identifier} has successfully connected.', 'success')
         return web.Response(status=200, text=messenger.identifier)
 
     async def http_post_handler(self, request):
+        user_agent = request.headers.get('User-Agent', 'Unknown')
+        ip = request.remote
         # Read the binary data from the request
         try:
             data = decrypt(self.encryption_key, await request.read())
@@ -55,6 +61,8 @@ class Server:
         else:
             messenger = HTTPMessenger(self.update_cli)
             messenger.identifier = messenger_id
+            messenger.user_agent = user_agent
+            messenger.ip = ip
             self.messengers.append(messenger)
             self.update_cli.display(f'{messenger.transport} Messenger {messenger.identifier} has successfully connected.', 'success')
             return web.Response(status=200)
@@ -83,9 +91,13 @@ class Server:
             sys.exit(1)
 
     async def websocket_handler(self, request):
+        user_agent = request.headers.get('User-Agent', 'Unknown')
+        ip = request.remote
         websocket = web.WebSocketResponse()
         await websocket.prepare(request)
         messenger = WSMessenger(websocket, self.encryption_key, self.update_cli)
+        messenger.user_agent = user_agent
+        messenger.ip = ip
         self.messengers.append(messenger)
         self.update_cli.display(f'{messenger.transport} Messenger {messenger.identifier} has successfully connected.', 'success')
         async for downstream_message in websocket:

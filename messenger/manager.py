@@ -259,7 +259,7 @@ class Manager:
         Display active forwarders in a table format.
 
         optional arguments:
-          messenger_id       ID of a specific messenger (optional). If provided, only displays forwarders for that messenger.
+          messenger_id       If provided, only displays forwarders for that messenger.
 
         table columns:
           Type               Type of the forwarder (e.g., "Local Port Forwarder" or "Remote Port Forwarder").
@@ -303,23 +303,34 @@ class Manager:
                 })
         print(self.create_table('Forwarders', columns, items))
 
-    async def print_messengers(self):
+    async def print_messengers(self, verbose=''):
         """
-        Display messengers in a table format.
+        Display active messengers in a table format.
 
-        table columns:
-          ID                 Unique identifier for the messenger instance.
-          Transport          Type of transport used by the messenger (e.g., "HTTP" or "Websocket").
-          Alive              Status indicating if the messenger is actively connected.
-          Forwarders         List of forwarder IDs associated with the messenger, color-coded:
-                              - Remote forwarders in red.
-                              - SOCKS proxies in blue.
-                              - Local forwarders in green.
+        Optional Arguments:
+          verbose            Include '-v' or '--verbose' to display additional columns for User-Agent
+                             and IP address.
 
-        examples:
-          messengers
+        Table Columns:
+          - Identifier:       Unique identifier for the messenger instance.
+          - Transport:        Type of transport protocol used by the messenger (e.g., "HTTP" or "WebSocket").
+          - Alive:            Connection status, showing "Yes" if the messenger is actively connected, otherwise "No".
+          - Forwarders:       Comma-separated list of forwarder IDs associated with the messenger, color-coded:
+                                - Remote forwarders in red.
+                                - SOCKS proxies in blue.
+                                - Local forwarders in green.
+          - User-Agent:       (Verbose) User-Agent string of the messenger's connection.
+          - IP:               (Verbose) IP address of the messenger's connection.
+
+        Example Usage:
+            messengers
+            messengers -v
+            messengers --verbose
         """
+        verbose = '-v' in verbose or '--verbose' in verbose
         columns = ["Identifier", "Transport", "Alive", "Forwarders"]
+        if verbose:
+            columns.extend(["User-Agent", "IP"])
         items = []
 
         for messenger in self.messengers:
@@ -332,13 +343,19 @@ class Manager:
                 )
                 for forwarder in messenger.forwarders
             ]
-
-            items.append({
+            item = {
                 "Identifier": messenger.identifier,
                 "Transport": messenger.transport,
-                "Alive": messenger.alive,
+                "Alive": "Yes" if messenger.alive else "No",
                 "Forwarders": ', '.join(forwarder_ids) if forwarder_ids else '•••',
-            })
+            }
+
+            if verbose:
+                item["User-Agent"] = messenger.user_agent if hasattr(messenger, 'user_agent') else '•••'
+                item["IP"] = messenger.ip if hasattr(messenger, 'ip') else '•••'
+
+            items.append(item)
+
         print(self.create_table('Messengers', columns, items))
 
     async def start_command_line_interface(self):

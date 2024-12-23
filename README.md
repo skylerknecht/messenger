@@ -199,7 +199,7 @@ The following are several features that may be added in the future.
 | ~~Messenger Client HTTP Auto Reconnect~~ |                 ~~When a HTTP Messenger Client disconnects it'll attempt an auto-reconnect procedure.~~                 |
 |    Messenger Client WS Auto Reconnect    |                   When a HTTP Messenger Client disconnects it'll attempt an auto-reconnect procedure.                   |
 |       Proxychains Auto Generation        | When a new Messenger Client connects, generate a new proxychains configuration file in an operator-specified directory. |   
-|   ~~Messenger Client Port Forwarding~~   |                      ~~Refactor the Messenger Client to handle local and remote port forwards.~~~                       |
+|   ~~Messenger Client Port Forwarding~~   |                       ~~Refactor the Messenger Client to handle local and remote port forwards.~~                       |
 |        Messenger Server Profiles         |                  Create profile to mimic the traffic of common web services such as SocketIO and AWS.                   |
 |            ~~AES Encryption~~            |                                   ~~Add AES Encryption to both WebSockets and HTTP.~~                                   |
 |         Verbose Messengers Table         |                  The messengers command should show the useragent and IP address as a verbose option.                   |
