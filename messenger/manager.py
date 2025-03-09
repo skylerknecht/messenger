@@ -7,6 +7,8 @@ from collections import namedtuple
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import Completer, Completion
 
+from functools import wraps
+
 from messenger.server import Server
 from messenger.forwarders import LocalPortForwarder, RemotePortForwarder
 
@@ -61,7 +63,7 @@ class UpdateCLI:
         print(f'\r{icon} {stdout}')
 
         if reprompt:
-            print(self.prompt + self.session.app.current_buffer.text, end='')
+            print(f'({self.prompt})~# ' + self.session.app.current_buffer.text, end='')
             sys.stdout.flush()
 
     @staticmethod
@@ -102,7 +104,7 @@ class Manager:
         messenger_server (Server): Server instance for managing messenger connections.
     """
 
-    PROMPT = '(messenger)~# '
+    PROMPT = 'messenger'
 
     def __init__(self, server_ip, server_port, ssl, encryption_key):
         """
@@ -115,13 +117,15 @@ class Manager:
         """
         self.commands = {
             'exit': (self.exit, "Exit the application, stopping the messenger server."),
+            'back': (self.back, "Returns to the main menu."),
             'forwarders': (self.print_forwarders, "Display a list of active forwarders in a table format."),
             'messengers': (self.print_messengers, "Display a list of messengers in a table format."),
             'local': (self.start_local_forwarder, "Start a local forwarder for the specified messenger."),
             'remote': (self.start_remote_forwarder, "Start a remote forwarder."),
-            'socks': (self.start_local_forwarder, "Start a socks proxy."),
+            'socks': (self.start_socks_proxy, "Start a socks proxy."),
             'stop': (self.stop, "Stop a forwarder."),
-            'help': (self.print_help, "Print a list of commands and their descriptions.")
+            'help': (self.print_help, "Print a list of commands and their descriptions."),
+            '?': (self.print_help, "Print a list of commands and their descriptions.")
         }
         self.messengers = []
         self.current_messenger = None
@@ -233,6 +237,20 @@ class Manager:
 
         await func(*call_args)
 
+    def require_messenger(func):
+        """Decorator to ensure a messenger is selected before executing the command."""
+
+        @wraps(func)
+        async def wrapper(self, *args, **kwargs):
+            if not self.current_messenger:
+                self.update_cli.display("Please interact with a messenger before using this command.", 'error',
+                                        reprompt=False)
+                return
+            messenger_id = self.current_messenger.identifier
+            return await func(self, messenger_id, *args, **kwargs)
+
+        return wrapper
+
     @staticmethod
     async def exit():
         """
@@ -240,6 +258,12 @@ class Manager:
         """
         print('\rMessenger Server stopped.')
         sys.exit(0)
+
+    async def back(self):
+        """
+        Return to the main menu.
+        """
+        self.current_messenger = None
 
     async def print_help(self, command=None):
         """
@@ -365,14 +389,20 @@ class Manager:
         await self.messenger_server.start()
         while True:
             try:
-                prompt = self.current_messenger if self.current_messenger else self.PROMPT
-                user_input = await self.session.prompt_async(prompt)
+                prompt = self.current_messenger.identifier if self.current_messenger else self.PROMPT
+                user_input = await self.session.prompt_async(f'({prompt})~# ')
                 if not user_input.strip():
                     continue
                 user_input = user_input.split(' ')
                 command = user_input[0]
-                args = user_input[1:]
-                await self.execute_command(command, args)
+                for messenger in self.messengers:
+                    if command == messenger.identifier:
+                        self.current_messenger = messenger
+                        self.update_cli.prompt = self.current_messenger.identifier
+                        break
+                else:
+                    args = user_input[1:]
+                    await self.execute_command(command, args)
             except Exception as e:
                 self.update_cli.display(f"Unexpected {type(e).__name__}:\n{traceback.format_exc()}", 'error',
                                         reprompt=False)
@@ -380,9 +410,26 @@ class Manager:
                 break
         await self.exit()
 
-    async def start_local_forwarder(self, forwarder_config, messenger_id):
+    from functools import wraps
+
+    def require_messenger(func):
+        """Decorator to ensure a messenger is selected before executing the command."""
+
+        @wraps(func)
+        async def wrapper(self, *args, **kwargs):
+            if not self.current_messenger:
+                self.update_cli.display("Please interact with a messenger before using this command.", 'error',
+                                        reprompt=False)
+                return
+            return await func(self, *args, **kwargs)
+
+        return wrapper
+
+
+    @require_messenger
+    async def start_local_forwarder(self, forwarder_config):
         """
-        Start a socks proxy or local forwarder for a specified messenger.
+        Start a socks proxy or local forwarder for the currently selected messenger.
 
         positional arguments:
           forwarder_config   Configuration string for the local forwarder, in one of the following formats:
@@ -395,29 +442,24 @@ class Manager:
                                - destination_host: "*"
                                - destination_port: "*"
 
-          messenger_id       ID of the messenger to which this forwarder will be attached.
-
         examples:
-          socks 8080 4369562880
-          socks 192.168.1.10:8080
+          local 8080
+          local 192.168.1.10:8080
           local 192.168.1.10:8080:example.com:9090
         """
-        if not messenger_id:
-            self.update_cli.display(f'Please provide a Messenger ID.', 'warning', reprompt=False)
-            return
-        for messenger in self.messengers:
-            if messenger.identifier != messenger_id or not messenger.alive:
-                continue
+        messenger = self.current_messenger
+        if messenger.alive:
             forwarder = LocalPortForwarder(messenger, forwarder_config, self.update_cli)
             success = await forwarder.start()
             if success:
                 messenger.forwarders.append(forwarder)
             return
-        self.update_cli.display(f'Messenger \'{messenger_id}\' not found or is not alive.', 'error', reprompt=False)
+        self.update_cli.display(f'Messenger \'{messenger.identifier}\' is not alive.', 'error', reprompt=False)
 
-    async def start_remote_forwarder(self, forwarder_config, messenger_id):
+    @require_messenger
+    async def start_remote_forwarder(self, forwarder_config):
         """
-        Start a remote forwarder for a specified messenger.
+        Start a remote forwarder for the currently selected messenger.
 
         positional arguments:
           forwarder_config   Configuration string for the remote forwarder, in one of the following formats:
@@ -427,23 +469,45 @@ class Manager:
                              Defaults:
                                - destination_host: "127.0.0.1" if only a port is provided.
 
-          messenger_id       ID of the messenger to which this forwarder will be attached.
-
         examples:
-          remote 9090 4369562880
-          remote example.com:9090 4369562880
+          remote 9090
+          remote example.com:9090
         """
-        if not messenger_id:
-            self.update_cli.display(f'Please provide a Messenger ID.', 'warning', reprompt=False)
-            return
-        for messenger in self.messengers:
-            if messenger.identifier != messenger_id or not messenger.alive:
-                continue
+        messenger = self.current_messenger
+        if messenger.alive:
             forwarder = RemotePortForwarder(messenger, forwarder_config, self.update_cli)
             await forwarder.start()
             messenger.forwarders.append(forwarder)
             return
-        self.update_cli.display(f'Messenger \'{messenger_id}\' not found or is not alive.', 'error', reprompt=False)
+        self.update_cli.display(f'Messenger \'{messenger.identifier}\' is not alive.', 'error', reprompt=False)
+
+    @require_messenger
+    async def start_socks_proxy(self, forwarder_config):
+        """
+        Start a socks proxy for the currently selected messenger.
+
+        positional arguments:
+          forwarder_config   Configuration string for the socks proxy, in one of the following formats:
+                               - "8080"                               : Listening port only.
+                               - "192.168.1.10:8080"                  : Listening host and port.
+
+                             Defaults:
+                               - listening_host: "127.0.0.1"
+                               - destination_host: "*"
+                               - destination_port: "*"
+
+        examples:
+          socks 8080
+          socks 192.168.1.10:8080
+        """
+        messenger = self.current_messenger
+        if messenger.alive:
+            forwarder = LocalPortForwarder(messenger, forwarder_config, self.update_cli)
+            success = await forwarder.start()
+            if success:
+                messenger.forwarders.append(forwarder)
+            return
+        self.update_cli.display(f'Messenger \'{messenger.identifier}\' is not alive.', 'error', reprompt=False)
 
     async def stop(self, forwarder_id):
         """
