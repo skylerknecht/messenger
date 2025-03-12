@@ -91,6 +91,19 @@ class UpdateCLI:
 
         return colors.get(color, colors['reset']) + text + colors['reset']
 
+    @staticmethod
+    def bold_text(text):
+        """
+        Returns bolded text using ANSI escape codes.
+
+        Args:
+            text (str): The text to bold.
+
+        Returns:
+            str: Bolded text.
+        """
+        return "\033[1m" + text + "\033[0m"
+
 
 class Manager:
     """
@@ -403,7 +416,7 @@ class Manager:
                 for forwarder in messenger.forwarders
             ]
             item = {
-                "Identifier": messenger.identifier,
+                "Identifier": self.update_cli.bold_text(messenger.identifier),
                 "Transport": messenger.transport,
                 "Alive": "Yes" if messenger.alive else "No",
                 "Forwarders": ', '.join(forwarder_ids) if forwarder_ids else '•••',
