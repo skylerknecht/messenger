@@ -9,6 +9,7 @@ from prompt_toolkit.completion import Completer, Completion
 
 from functools import wraps
 
+from messenger.messengers import Messenger
 from messenger.server import Server
 from messenger.forwarders import LocalPortForwarder, RemotePortForwarder
 
@@ -118,6 +119,7 @@ class Manager:
         self.commands = {
             'exit': (self.exit, "Exit the application, stopping the messenger server."),
             'back': (self.back, "Return to the main menu."),
+            'interact': (self.interact, "Interact with a messenger."),
             'forwarders': (self.print_forwarders, "Display a list of active forwarders in a table format."),
             'messengers': (self.print_messengers, "Display a list of messengers in a table format."),
             'local': (self.start_local_forwarder, "Start a local forwarder for the specified messenger."),
@@ -265,6 +267,33 @@ class Manager:
         """
         self.current_messenger = None
 
+    async def interact(self, messenger):
+        """
+        Interact with a messenger.
+
+        notes:
+        Operators can omit the interact command and just provide the Messenger ID to interact.
+
+        positional arguments:
+          messenger_id   The ID of the Messenger to interact with.
+
+        examples:
+          NkMCyCrrcP
+          interact NkMCyCrrcP
+        """
+        if isinstance(messenger, str):
+            for _messenger in self.messengers:
+                if messenger == _messenger.identifier:
+                    self.current_messenger = _messenger
+                    self.update_cli.prompt = self.current_messenger.identifier
+                    break
+        elif isinstance(messenger, Messenger):
+            self.current_messenger = messenger
+            self.update_cli.prompt = self.current_messenger.identifier
+        else:
+            self.update_cli.display(f'Could not find Messenger with ID {messenger}', 'error', reprompt=False)
+            return
+
     async def print_help(self, command=None):
         """
         Display available commands and descriptions.
@@ -403,8 +432,7 @@ class Manager:
                 command = user_input[0]
                 for messenger in self.messengers:
                     if command == messenger.identifier:
-                        self.current_messenger = messenger
-                        self.update_cli.prompt = self.current_messenger.identifier
+                        await self.interact(messenger)
                         break
                 else:
                     args = user_input[1:]
