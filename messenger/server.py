@@ -17,7 +17,7 @@ class Server:
         self.port = port
         self.ssl = ssl
         self.encryption_key = encryption_key if encryption_key is not None else generate_encryption_key()
-        self.update_cli.display(f'The AES encryption key is {self.encryption_key}', 'Information', reprompt=False)
+        self.update_cli.display(f'The AES encryption key is {self.update_cli.bold_text(self.encryption_key)}', 'Information', reprompt=False)
         self.encryption_key = generate_hash(self.encryption_key)
         self.app = web.Application()
         self.app.on_response_prepare.append(self.remove_server_header)

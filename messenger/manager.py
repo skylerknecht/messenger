@@ -7,6 +7,9 @@ from collections import namedtuple
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import Completer, Completion
 
+from functools import wraps
+
+from messenger.messengers import Messenger
 from messenger.server import Server
 from messenger.forwarders import LocalPortForwarder, RemotePortForwarder
 
@@ -61,7 +64,7 @@ class UpdateCLI:
         print(f'\r{icon} {stdout}')
 
         if reprompt:
-            print(self.prompt + self.session.app.current_buffer.text, end='')
+            print(f'({self.prompt})~# ' + self.session.app.current_buffer.text, end='')
             sys.stdout.flush()
 
     @staticmethod
@@ -88,6 +91,19 @@ class UpdateCLI:
 
         return colors.get(color, colors['reset']) + text + colors['reset']
 
+    @staticmethod
+    def bold_text(text):
+        """
+        Returns bolded text using ANSI escape codes.
+
+        Args:
+            text (str): The text to bold.
+
+        Returns:
+            str: Bolded text.
+        """
+        return "\033[1m" + text + "\033[0m"
+
 
 class Manager:
     """
@@ -102,7 +118,7 @@ class Manager:
         messenger_server (Server): Server instance for managing messenger connections.
     """
 
-    PROMPT = '(messenger)~# '
+    PROMPT = 'messenger'
 
     def __init__(self, server_ip, server_port, ssl, encryption_key):
         """
@@ -113,16 +129,22 @@ class Manager:
             server_port (int): Port for messenger server.
             ssl (bool): Indicates whether SSL is enabled.
         """
-        self.commands = {
+        self.server_commands = {
             'exit': (self.exit, "Exit the application, stopping the messenger server."),
+            'back': (self.back, "Return to the main menu."),
+            'interact': (self.interact, "Interact with a messenger."),
             'forwarders': (self.print_forwarders, "Display a list of active forwarders in a table format."),
             'messengers': (self.print_messengers, "Display a list of messengers in a table format."),
+            'stop': (self.stop, "Stop a forwarder."),
+            'help': (self.print_help, "Print a list of commands and their descriptions."),
+            '?': (self.print_help, "Print a list of commands and their descriptions.")
+        }
+        self.messenger_commands = {
             'local': (self.start_local_forwarder, "Start a local forwarder for the specified messenger."),
             'remote': (self.start_remote_forwarder, "Start a remote forwarder."),
-            'socks': (self.start_local_forwarder, "Start a socks proxy."),
-            'stop': (self.stop, "Stop a forwarder."),
-            'help': (self.print_help, "Print a list of commands and their descriptions.")
+            'socks': (self.start_socks_proxy, "Start a socks proxy.")
         }
+        self.commands = {**self.server_commands, **self.messenger_commands}
         self.messengers = []
         self.current_messenger = None
         self.session = PromptSession(completer=DynamicCompleter(self), reserve_space_for_menu=0)
@@ -233,6 +255,20 @@ class Manager:
 
         await func(*call_args)
 
+    def require_messenger(func):
+        """Decorator to ensure a messenger is selected before executing the command."""
+
+        @wraps(func)
+        async def wrapper(self, *args, **kwargs):
+            if not self.current_messenger:
+                self.update_cli.display("Please interact with a messenger before using this command.", 'error',
+                                        reprompt=False)
+                return
+            messenger_id = self.current_messenger.identifier
+            return await func(self, messenger_id, *args, **kwargs)
+
+        return wrapper
+
     @staticmethod
     async def exit():
         """
@@ -240,6 +276,39 @@ class Manager:
         """
         print('\rMessenger Server stopped.')
         sys.exit(0)
+
+    async def back(self):
+        """
+        Return to the main menu.
+        """
+        self.current_messenger = None
+
+    async def interact(self, messenger):
+        """
+        Interact with a messenger.
+
+        notes:
+        Operators can omit the interact command and just provide the Messenger ID to interact.
+
+        positional arguments:
+          messenger_id   The ID of the Messenger to interact with.
+
+        examples:
+          NkMCyCrrcP
+          interact NkMCyCrrcP
+        """
+        if isinstance(messenger, str):
+            for _messenger in self.messengers:
+                if messenger == _messenger.identifier:
+                    self.current_messenger = _messenger
+                    self.update_cli.prompt = self.current_messenger.identifier
+                    break
+        elif isinstance(messenger, Messenger):
+            self.current_messenger = messenger
+            self.update_cli.prompt = self.current_messenger.identifier
+        else:
+            self.update_cli.display(f'Could not find Messenger with ID {messenger}', 'error', reprompt=False)
+            return
 
     async def print_help(self, command=None):
         """
@@ -250,8 +319,12 @@ class Manager:
             docstring = inspect.getdoc(func)
             print(docstring)
             return
-        print("Available commands:")
-        for command, (func, description) in self.commands.items():
+        print("Server commands:")
+        for command, (func, description) in self.server_commands.items():
+            print(f"  {command:10} {description}")
+        print()
+        print("Messenger commands (must be interacting with messenger):")
+        for command, (func, description) in self.messenger_commands.items():
             print(f"  {command:10} {description}")
 
     async def print_forwarders(self, messenger_id=None):
@@ -275,10 +348,18 @@ class Manager:
 
         examples:
           forwarders
-          forwarders 4369562880
+          forwarders NkMCyCrrcP
         """
         columns = ["Type", "Identifier", "Clients", "Listening Host", "Listening Port", "Destination Host", "Destination Port"]
         items = []
+
+        if len(self.messengers) == 0:
+            self.update_cli.display('There are no connected Messengers, therefore, there cannot be any Forwarders. Idiot.', 'status', reprompt=False)
+            return
+
+        if messenger_id and messenger_id not in [messenger.identifier for messenger in self.messengers]:
+            self.update_cli.display(f'Messenger ID {messenger_id} does not exist.', 'status', reprompt=False)
+            return
 
         for messenger in self.messengers:
             if messenger_id and messenger.identifier != messenger_id:
@@ -301,6 +382,12 @@ class Manager:
                     "Destination Host": forwarder.destination_host,
                     "Destination Port": forwarder.destination_port,
                 })
+        if len(items) == 0:
+            if messenger_id:
+                self.update_cli.display(f'There are no forwarders to display for messenger {messenger_id}.', 'status', reprompt=False)
+            else:
+                self.update_cli.display('There are no forwarders to display.', 'status', reprompt=False)
+            return
         print(self.create_table('Forwarders', columns, items))
 
     async def print_messengers(self, verbose=''):
@@ -330,7 +417,7 @@ class Manager:
         verbose = '-v' in verbose or '--verbose' in verbose
         columns = ["Identifier", "Transport", "Alive", "Forwarders"]
         if verbose:
-            columns.extend(["User-Agent", "IP"])
+            columns.extend(["External IP", "User-Agent"])
         items = []
 
         for messenger in self.messengers:
@@ -343,19 +430,25 @@ class Manager:
                 )
                 for forwarder in messenger.forwarders
             ]
+            current_messenger_identifier = f"{self.update_cli.color_text('>', 'red')} {self.update_cli.bold_text(messenger.identifier)}"
+            messenger_identifier = self.update_cli.bold_text(messenger.identifier)
+            identifier = current_messenger_identifier if self.current_messenger == messenger else messenger_identifier
             item = {
-                "Identifier": messenger.identifier,
+                "Identifier": identifier,
                 "Transport": messenger.transport,
                 "Alive": "Yes" if messenger.alive else "No",
                 "Forwarders": ', '.join(forwarder_ids) if forwarder_ids else '•••',
             }
 
             if verbose:
+                item["External IP"] = messenger.ip if hasattr(messenger, 'ip') else '•••'
                 item["User-Agent"] = messenger.user_agent if hasattr(messenger, 'user_agent') else '•••'
-                item["IP"] = messenger.ip if hasattr(messenger, 'ip') else '•••'
 
             items.append(item)
 
+        if len(items) == 0:
+            self.update_cli.display('There are no messengers to display.', 'status', reprompt=False)
+            return
         print(self.create_table('Messengers', columns, items))
 
     async def start_command_line_interface(self):
@@ -365,14 +458,19 @@ class Manager:
         await self.messenger_server.start()
         while True:
             try:
-                prompt = self.current_messenger if self.current_messenger else self.PROMPT
-                user_input = await self.session.prompt_async(prompt)
+                prompt = self.current_messenger.identifier if self.current_messenger else self.PROMPT
+                user_input = await self.session.prompt_async(f'({prompt})~# ')
                 if not user_input.strip():
                     continue
                 user_input = user_input.split(' ')
                 command = user_input[0]
-                args = user_input[1:]
-                await self.execute_command(command, args)
+                for messenger in self.messengers:
+                    if command == messenger.identifier:
+                        await self.interact(messenger)
+                        break
+                else:
+                    args = user_input[1:]
+                    await self.execute_command(command, args)
             except Exception as e:
                 self.update_cli.display(f"Unexpected {type(e).__name__}:\n{traceback.format_exc()}", 'error',
                                         reprompt=False)
@@ -380,9 +478,24 @@ class Manager:
                 break
         await self.exit()
 
-    async def start_local_forwarder(self, forwarder_config, messenger_id):
+    def require_messenger(func):
+        """Decorator to ensure a messenger is selected before executing the command."""
+
+        @wraps(func)
+        async def wrapper(self, *args, **kwargs):
+            if not self.current_messenger:
+                self.update_cli.display("Please interact with a messenger before using this command.", 'error',
+                                        reprompt=False)
+                return
+            return await func(self, *args, **kwargs)
+
+        return wrapper
+
+
+    @require_messenger
+    async def start_local_forwarder(self, forwarder_config):
         """
-        Start a socks proxy or local forwarder for a specified messenger.
+        Start a socks proxy or local forwarder for the currently selected messenger.
 
         positional arguments:
           forwarder_config   Configuration string for the local forwarder, in one of the following formats:
@@ -395,29 +508,24 @@ class Manager:
                                - destination_host: "*"
                                - destination_port: "*"
 
-          messenger_id       ID of the messenger to which this forwarder will be attached.
-
         examples:
-          socks 8080 4369562880
-          socks 192.168.1.10:8080
+          local 8080
+          local 192.168.1.10:8080
           local 192.168.1.10:8080:example.com:9090
         """
-        if not messenger_id:
-            self.update_cli.display(f'Please provide a Messenger ID.', 'warning', reprompt=False)
-            return
-        for messenger in self.messengers:
-            if messenger.identifier != messenger_id or not messenger.alive:
-                continue
+        messenger = self.current_messenger
+        if messenger.alive:
             forwarder = LocalPortForwarder(messenger, forwarder_config, self.update_cli)
             success = await forwarder.start()
             if success:
                 messenger.forwarders.append(forwarder)
             return
-        self.update_cli.display(f'Messenger \'{messenger_id}\' not found or is not alive.', 'error', reprompt=False)
+        self.update_cli.display(f'Messenger \'{messenger.identifier}\' is not alive.', 'error', reprompt=False)
 
-    async def start_remote_forwarder(self, forwarder_config, messenger_id):
+    @require_messenger
+    async def start_remote_forwarder(self, forwarder_config):
         """
-        Start a remote forwarder for a specified messenger.
+        Start a remote forwarder for the currently selected messenger.
 
         positional arguments:
           forwarder_config   Configuration string for the remote forwarder, in one of the following formats:
@@ -427,23 +535,45 @@ class Manager:
                              Defaults:
                                - destination_host: "127.0.0.1" if only a port is provided.
 
-          messenger_id       ID of the messenger to which this forwarder will be attached.
-
         examples:
-          remote 9090 4369562880
-          remote example.com:9090 4369562880
+          remote 9090
+          remote example.com:9090
         """
-        if not messenger_id:
-            self.update_cli.display(f'Please provide a Messenger ID.', 'warning', reprompt=False)
-            return
-        for messenger in self.messengers:
-            if messenger.identifier != messenger_id or not messenger.alive:
-                continue
+        messenger = self.current_messenger
+        if messenger.alive:
             forwarder = RemotePortForwarder(messenger, forwarder_config, self.update_cli)
             await forwarder.start()
             messenger.forwarders.append(forwarder)
             return
-        self.update_cli.display(f'Messenger \'{messenger_id}\' not found or is not alive.', 'error', reprompt=False)
+        self.update_cli.display(f'Messenger \'{messenger.identifier}\' is not alive.', 'error', reprompt=False)
+
+    @require_messenger
+    async def start_socks_proxy(self, forwarder_config):
+        """
+        Start a socks proxy for the currently selected messenger.
+
+        positional arguments:
+          forwarder_config   Configuration string for the socks proxy, in one of the following formats:
+                               - "8080"                               : Listening port only.
+                               - "192.168.1.10:8080"                  : Listening host and port.
+
+                             Defaults:
+                               - listening_host: "127.0.0.1"
+                               - destination_host: "*"
+                               - destination_port: "*"
+
+        examples:
+          socks 8080
+          socks 192.168.1.10:8080
+        """
+        messenger = self.current_messenger
+        if messenger.alive:
+            forwarder = LocalPortForwarder(messenger, forwarder_config, self.update_cli)
+            success = await forwarder.start()
+            if success:
+                messenger.forwarders.append(forwarder)
+            return
+        self.update_cli.display(f'Messenger \'{messenger.identifier}\' is not alive.', 'error', reprompt=False)
 
     async def stop(self, forwarder_id):
         """
@@ -453,7 +583,7 @@ class Manager:
           forwarder_id       ID of the forwarder to stop and remove.
 
         examples:
-          stop 4369562880
+          stop NkMCyCrrcP
         """
         for messenger in self.messengers:
             for forwarder in messenger.forwarders:
