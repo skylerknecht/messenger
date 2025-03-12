@@ -346,6 +346,10 @@ class Manager:
         columns = ["Type", "Identifier", "Clients", "Listening Host", "Listening Port", "Destination Host", "Destination Port"]
         items = []
 
+        if len(self.messengers):
+            self.update_cli.display('There are no Messengers, therefore, there cannot be any Forwarders. Idiot.', 'status', reprompt=False)
+            return
+
         for messenger in self.messengers:
             if messenger_id and messenger.identifier != messenger_id:
                 continue
@@ -367,13 +371,10 @@ class Manager:
                     "Destination Host": forwarder.destination_host,
                     "Destination Port": forwarder.destination_port,
                 })
-            if len(items) == 0:
-                self.update_cli.display('There are no forwarders to display.', 'status', reprompt=False)
-                return
-            print(self.create_table('Forwarders', columns, items))
-        else:
-            self.update_cli.display('There are no Messengers, therefore, there cannot be any Forwarders. Idiot.', 'status', reprompt=False)
+        if len(items) == 0:
+            self.update_cli.display('There are no forwarders to display.', 'status', reprompt=False)
             return
+        print(self.create_table('Forwarders', columns, items))
 
     async def print_messengers(self, verbose=''):
         """
@@ -415,8 +416,11 @@ class Manager:
                 )
                 for forwarder in messenger.forwarders
             ]
+            current_messenger_identifier = f'{self.update_cli.color_text('>', 'red')}  {self.update_cli.bold_text(messenger.identifier)}'
+            messenger_identifier = self.update_cli.bold_text(messenger.identifier)
+            identifier = current_messenger_identifier if self.current_messenger == messenger else messenger_identifier
             item = {
-                "Identifier": self.update_cli.bold_text(messenger.identifier),
+                "Identifier": identifier,
                 "Transport": messenger.transport,
                 "Alive": "Yes" if messenger.alive else "No",
                 "Forwarders": ', '.join(forwarder_ids) if forwarder_ids else '•••',
