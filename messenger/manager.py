@@ -350,6 +350,10 @@ class Manager:
             self.update_cli.display('There are no connected Messengers, therefore, there cannot be any Forwarders. Idiot.', 'status', reprompt=False)
             return
 
+        if messenger_id and messenger_id not in [messenger.identifier for messenger in self.messengers]:
+            self.update_cli.display(f'Messenger ID {messenger_id} does not exist.', 'status', reprompt=False)
+            return
+
         for messenger in self.messengers:
             if messenger_id and messenger.identifier != messenger_id:
                 continue
@@ -372,7 +376,10 @@ class Manager:
                     "Destination Port": forwarder.destination_port,
                 })
         if len(items) == 0:
-            self.update_cli.display('There are no forwarders to display.', 'status', reprompt=False)
+            if messenger_id:
+                self.update_cli.display(f'There are no forwarders to display for messenger {messenger_id}.', 'status', reprompt=False)
+            else:
+                self.update_cli.display('There are no forwarders to display.', 'status', reprompt=False)
             return
         print(self.create_table('Forwarders', columns, items))
 
