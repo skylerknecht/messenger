@@ -130,16 +130,16 @@ class Manager:
             ssl (bool): Indicates whether SSL is enabled.
         """
         self.server_commands = {
-            'exit': (self.exit, "Exit the application, stopping the messenger server."),
-            'back': (self.back, "Return to the main menu."),
-            'interact': (self.interact, "Interact with a messenger."),
-            'forwarders': (self.print_forwarders, "Display a list of active forwarders in a table format."),
+            'forwarders': (self.print_forwarders, "Display a list of forwarders in a table format."),
             'messengers': (self.print_messengers, "Display a list of messengers in a table format."),
+            'interact': (self.interact, "Interact with a messenger."),
             'stop': (self.stop, "Stop a forwarder."),
-            'help': (self.print_help, "Print a list of commands and their descriptions."),
-            '?': (self.print_help, "Print a list of commands and their descriptions.")
+            'help': (self.print_help, "Display this help message."),
+            '?': (self.print_help, "Display this help message but with fewer characters."),
+            'exit': (self.exit, "Exit Messenger, stopping the server."),
         }
         self.messenger_commands = {
+            'back': (self.back, "Return to the main menu."),
             'local': (self.start_local_forwarder, "Start a local forwarder."),
             'remote': (self.start_remote_forwarder, "Start a remote forwarder."),
             'socks': (self.start_socks_proxy, "Start a socks proxy.")
