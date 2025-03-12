@@ -325,7 +325,10 @@ class Manager:
                     "Destination Host": forwarder.destination_host,
                     "Destination Port": forwarder.destination_port,
                 })
-        print(self.create_table('Forwarders', columns, items))
+            if len(items) == 0:
+                self.update_cli.display('There are no forwarders to display.', 'status', reprompt=False)
+                return
+            print(self.create_table('Forwarders', columns, items))
 
     async def print_messengers(self, verbose=''):
         """
@@ -380,6 +383,9 @@ class Manager:
 
             items.append(item)
 
+        if len(items) == 0:
+            self.update_cli.display('There are no messengers to display.', 'status', reprompt=False)
+            return
         print(self.create_table('Messengers', columns, items))
 
     async def start_command_line_interface(self):
