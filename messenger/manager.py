@@ -358,6 +358,9 @@ class Manager:
                 self.update_cli.display('There are no forwarders to display.', 'status', reprompt=False)
                 return
             print(self.create_table('Forwarders', columns, items))
+        else:
+            self.update_cli.display('Please connect a Messenger first.', 'status', reprompt=False)
+            return
 
     async def print_messengers(self, verbose=''):
         """
