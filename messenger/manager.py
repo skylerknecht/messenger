@@ -129,19 +129,22 @@ class Manager:
             server_port (int): Port for messenger server.
             ssl (bool): Indicates whether SSL is enabled.
         """
-        self.commands = {
+        self.server_commands = {
             'exit': (self.exit, "Exit the application, stopping the messenger server."),
             'back': (self.back, "Return to the main menu."),
             'interact': (self.interact, "Interact with a messenger."),
             'forwarders': (self.print_forwarders, "Display a list of active forwarders in a table format."),
             'messengers': (self.print_messengers, "Display a list of messengers in a table format."),
-            'local': (self.start_local_forwarder, "Start a local forwarder for the specified messenger."),
-            'remote': (self.start_remote_forwarder, "Start a remote forwarder."),
-            'socks': (self.start_socks_proxy, "Start a socks proxy."),
             'stop': (self.stop, "Stop a forwarder."),
             'help': (self.print_help, "Print a list of commands and their descriptions."),
             '?': (self.print_help, "Print a list of commands and their descriptions.")
         }
+        self.messenger_commands = {
+            'local': (self.start_local_forwarder, "Start a local forwarder for the specified messenger."),
+            'remote': (self.start_remote_forwarder, "Start a remote forwarder."),
+            'socks': (self.start_socks_proxy, "Start a socks proxy.")
+        }
+        self.commands = {**self.server_commands, **self.messenger_commands}
         self.messengers = []
         self.current_messenger = None
         self.session = PromptSession(completer=DynamicCompleter(self), reserve_space_for_menu=0)
@@ -316,8 +319,12 @@ class Manager:
             docstring = inspect.getdoc(func)
             print(docstring)
             return
-        print("Available commands:")
-        for command, (func, description) in self.commands.items():
+        print("Server commands:")
+        for command, (func, description) in self.server_commands.items():
+            print(f"  {command:10} {description}")
+        print()
+        print("Messenger commands (must be interacting with messenger):")
+        for command, (func, description) in self.messenger_commands.items():
             print(f"  {command:10} {description}")
 
     async def print_forwarders(self, messenger_id=None):
