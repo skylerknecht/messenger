@@ -434,8 +434,8 @@ class Manager:
             }
 
             if verbose:
-                item["User-Agent"] = messenger.user_agent if hasattr(messenger, 'user_agent') else '•••'
                 item["IP"] = messenger.ip if hasattr(messenger, 'ip') else '•••'
+                item["User-Agent"] = messenger.user_agent if hasattr(messenger, 'user_agent') else '•••'
 
             items.append(item)
 
