@@ -346,7 +346,7 @@ class Manager:
         columns = ["Type", "Identifier", "Clients", "Listening Host", "Listening Port", "Destination Host", "Destination Port"]
         items = []
 
-        if len(self.messengers):
+        if len(self.messengers) == 0:
             self.update_cli.display('There are no connected Messengers, therefore, there cannot be any Forwarders. Idiot.', 'status', reprompt=False)
             return
 
