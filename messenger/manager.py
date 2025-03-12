@@ -416,7 +416,7 @@ class Manager:
                 )
                 for forwarder in messenger.forwarders
             ]
-            current_messenger_identifier = f"{self.update_cli.color_text('>', 'red')}  {self.update_cli.bold_text(messenger.identifier)}"
+            current_messenger_identifier = f"{self.update_cli.color_text('>', 'red')} {self.update_cli.bold_text(messenger.identifier)}"
             messenger_identifier = self.update_cli.bold_text(messenger.identifier)
             identifier = current_messenger_identifier if self.current_messenger == messenger else messenger_identifier
             item = {
