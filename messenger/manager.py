@@ -299,7 +299,7 @@ class Manager:
 
         examples:
           forwarders
-          forwarders 4369562880
+          forwarders NkMCyCrrcP
         """
         columns = ["Type", "Identifier", "Clients", "Listening Host", "Listening Port", "Destination Host", "Destination Port"]
         items = []
@@ -410,8 +410,6 @@ class Manager:
                 break
         await self.exit()
 
-    from functools import wraps
-
     def require_messenger(func):
         """Decorator to ensure a messenger is selected before executing the command."""
 
@@ -517,7 +515,7 @@ class Manager:
           forwarder_id       ID of the forwarder to stop and remove.
 
         examples:
-          stop 4369562880
+          stop NkMCyCrrcP
         """
         for messenger in self.messengers:
             for forwarder in messenger.forwarders:
