@@ -117,7 +117,7 @@ class Manager:
         """
         self.commands = {
             'exit': (self.exit, "Exit the application, stopping the messenger server."),
-            'back': (self.back, "Returns to the main menu."),
+            'back': (self.back, "Return to the main menu."),
             'forwarders': (self.print_forwarders, "Display a list of active forwarders in a table format."),
             'messengers': (self.print_messengers, "Display a list of messengers in a table format."),
             'local': (self.start_local_forwarder, "Start a local forwarder for the specified messenger."),
