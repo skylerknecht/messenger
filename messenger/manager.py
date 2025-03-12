@@ -11,7 +11,7 @@ from functools import wraps
 
 from messenger.messengers import Messenger
 from messenger.server import Server
-from messenger.forwarders import LocalPortForwarder, RemotePortForwarder
+from messenger.forwarders import LocalPortForwarder, SocksProxy, RemotePortForwarder, InvalidConfigError
 
 
 class UpdateCLI:
@@ -140,7 +140,7 @@ class Manager:
             '?': (self.print_help, "Print a list of commands and their descriptions.")
         }
         self.messenger_commands = {
-            'local': (self.start_local_forwarder, "Start a local forwarder for the specified messenger."),
+            'local': (self.start_local_forwarder, "Start a local forwarder."),
             'remote': (self.start_remote_forwarder, "Start a remote forwarder."),
             'socks': (self.start_socks_proxy, "Start a socks proxy.")
         }
@@ -287,8 +287,8 @@ class Manager:
         """
         Interact with a messenger.
 
-        notes:
-        Operators can omit the interact command and just provide the Messenger ID to interact.
+        note:
+        Operators can omit the interact command and just provide the Messenger ID to interact with a Messenger.
 
         positional arguments:
           messenger_id   The ID of the Messenger to interact with.
@@ -323,7 +323,7 @@ class Manager:
         for command, (func, description) in self.server_commands.items():
             print(f"  {command:10} {description}")
         print()
-        print("Messenger commands (must be interacting with messenger):")
+        print("Messenger commands (must be interacting with a messenger):")
         for command, (func, description) in self.messenger_commands.items():
             print(f"  {command:10} {description}")
 
@@ -471,6 +471,8 @@ class Manager:
                 else:
                     args = user_input[1:]
                     await self.execute_command(command, args)
+            except InvalidConfigError as e:
+                self.update_cli.display(str(e), 'error',reprompt=False)
             except Exception as e:
                 self.update_cli.display(f"Unexpected {type(e).__name__}:\n{traceback.format_exc()}", 'error',
                                         reprompt=False)
@@ -490,7 +492,6 @@ class Manager:
             return await func(self, *args, **kwargs)
 
         return wrapper
-
 
     @require_messenger
     async def start_local_forwarder(self, forwarder_config):
@@ -568,7 +569,7 @@ class Manager:
         """
         messenger = self.current_messenger
         if messenger.alive:
-            forwarder = LocalPortForwarder(messenger, forwarder_config, self.update_cli)
+            forwarder = SocksProxy(messenger, forwarder_config, self.update_cli)
             success = await forwarder.start()
             if success:
                 messenger.forwarders.append(forwarder)
