@@ -438,8 +438,8 @@ class Manager:
                 "Transport": messenger.transport,
                 "Alive": "Yes" if messenger.alive else "No",
                 "Forwarders": ', '.join(forwarder_ids) if forwarder_ids else '•••',
-                "Sent": f'{round(messenger.sent_bytes / (1024 * 1024), 2)} MB',
-                "Received": f'{round(messenger.received_bytes / (1024 * 1024), 2)} MB'
+                "Sent": f"{messenger.sent_bytes / (1024 ** 2):.4f} MB",
+                "Received": f"{messenger.received_bytes / (1024 ** 2):.4f} MB"
             }
 
             if verbose:
