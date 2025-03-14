@@ -22,7 +22,6 @@ class Messenger(ABC):
 
     async def handle_message(self, message):
         # Parse the header to understand the message type
-        self.received_bytes += len(message)
         message_type = message['Message Type']
 
         # Handle each message type based on protocol

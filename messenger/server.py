@@ -40,7 +40,8 @@ class Server:
         ip = request.remote
         # Read the binary data from the request
         try:
-            data = decrypt(self.encryption_key, await request.read())
+            encrypted_data = await request.read()
+            data = decrypt(self.encryption_key, encrypted_data)
         except:
             self.update_cli.display(f'HTTP Messenger failed to decrypt message.', 'error')
             return web.Response(status=500)
@@ -56,6 +57,7 @@ class Server:
             if messenger.identifier == messenger_id:
                 upstream_messages += await messenger.get_upstream_messages()
                 for downstream_message in downstream_messages[1:]:
+                    messenger.received_bytes += len(encrypted_data)
                     await messenger.handle_message(downstream_message)
                 break
         else:
@@ -108,6 +110,7 @@ class Server:
                 break
             messages = MessageParser.parse_messages(decrypted_message)
             for message in messages:
+                messenger.received_bytes += len(downstream_message.data)
                 await messenger.handle_message(message)
 
         self.update_cli.display(f'{messenger.transport} Messenger {messenger.identifier} has disconnected.', 'warning')
