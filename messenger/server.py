@@ -57,7 +57,7 @@ class Server:
             if messenger.identifier == messenger_id:
                 upstream_messages += await messenger.get_upstream_messages()
                 for downstream_message in downstream_messages[1:]:
-                    messenger.received_bytes += len(encrypted_data)
+                    messenger._received_bytes += len(encrypted_data)
                     await messenger.handle_message(downstream_message)
                 break
         else:
@@ -110,7 +110,7 @@ class Server:
                 break
             messages = MessageParser.parse_messages(decrypted_message)
             for message in messages:
-                messenger.received_bytes += len(downstream_message.data)
+                messenger._received_bytes += len(downstream_message.data)
                 await messenger.handle_message(message)
 
         self.update_cli.display(f'{messenger.transport} Messenger {messenger.identifier} has disconnected.', 'warning')
