@@ -17,9 +17,12 @@ class Messenger(ABC):
         self.alive = True
         self.transport = 'Not Assigned'
         self.forwarders = []
+        self.sent_bytes = 0
+        self.received_bytes = 0
 
     async def handle_message(self, message):
         # Parse the header to understand the message type
+        self.received_bytes += len(message)
         message_type = message['Message Type']
 
         # Handle each message type based on protocol
@@ -67,6 +70,7 @@ class HTTPMessenger(Messenger):
         upstream_messages = b''
         while not self.upstream_messages.empty():
             upstream_messages += await self.upstream_messages.get()
+        self.sent_bytes += len(upstream_messages)
         return upstream_messages
 
     async def send_upstream_message(self, upstream_message):
@@ -101,4 +105,5 @@ class WSMessenger(Messenger):
             self.update_cli.display(f'Messenger {self.identifier} is not alive, cannot send upstream message.', 'warning')
             return
         encrypted_upstream_message = encrypt(self.encryption_key, upstream_message)
+        self.sent_bytes += len(encrypted_upstream_message)
         await self.websocket.send_bytes(encrypted_upstream_message)

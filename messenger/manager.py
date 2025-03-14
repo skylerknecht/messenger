@@ -415,7 +415,7 @@ class Manager:
             messengers --verbose
         """
         verbose = '-v' in verbose or '--verbose' in verbose
-        columns = ["Identifier", "Transport", "Alive", "Forwarders"]
+        columns = ["Identifier", "Transport", "Alive", "Forwarders", "Sent", "Received"]
         if verbose:
             columns.extend(["External IP", "User-Agent"])
         items = []
@@ -438,6 +438,8 @@ class Manager:
                 "Transport": messenger.transport,
                 "Alive": "Yes" if messenger.alive else "No",
                 "Forwarders": ', '.join(forwarder_ids) if forwarder_ids else '•••',
+                "Sent": f'{round(messenger.sent_bytes / (1024 * 1024), 2)} MB',
+                "Received": f'{round(messenger.received_bytes / (1024 * 1024), 2)} MB'
             }
 
             if verbose:
