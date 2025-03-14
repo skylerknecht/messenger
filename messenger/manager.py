@@ -374,7 +374,7 @@ class Manager:
                     colored_id = self.update_cli.color_text(forwarder.identifier, 'green')
 
                 items.append({
-                    "Type": forwarder.name,
+                    "Type": forwarder.NAME,
                     "Identifier": colored_id,
                     "Clients": len(forwarder.clients),
                     "Listening Host": forwarder.listening_host,
