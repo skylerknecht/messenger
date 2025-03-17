@@ -74,47 +74,13 @@ class MessageParser:
         messenger_id, _ = MessageParser.read_string(value)
         return {'Messenger ID': messenger_id}
 
-    @staticmethod
-    def parse_messages(data: bytes) -> List[Dict]:
-        """Parses a byte array into individual messages, each with its type included."""
-        messages = []
-        while data:
-            # Parse the header to get the message type and length
-            header_info = MessageParser.header(data)
-            message_type = header_info['Message Type']
-            message_length = header_info['Message Length']
-            value = header_info['Value']
-
-            # Extract the entire message using the length from the header
-            message_data = value[:message_length - 8]  # Minus header size
-            data = value[message_length - 8:]  # Update remaining data
-
-            # Parse based on message type and include the type in the result
-            if message_type == 0x01:
-                message = MessageParser.initiate_forwarder_client_req(message_data)
-                message['Message Type'] = message_type  # Add type to parsed message
-                messages.append(message)
-            elif message_type == 0x02:
-                message = MessageParser.initiate_forwarder_client_rep(message_data)
-                message['Message Type'] = message_type
-                messages.append(message)
-            elif message_type == 0x03:
-                message = MessageParser.send_data(message_data)
-                message['Message Type'] = message_type
-                messages.append(message)
-            elif message_type == 0x04:
-                message = MessageParser.check_in(message_data)
-                message['Message Type'] = message_type
-                messages.append(message)
-
-        return messages
-
 
 class MessageBuilder:
     @staticmethod
     def header(message_type: int, value: bytes) -> bytes:
         """Builds the message header with a specified type and value."""
-        message_length = 8 + len(value)  # Header is 8 bytes, plus value length
+        encrypted_value = encrypt(value)
+        message_length = 8 + len(encrypted_value)  # Header is 8 bytes, plus value length
         header = struct.pack('!II', message_type, message_length)
         return header + value
 

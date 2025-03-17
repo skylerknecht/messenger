@@ -11,7 +11,9 @@ from functools import wraps
 
 from messenger.messengers import Messenger
 from messenger.server import Server
+from messenger.engine import Engine
 from messenger.forwarders import LocalPortForwarder, SocksProxy, RemotePortForwarder, InvalidConfigError
+from messenger.generator import generate_encryption_key, generate_hash
 
 
 class UpdateCLI:
@@ -149,7 +151,10 @@ class Manager:
         self.current_messenger = None
         self.session = PromptSession(completer=DynamicCompleter(self), reserve_space_for_menu=0)
         self.update_cli = UpdateCLI(self.PROMPT, self.session)
-        self.messenger_server = Server(self.messengers, self.update_cli, address=server_ip, port=server_port, ssl=ssl, encryption_key=encryption_key)
+        self.encryption_key = encryption_key if encryption_key is not None else generate_encryption_key()
+        self.update_cli.display(f'The AES encryption key is {self.update_cli.bold_text(self.encryption_key)}', 'Information', reprompt=False)
+        self.messenger_server = Server(self.messengers, self.update_cli, address=server_ip, port=server_port, ssl=ssl, encryption_key=generate_hash(encryption_key))
+        self.messenger_engine = Engine(self.messengers, self.update_cli, generate_hash(encryption_key))
 
     @staticmethod
     def strip_ansi_codes(text):
