@@ -190,7 +190,13 @@ class WebSocketClient(MessengerClient):
                     await self.handle_message(message)
                 except:
                     continue
-        await self.ws.close()
+
+    async def stop(self):
+        if self.ws is not None and not self.ws.closed:
+            await self.ws.close()
+
+        if self.session is not None and not self.session.closed:
+            await self.session.close()
 
     async def send_downstream_message(self, downstream_message):
         downstream_messages = [CheckInMessage(messenger_id=self.identifier), downstream_message]
@@ -370,6 +376,7 @@ class Messenger:
             if "ws" in attempt:
                 print('[*] Attempting to connect to Messenger Server over WebSockets')
                 await self.try_ws(candidate_url, self.encryption_key, self.remote_port_forwards, self.proxy)
+        print('Messenger Client stopped.')
 
     async def try_http(self, candidate_url, encryption_key, remote_port_forwards, proxy):
         try:
@@ -386,9 +393,8 @@ class Messenger:
             return
 
     async def try_ws(self, candidate_url, encryption_key, remote_port_forwards, proxy):
+        messenger_client = WebSocketClient(f'{candidate_url}{WS_ROUTE}', encryption_key, remote_port_forwards, proxy)
         try:
-            messenger_client = WebSocketClient(f'{candidate_url}{WS_ROUTE}', encryption_key, remote_port_forwards,
-                                               proxy)
             await messenger_client.connect()
             if not messenger_client.identifier:
                 print('[!] Failed to connect to Messenger Server over WebSockets')
@@ -396,7 +402,9 @@ class Messenger:
             print(f'[+] Successfully connected to {candidate_url}{WS_ROUTE}')
             self.connected_successfully = True
             await messenger_client.start()
+            await messenger_client.stop()
         except Exception:
+            await messenger_client.stop()
             print('[!] Failed to connect to Messenger Server over WS')
             return
 
@@ -409,6 +417,8 @@ async def main(args):
     continue_after_success = args.continue_after_success
 
     messenger = Messenger(server_url, encryption_key, remote_port_forwards, proxy, continue_after_success)
+
+
     await messenger.start()
 
 if __name__ == '__main__':
