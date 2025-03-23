@@ -41,7 +41,7 @@ class Messenger:
     @abstractmethod
     async def send_messages_downstream(self, messages):
         for message in messages:
-
+            self._received_bytes += len(message)
             # 1) Initiate Forwarder Client Request (0x01)
             if isinstance(message, InitiateForwarderClientReq):
                 destination_host = message.ip_address
@@ -122,26 +122,12 @@ class Messenger:
         """
         return self._format_bytes(self._sent_bytes)
 
-    @sent_bytes.setter
-    def sent_bytes(self, value: int):
-        """
-        Allow setting the raw integer, but store it privately.
-        """
-        self._sent_bytes = value
-
     @property
     def received_bytes(self) -> str:
         """
         Always return a *formatted* string for the bytes received.
         """
         return self._format_bytes(self._received_bytes)
-
-    @received_bytes.setter
-    def received_bytes(self, value: int):
-        """
-        Allow setting the raw integer, but store it privately.
-        """
-        self._received_bytes = value
 
 
 class HTTPMessenger(Messenger):
