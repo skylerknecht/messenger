@@ -17,20 +17,20 @@ class Messenger:
         self.alive = True
         self.identifier = alphanumeric_identifier()
         self.update_cli = update_cli
-        self._sent_bytes = 0
-        self._received_bytes = 0
         self.forwarders = []
         self.upstream_messages = asyncio.Queue()
         self.serialize_messages = serialize_messages
+
+        # Private raw counters
+        self.sent_bytes = 0
+        self.received_bytes = 0
+
 
     async def get_upstream_messages(self):
         self.last_check_in = time.time()
         upstream_messages = b''
         while not self.upstream_messages.empty():
             upstream_messages += await self.upstream_messages.get()
-
-        # Work directly with the private variable to add the raw bytes:
-        self._sent_bytes += len(upstream_messages)
 
         return upstream_messages
 
@@ -41,7 +41,6 @@ class Messenger:
     @abstractmethod
     async def send_messages_downstream(self, messages):
         for message in messages:
-            self._received_bytes += len(message)
             # 1) Initiate Forwarder Client Request (0x01)
             if isinstance(message, InitiateForwarderClientReq):
                 destination_host = message.ip_address
@@ -86,7 +85,7 @@ class Messenger:
                 forwarder_clients = [c for fw in self.forwarders for c in fw.clients]
                 for forwarder_client in forwarder_clients:
                     if forwarder_client.identifier == forwarder_client_id:
-                        forwarder_client.writer.write(data)
+                        forwarder_client.write(data)
                         break
 
             # 4) Unknown / Unhandled
@@ -115,19 +114,17 @@ class Messenger:
 
         return f"{size_float:.2f} {units[idx]}"
 
-    @property
-    def sent_bytes(self) -> str:
+    def format_sent_bytes(self) -> str:
         """
         Always return a *formatted* string for the bytes sent.
         """
-        return self._format_bytes(self._sent_bytes)
+        return self._format_bytes(self.sent_bytes)
 
-    @property
-    def received_bytes(self) -> str:
+    def format_received_bytes(self) -> str:
         """
         Always return a *formatted* string for the bytes received.
         """
-        return self._format_bytes(self._received_bytes)
+        return self._format_bytes(self.received_bytes)
 
 
 class HTTPMessenger(Messenger):
@@ -191,7 +188,5 @@ class WebSocketMessenger(Messenger):
                 'warning'
             )
             return
-
-        self._sent_bytes += len(message)
 
         await self.websocket.send_bytes(self.serialize_messages([message]))

@@ -443,8 +443,8 @@ class Manager:
                 "Transport": messenger.transport_type,
                 "Alive": "Yes" if messenger.alive else "No",
                 "Forwarders": ', '.join(forwarder_ids) if forwarder_ids else '•••',
-                "Sent": f"{messenger.sent_bytes}",
-                "Received": f"{messenger.received_bytes}"
+                "Sent": f"{messenger.format_sent_bytes()}",
+                "Received": f"{messenger.format_received_bytes()}"
             }
 
             if verbose:

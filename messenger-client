@@ -10,7 +10,6 @@ from abc import ABC, abstractmethod
 from urllib import request
 from collections import namedtuple
 
-from messenger.aes import encrypt, decrypt
 from messenger.message import MessageParser, MessageBuilder
 from messenger.generator import alphanumeric_identifier, generate_hash
 
@@ -191,7 +190,7 @@ class WebSocketClient(MessengerClient):
                     await self.handle_message(message)
                 except:
                     continue
-        self.ws.close()
+        await self.ws.close()
 
     async def send_downstream_message(self, downstream_message):
         downstream_messages = [CheckInMessage(messenger_id=self.identifier), downstream_message]

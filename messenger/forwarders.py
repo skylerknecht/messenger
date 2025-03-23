@@ -2,7 +2,6 @@ import asyncio
 import socket
 import re
 
-from messenger.convert import base64_to_bytes
 from messenger.generator import alphanumeric_identifier
 
 from messenger.message import (
@@ -33,6 +32,7 @@ class ForwarderClient:
                 upstream_message = await self.reader.read(4096)
                 if not upstream_message:
                     break
+                self.messenger.sent_bytes += len(upstream_message)
                 await self.messenger.send_message_upstream(
                     SendDataMessage(
                         forwarder_client_id=self.identifier,
@@ -48,9 +48,9 @@ class ForwarderClient:
             )
         )
 
-    def write(self, base64_encoded_data):
-        base64_decoded_data = base64_to_bytes(base64_encoded_data)
-        self.writer.write(base64_decoded_data)
+    def write(self, data):
+        self.messenger.received_bytes += len(data)
+        self.writer.write(data)
 
 
 class LocalPortForwarderClient(ForwarderClient):
@@ -152,6 +152,7 @@ class SocksForwarderClient(ForwarderClient):
     def connect(self, bind_addr, bind_port, atype, rep):
         self.connected = True
         socks_connect_results = self.socks_results(rep, bind_addr, bind_port)
+        self.messenger.received_bytes += len(socks_connect_results)
         self.writer.write(socks_connect_results)
 
 
