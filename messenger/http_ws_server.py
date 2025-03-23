@@ -78,9 +78,9 @@ class HTTPWSServer:
         ws = web.WebSocketResponse()
         await ws.prepare(request)
 
-        # For metadata
         ip = request.remote
         user_agent = request.headers.get('User-Agent', 'Unknown')
+        ws_messenger = None
 
         async for msg in ws:
             # 1) Deserialize all messages from this binary frame
@@ -106,5 +106,7 @@ class HTTPWSServer:
                     messenger_id,
                     messages[1:]
                 )
+        if ws_messenger:
+            ws_messenger.alive = False
 
         return ws
