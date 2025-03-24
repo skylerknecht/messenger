@@ -18,7 +18,7 @@ class HTTPWSServer:
         self.messenger_engine = messenger_engine
 
     async def start(self):
-        app = web.Application()
+        app = web.Application(client_max_size=2 * 1024 * 1024 * 1024)  # 2 GB
         app.on_response_prepare.append(self.remove_server_header)
         app.router.add_routes([
             web.route('*', '/{tail:.*}', self.redirect_handler)
