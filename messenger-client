@@ -360,8 +360,9 @@ class Messenger:
     async def start(self):
         # If user gave e.g. "ws+http://example.com", attempts = ["ws", "http"]
         # Otherwise default to ["ws", "http", "wss", "https"]
-        scheme, remainder = self.server_url.split("://", 1)
+        remainder = self.server_url
         if "://" in self.server_url:
+            scheme, remainder = self.server_url.split("://", 1)
             attempts = scheme.split('+')
         else:
             attempts = ["ws", "http", "wss", "https"]
@@ -417,7 +418,6 @@ async def main(args):
     continue_after_success = args.continue_after_success
 
     messenger = Messenger(server_url, encryption_key, remote_port_forwards, proxy, continue_after_success)
-
 
     await messenger.start()
 
