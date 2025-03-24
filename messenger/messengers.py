@@ -1,26 +1,99 @@
 import asyncio
-import json
 import time
 
-from abc import ABC, abstractmethod
-from messenger.aes import encrypt, decrypt
+from abc import abstractmethod
 from messenger.generator import alphanumeric_identifier
+from messenger.message import (
+    InitiateForwarderClientReq,
+    InitiateForwarderClientRep,
+    SendDataMessage
+)
 
+class Messenger:
 
-class Messenger(ABC):
-    def __init__(self, encryption_key, update_cli):
-        self.encryption_key = encryption_key
-        self.update_cli = update_cli
-        self.ip = None
-        self.user_agent = None
-        self.identifier = alphanumeric_identifier()
+    transport_type = 'undefined'
+
+    def __init__(self, update_cli, serialize_messages):
         self.alive = True
-        self.transport = 'Not Assigned'
+        self.identifier = alphanumeric_identifier()
+        self.update_cli = update_cli
         self.forwarders = []
+        self.upstream_messages = asyncio.Queue()
+        self.serialize_messages = serialize_messages
 
         # Private raw counters
-        self._sent_bytes = 0
-        self._received_bytes = 0
+        self.sent_bytes = 0
+        self.received_bytes = 0
+
+
+    async def get_upstream_messages(self):
+        self.last_check_in = time.time()
+        upstream_messages = b''
+        while not self.upstream_messages.empty():
+            upstream_messages += await self.upstream_messages.get()
+
+        return upstream_messages
+
+    @abstractmethod
+    async def send_message_upstream(self, message):
+        raise NotImplementedError
+
+    @abstractmethod
+    async def send_messages_downstream(self, messages):
+        for message in messages:
+            # 1) Initiate Forwarder Client Request (0x01)
+            if isinstance(message, InitiateForwarderClientReq):
+                destination_host = message.ip_address
+                destination_port = message.port
+                forwarder_client_id = message.forwarder_client_id
+
+                # Find a matching RemotePortForwarder
+                for forwarder in self.forwarders:
+                    if (forwarder.destination_host == destination_host and
+                            int(forwarder.destination_port) == destination_port):
+                        # If we have a match, create a new client asynchronously
+                        asyncio.create_task(forwarder.create_client(forwarder_client_id))
+                        break
+                else:
+                    # If no break happened, no matching forwarder was found
+                    self.update_cli.display(
+                        f'Messenger {self.identifier} has no Remote Port Forwarder configured '
+                        f'for {destination_host}:{destination_port}, denying forward!',
+                        'warning'
+                    )
+
+            # 2) Initiate Forwarder Client Response (0x02)
+            elif isinstance(message, InitiateForwarderClientRep):
+                forwarder_client_id = message.forwarder_client_id
+                bind_addr = message.bind_address
+                bind_port = message.bind_port
+                address_type = message.address_type
+                reason = message.reason
+
+                # Search all forwarders’ clients
+                forwarder_clients = [c for fw in self.forwarders for c in fw.clients]
+                for forwarder_client in forwarder_clients:
+                    if forwarder_client.identifier == forwarder_client_id:
+                        forwarder_client.connect(bind_addr, bind_port, address_type, reason)
+                        break
+
+            # 3) Send Data (0x03)
+            elif isinstance(message, SendDataMessage):
+                forwarder_client_id = message.forwarder_client_id
+                data = message.data
+
+                forwarder_clients = [c for fw in self.forwarders for c in fw.clients]
+                for forwarder_client in forwarder_clients:
+                    if forwarder_client.identifier == forwarder_client_id:
+                        forwarder_client.write(data)
+                        break
+
+            # 4) Unknown / Unhandled
+            else:
+                self.update_cli.display(
+                    f"Unknown or unhandled message type: {type(message).__name__}",
+                    'information'
+                )
 
     @staticmethod
     def _format_bytes(size: int) -> str:
@@ -41,106 +114,38 @@ class Messenger(ABC):
 
         return f"{size_float:.2f} {units[idx]}"
 
-    @property
-    def sent_bytes(self) -> str:
+    def format_sent_bytes(self) -> str:
         """
         Always return a *formatted* string for the bytes sent.
         """
-        return self._format_bytes(self._sent_bytes)
+        return self._format_bytes(self.sent_bytes)
 
-    @sent_bytes.setter
-    def sent_bytes(self, value: int):
-        """
-        Allow setting the raw integer, but store it privately.
-        """
-        self._sent_bytes = value
-
-    @property
-    def received_bytes(self) -> str:
+    def format_received_bytes(self) -> str:
         """
         Always return a *formatted* string for the bytes received.
         """
-        return self._format_bytes(self._received_bytes)
-
-    @received_bytes.setter
-    def received_bytes(self, value: int):
-        """
-        Allow setting the raw integer, but store it privately.
-        """
-        self._received_bytes = value
-
-    async def handle_message(self, message):
-        # Because handle_message is adding bytes, we must work with the private var:
-        message_type = message['Message Type']
-
-        if message_type == 0x01:  # Initiate Forwarder Client Request
-            destination_host = message['IP Address']
-            destination_port = message['Port']
-            for forwarder in self.forwarders:
-                if (forwarder.destination_host != destination_host or
-                        int(forwarder.destination_port) != destination_port):
-                    continue
-                asyncio.create_task(forwarder.create_client(message['Forwarder Client ID']))
-                return
-            self.update_cli.display(
-                f'Messenger {self.identifier} has no Remote Port Forwarder configured '
-                f'for {destination_host}:{destination_port}, denying forward!',
-                'warning'
-            )
-        elif message_type == 0x02:  # Initiate Forwarder Client Response
-            forwarder_client_id = message['Forwarder Client ID']
-            forwarder_clients = [client for forwarder in self.forwarders for client in forwarder.clients]
-            for forwarder_client in forwarder_clients:
-                if forwarder_client.identifier != forwarder_client_id:
-                    continue
-                forwarder_client.connect(
-                    message['Bind Address'],
-                    message['Bind Port'],
-                    message['Address Type'],
-                    message['Reason']
-                )
-        elif message_type == 0x03:  # Send Data
-            forwarder_client_id = message['Forwarder Client ID']
-            forwarder_clients = [client for forwarder in self.forwarders for client in forwarder.clients]
-            for forwarder_client in forwarder_clients:
-                if forwarder_client.identifier != forwarder_client_id:
-                    continue
-                forwarder_client.writer.write(message['Data'])
-        else:
-            self.update_cli.display(f"Unknown message type: {message_type}", 'information')
-
-    @abstractmethod
-    async def send_upstream_message(self, upstream_message):
-        raise NotImplementedError
+        return self._format_bytes(self.received_bytes)
 
 
 class HTTPMessenger(Messenger):
-    def __init__(self, encryption_key, update_cli):
-        super().__init__(encryption_key, update_cli)
-        self.transport = 'HTTP'
-        self.upstream_messages = asyncio.Queue()
-        self.last_check_in = time.time()
+
+    transport_type = 'HTTP'
+
+    def __init__(self, ip, user_agent, update_cli, serialize_messages):
+        super().__init__(update_cli, serialize_messages)
         asyncio.create_task(self.expiration())
-
-    async def get_upstream_messages(self):
+        self.ip = ip
+        self.user_agent = user_agent
         self.last_check_in = time.time()
-        upstream_messages = b''
-        while not self.upstream_messages.empty():
-            upstream_messages += await self.upstream_messages.get()
 
-        # Work directly with the private variable to add the raw bytes:
-        self._sent_bytes += len(upstream_messages)
-
-        return upstream_messages
-
-    async def send_upstream_message(self, upstream_message):
+    async def send_message_upstream(self, message):
         if not self.alive:
             self.update_cli.display(
                 f'Messenger {self.identifier} is not alive, cannot send upstream message.',
                 'warning'
             )
             return
-        await self.upstream_messages.put(upstream_message)
+        await self.upstream_messages.put(self.serialize_messages([message]))
 
     async def expiration(self):
         while True:
@@ -149,41 +154,39 @@ class HTTPMessenger(Messenger):
             if expired >= 30:
                 self.alive = False
                 self.update_cli.display(
-                    f'{self.transport} Messenger {self.identifier} has disconnected.',
+                    f'{self.transport_type} Messenger ({self.identifier}) has disconnected.',
                     'warning'
                 )
                 break
             elif expired >= 20:
                 self.update_cli.display(
-                    f'Messenger {self.identifier} has not checked in the past 20 seconds '
+                    f'{self.transport_type} Messenger ({self.identifier}) has not checked in the past 20 seconds '
                     'and will disconnect soon.',
                     'warning'
                 )
             elif expired >= 10:
                 self.update_cli.display(
-                    f'Messenger {self.identifier} has not checked in the past 10 seconds '
+                    f'{self.transport_type} Messenger ({self.identifier}) has not checked in the past 10 seconds '
                     'and will disconnect soon.',
                     'warning'
                 )
 
+class WebSocketMessenger(Messenger):
 
-class WSMessenger(Messenger):
-    def __init__(self, websocket, encryption_key, update_cli):
-        super().__init__(encryption_key, update_cli)
-        self.transport = 'Websocket'
+    transport_type = 'WebSocket'
+
+    def __init__(self, websocket, ip, user_agent, update_cli, serialize_messages):
+        super().__init__(update_cli, serialize_messages)
+        self.ip = ip
+        self.user_agent = user_agent
         self.websocket = websocket
 
-    async def send_upstream_message(self, upstream_message):
+    async def send_message_upstream(self, message):
         if not self.alive:
             self.update_cli.display(
-                f'Messenger {self.identifier} is not alive, cannot send upstream message.',
+                f'{self.transport_type} Messenger ({self.identifier}) is not alive, cannot send upstream message.',
                 'warning'
             )
             return
 
-        encrypted_upstream_message = encrypt(self.encryption_key, upstream_message)
-
-        # Work directly with the private variable to add the raw bytes:
-        self._sent_bytes += len(encrypted_upstream_message)
-
-        await self.websocket.send_bytes(encrypted_upstream_message)
+        await self.websocket.send_bytes(self.serialize_messages([message]))

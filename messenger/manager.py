@@ -10,8 +10,10 @@ from prompt_toolkit.completion import Completer, Completion
 from functools import wraps
 
 from messenger.messengers import Messenger
-from messenger.server import Server
+from messenger.http_ws_server import HTTPWSServer
+from messenger.engine import Engine
 from messenger.forwarders import LocalPortForwarder, SocksProxy, RemotePortForwarder, InvalidConfigError
+from messenger.generator import generate_encryption_key, generate_hash
 
 
 class UpdateCLI:
@@ -149,7 +151,10 @@ class Manager:
         self.current_messenger = None
         self.session = PromptSession(completer=DynamicCompleter(self), reserve_space_for_menu=0)
         self.update_cli = UpdateCLI(self.PROMPT, self.session)
-        self.messenger_server = Server(self.messengers, self.update_cli, address=server_ip, port=server_port, ssl=ssl, encryption_key=encryption_key)
+        self.encryption_key = encryption_key if encryption_key is not None else generate_encryption_key()
+        self.update_cli.display(f'The AES encryption key is {self.update_cli.bold_text(self.encryption_key)}', 'Information', reprompt=False)
+        self.messenger_engine = Engine(self.messengers, self.update_cli, generate_hash(self.encryption_key))
+        self.messenger_server = HTTPWSServer(self.update_cli, self.messenger_engine, ip=server_ip, port=server_port, ssl=ssl)
 
     @staticmethod
     def strip_ansi_codes(text):
@@ -435,11 +440,11 @@ class Manager:
             identifier = current_messenger_identifier if self.current_messenger == messenger else messenger_identifier
             item = {
                 "Identifier": identifier,
-                "Transport": messenger.transport,
+                "Transport": messenger.transport_type,
                 "Alive": "Yes" if messenger.alive else "No",
                 "Forwarders": ', '.join(forwarder_ids) if forwarder_ids else '•••',
-                "Sent": f"{messenger.sent_bytes / (1024 ** 2):.4f} MB",
-                "Received": f"{messenger.received_bytes / (1024 ** 2):.4f} MB"
+                "Sent": f"{messenger.format_sent_bytes()}",
+                "Received": f"{messenger.format_received_bytes()}"
             }
 
             if verbose:

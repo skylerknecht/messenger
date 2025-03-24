@@ -2,9 +2,13 @@ import asyncio
 import socket
 import re
 
-from messenger.convert import base64_to_bytes
-from messenger.message import MessageBuilder
 from messenger.generator import alphanumeric_identifier
+
+from messenger.message import (
+    InitiateForwarderClientReq,
+    InitiateForwarderClientRep,
+    SendDataMessage
+)
 
 
 class ForwarderClient:
@@ -28,14 +32,25 @@ class ForwarderClient:
                 upstream_message = await self.reader.read(4096)
                 if not upstream_message:
                     break
-                await self.messenger.send_upstream_message(MessageBuilder.send_data(self.identifier, upstream_message))
+                self.messenger.sent_bytes += len(upstream_message)
+                await self.messenger.send_message_upstream(
+                    SendDataMessage(
+                        forwarder_client_id=self.identifier,
+                        data=upstream_message
+                    )
+                )
             except (EOFError, ConnectionResetError):
                 break
-        await self.messenger.send_upstream_message(MessageBuilder.send_data(self.identifier, b''))
+        await self.messenger.send_message_upstream(
+            SendDataMessage(
+                forwarder_client_id=self.identifier,
+                data=b''  # empty to signal close
+            )
+        )
 
-    def write(self, base64_encoded_data):
-        base64_decoded_data = base64_to_bytes(base64_encoded_data)
-        self.writer.write(base64_decoded_data)
+    def write(self, data):
+        self.messenger.received_bytes += len(data)
+        self.writer.write(data)
 
 
 class LocalPortForwarderClient(ForwarderClient):
@@ -45,8 +60,12 @@ class LocalPortForwarderClient(ForwarderClient):
         super().__init__(reader, writer, messenger)
 
     async def start(self):
-        upstream_message = MessageBuilder.initiate_forwarder_client_req(self.identifier, self.destination_host, int(self.destination_port))
-        await self.messenger.send_upstream_message(upstream_message)
+        upstream_message = InitiateForwarderClientReq(
+            forwarder_client_id=self.identifier,
+            ip_address=self.destination_host,
+            port=int(self.destination_port)
+        )
+        await self.messenger.send_message_upstream(upstream_message)
         await self.stream()
 
     def connect(self, bind_addr, bind_port, atype, rep):
@@ -111,8 +130,12 @@ class SocksForwarderClient(ForwarderClient):
         if not await self.negotiate_address():
             return
 
-        upstream_message = MessageBuilder.initiate_forwarder_client_req(self.identifier, self.remote_address, self.remote_port)
-        await self.messenger.send_upstream_message(upstream_message)
+        upstream_message = InitiateForwarderClientReq(
+            forwarder_client_id=self.identifier,
+            ip_address=self.remote_address,
+            port=self.remote_port
+        )
+        await self.messenger.send_message_upstream(upstream_message)
         await self.stream()
 
     @staticmethod
@@ -129,6 +152,7 @@ class SocksForwarderClient(ForwarderClient):
     def connect(self, bind_addr, bind_port, atype, rep):
         self.connected = True
         socks_connect_results = self.socks_results(rep, bind_addr, bind_port)
+        self.messenger.received_bytes += len(socks_connect_results)
         self.writer.write(socks_connect_results)
 
 
@@ -149,11 +173,6 @@ class Forwarder:
     @staticmethod
     def is_valid_domain(domain: str) -> bool:
         DOMAIN_REGEX = re.compile(
-            # Explanation:
-            # 1) ^(?=^.{1,253}$) ensures the entire string is max 253 chars.
-            # 2) (?!-) and (?!.*-$) can further enforce that no label starts/ends with a hyphen.
-            #    The example below is a simpler approach that just ensures each label
-            #    doesn’t start with a hyphen, and the final label has at least 2 letters (TLD).
             r'^(?=^.{1,253}$)(?!-)([A-Za-z0-9-]{1,63}\.)+[A-Za-z]{2,63}$'
         )
         return bool(DOMAIN_REGEX.match(domain))
@@ -209,26 +228,6 @@ class LocalPortForwarder(Forwarder):
         self.clients.remove(client)
 
     def parse_config(self, config):
-        """
-        Parse the configuration string for a Local Port Forwarder. The expected format is:
-
-            listening_host:listening_port:destination_host:destination_port
-
-        For example:
-            "127.0.0.1:8080:10.0.0.5:22"
-
-        Exceptions:
-            - All four fields must be provided for a valid configuration.
-            - If fewer or more parts are given, or any field is invalid, a warning is displayed and
-              this method returns (None, None, None, None).
-
-        Args:
-            config (str): The configuration string to parse.
-
-        Returns:
-            tuple: A 4-element tuple (listening_host, listening_port, destination_host, destination_port)
-            or (None, None, None, None) if the input is invalid.
-        """
         parts = config.split(':')
 
         if len(parts) == 1 or len(parts) == 2:
@@ -275,14 +274,13 @@ class LocalPortForwarder(Forwarder):
                     'error',
                     reprompt=False
                 )
-            elif e.errno == 99:  # "Cannot assign requested address" (often means invalid host)
+            elif e.errno == 99:  # "Cannot assign requested address"
                 self.update_cli.display(
                     f"Cannot bind to host '{self.listening_host}'—it may be invalid or unreachable.",
                     'error',
                     reprompt=False
                 )
             else:
-                # Fallback: show a generic error with the system's message
                 self.update_cli.display(
                     f"Failed to bind on {self.listening_host}:{self.listening_port}: {e}",
                     'error',
@@ -301,6 +299,7 @@ class LocalPortForwarder(Forwarder):
                 await client.writer.wait_closed()
         self.update_cli.display(f'Messenger {self.messenger.identifier} has stopped forwarding ({self.listening_host}:{self.listening_port}) -> (*:*).', 'information', reprompt=False)
 
+
 class SocksProxy(LocalPortForwarder):
 
     NAME = "Socks Proxy"
@@ -318,16 +317,6 @@ class SocksProxy(LocalPortForwarder):
         self.clients.remove(client)
 
     def parse_config(self, config):
-        """
-        Parse the configuration string for a Socks Proxy with the following input expectations:
-        - listening_host:listening_port:destination_host:destination_port
-        - Only listening_port is required. If other values are not provided, apply defaults:
-            - listening_host defaults to '127.0.0.1'
-            - destination_host and destination_port default to '*'
-
-        :param config: Configuration string
-        :return: A tuple (listening_host, listening_port, destination_host, destination_port)
-        """
         parts = config.split(':')
 
         listening_host = '127.0.0.1'
@@ -366,7 +355,6 @@ class SocksProxy(LocalPortForwarder):
             destination_port) if destination_port != '*' else destination_port
 
 
-
 class RemotePortForwarder(Forwarder):
 
     NAME = "Remote Port Forwarder"
@@ -381,12 +369,25 @@ class RemotePortForwarder(Forwarder):
         try:
             reader, writer = await asyncio.open_connection(self.destination_host, self.destination_port)
             bind_addr, bind_port = writer.get_extra_info('sockname')
-            upstream_message = MessageBuilder.initiate_forwarder_client_rep(client_identifier, bind_addr, bind_port, 0, 0)
-            await self.messenger.send_upstream_message(upstream_message)
+
+            upstream_message = InitiateForwarderClientRep(
+                forwarder_client_id=client_identifier,
+                bind_address=bind_addr,
+                bind_port=bind_port,
+                address_type=0,
+                reason=0
+            )
+            await self.messenger.send_message_upstream(upstream_message)
         except:
             self.update_cli.display(f'Remote Port Forwarder {self.identifier} could not connect to {self.destination_host}:{self.destination_port}', 'error')
-            upstream_message = MessageBuilder.initiate_forwarder_client_rep(client_identifier, '', 0, 0, 1)
-            await self.messenger.send_upstream_message(upstream_message)
+            upstream_message = InitiateForwarderClientRep(
+                forwarder_client_id=client_identifier,
+                bind_address='',
+                bind_port=0,
+                address_type=0,
+                reason=1
+            )
+            await self.messenger.send_message_upstream(upstream_message)
             return
         client = ForwarderClient(reader, writer, self.messenger)
         client.identifier = client_identifier
@@ -395,29 +396,16 @@ class RemotePortForwarder(Forwarder):
         self.clients.remove(client)
 
     def parse_config(self, config):
-        """
-        Parse the configuration string for RemotePortForwarder with the following input expectations:
-        - destination_host:destination_port
-        - Exceptions:
-            - If only a port is given, treat it as the destination_port and default other values.
-            - If only an IP is given, treat it as the destination_host and default other values.
-
-        :param config: Configuration string
-        :return: A tuple ('*', '*', destination_host, destination_port)
-        """
         parts = config.split(':')
 
         # Default values for RemotePortForwarder
         destination_host = '127.0.0.1'
         destination_port = None
 
-        # Parse configuration based on the number of parts
         if len(parts) == 1:
-            # Only a port is provided
             destination_port = parts[0]
 
         elif len(parts) == 2:
-            # IP and port are provided
             destination_host, destination_port = parts
 
         else:
@@ -433,6 +421,7 @@ class RemotePortForwarder(Forwarder):
 
     async def start(self):
         self.update_cli.display(f'Messenger {self.identifier} now forwarding (*:*) -> ({self.destination_host}:{self.destination_port}).', 'information', reprompt=False)
+
 
 class InvalidConfigError(Exception):
     """Raised when a provided config string is invalid."""

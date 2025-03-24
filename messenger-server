@@ -6,7 +6,7 @@ from messenger.manager import Manager
 from messenger import BANNER
 
 
-async def main(banner, Manager):
+async def main(banner, manager):
     parser = argparse.ArgumentParser()
     parser.add_argument("--address", type=str, default="127.0.0.1",
                         help="IP address the server should listen on. Default is '127.0.0.1'.")
@@ -20,7 +20,7 @@ async def main(banner, Manager):
     args = parser.parse_args()
     if not args.quiet:
         print(banner)
-    messenger_manager = Manager(args.address, args.port, args.ssl, args.encryption_key)
+    messenger_manager = manager(args.address, args.port, args.ssl, args.encryption_key)
 
     await messenger_manager.start_command_line_interface()
 
