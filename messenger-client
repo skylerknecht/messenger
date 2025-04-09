@@ -407,6 +407,10 @@ class Messenger:
                 await self.try_http(candidate_url, self.encryption_key, self.remote_port_forwards, self.proxy)
             if "ws" in attempt:
                 print('[*] Attempting to connect to Messenger Server over WebSockets')
+                if attempt == "wss":
+                    candidate_url = f"https://{remainder}/"
+                else:
+                    candidate_url = f"http://{remainder}/"
                 await self.try_ws(candidate_url, self.encryption_key, self.remote_port_forwards, self.proxy)
         print('Messenger Client stopped.')
 
@@ -417,7 +421,7 @@ class Messenger:
             if not messenger_client.identifier:
                 print('[!] Failed to connect to Messenger Server over HTTP')
                 return
-            print(f'[+] Successfully connected to {candidate_url}{HTTP_ROUTE}')
+            print(f'[+] Successfully connected to {self.server_url}{HTTP_ROUTE}')
             self.connected_successfully = True
             await messenger_client.start()
         except Exception as e:
@@ -431,7 +435,7 @@ class Messenger:
         if not messenger_client.identifier:
             print('[!] Failed to connect to Messenger Server over WebSockets')
             return
-        print(f'[+] Successfully connected to {candidate_url}{WS_ROUTE}')
+        print(f'[+] Successfully connected to {self.server_url}/{WS_ROUTE}')
         self.connected_successfully = True
         await messenger_client.start()
         await messenger_client.stop()
