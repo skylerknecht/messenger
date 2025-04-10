@@ -25,8 +25,10 @@ class Messenger:
         self.sent_bytes = 0
         self.received_bytes = 0
 
-
     async def get_upstream_messages(self):
+        if self.alive == False:
+            self.alive = True
+            self.update_cli.display(f'{self.transport_type} Messenger `{self.identifier}` has reconnected.', 'success')
         self.last_check_in = time.time()
         upstream_messages = b''
         while not self.upstream_messages.empty():
@@ -154,19 +156,19 @@ class HTTPMessenger(Messenger):
             if expired >= 30:
                 self.alive = False
                 self.update_cli.display(
-                    f'{self.transport_type} Messenger ({self.identifier}) has disconnected.',
+                    f'{self.transport_type} Messenger `{self.identifier}` has disconnected.',
                     'warning'
                 )
                 break
             elif expired >= 20:
                 self.update_cli.display(
-                    f'{self.transport_type} Messenger ({self.identifier}) has not checked in the past 20 seconds '
+                    f'{self.transport_type} Messenger `{self.identifier}` has not checked in the past 20 seconds '
                     'and will disconnect soon.',
                     'warning'
                 )
             elif expired >= 10:
                 self.update_cli.display(
-                    f'{self.transport_type} Messenger ({self.identifier}) has not checked in the past 10 seconds '
+                    f'{self.transport_type} Messenger `{self.identifier}` has not checked in the past 10 seconds '
                     'and will disconnect soon.',
                     'warning'
                 )

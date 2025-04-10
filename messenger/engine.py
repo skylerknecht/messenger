@@ -55,7 +55,7 @@ class Engine:
 
     def add_messenger(self, messenger: Messenger):
         self.messengers.append(messenger)
-        self.update_cli.display(f'{messenger.transport_type} Messenger `{messenger.identifier}` is now available',
+        self.update_cli.display(f'{messenger.transport_type} Messenger `{messenger.identifier}` is now connected.',
                                 'success')
         upstream_message = CheckInMessage(messenger.identifier)
         upstream_messages = self.serialize_messages([upstream_message])

@@ -75,6 +75,7 @@ class HTTPWSServer:
 
     async def websocket_handler(self, request):
         # Prepare the WebSocket handshake
+
         ws = web.WebSocketResponse()
         await ws.prepare(request)
 
