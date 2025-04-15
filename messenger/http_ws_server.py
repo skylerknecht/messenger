@@ -81,7 +81,15 @@ class HTTPWSServer:
 
         ip = request.remote
         user_agent = request.headers.get('User-Agent', 'Unknown')
-        ws_messenger = None
+        ws_messenger = WebSocketMessenger(
+            ws,
+            ip,
+            user_agent,
+            self.update_cli,
+            self.messenger_engine.serialize_messages
+        )
+        check_in_message = self.messenger_engine.add_messenger(ws_messenger)
+        await ws.send_bytes(check_in_message)
 
         async for msg in ws:
             # 1) Deserialize all messages from this binary frame
@@ -90,23 +98,12 @@ class HTTPWSServer:
             # 2) Identify the messenger (if any) from the first message
             messenger_id = self.messenger_engine.get_messenger_id(messages[0])
 
-            if not messenger_id:
-                # 3a) Create a brand new Messenger for this websocket
-                ws_messenger = WebSocketMessenger(
-                    ws,
-                    ip,
-                    user_agent,
-                    self.update_cli,
-                    self.messenger_engine.serialize_messages
-                )
-                check_in_message = self.messenger_engine.add_messenger(ws_messenger)
-                await ws.send_bytes(check_in_message)
-            else:
-                # 3b) Send the subsequent messages to the existing Messenger
-                await self.messenger_engine.send_messages(
-                    messenger_id,
-                    messages[1:]
-                )
+            # 3b) Send the subsequent messages to the existing Messenger
+            await self.messenger_engine.send_messages(
+                messenger_id,
+                messages[1:]
+            )
+
         if ws_messenger:
             ws_messenger.alive = False
 
