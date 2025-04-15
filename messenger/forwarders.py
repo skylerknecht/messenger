@@ -264,7 +264,7 @@ class LocalPortForwarder(Forwarder):
         try:
             self.server = await asyncio.start_server(self.handle_client, self.listening_host, int(self.listening_port))
             self.update_cli.display(
-                f'Messenger {self.messenger.identifier} now forwarding ({self.listening_host}:{self.listening_port}) -> ({self.destination_host}:{self.destination_port}).',
+                f'Messenger `{self.messenger.identifier}` now forwarding ({self.listening_host}:{self.listening_port}) -> ({self.destination_host}:{self.destination_port}).',
                 'success', reprompt=False)
             return True
         except OSError as e:
@@ -420,7 +420,7 @@ class RemotePortForwarder(Forwarder):
         return destination_host, int(destination_port)
 
     async def start(self):
-        self.update_cli.display(f'Messenger {self.identifier} now forwarding (*:*) -> ({self.destination_host}:{self.destination_port}).', 'information', reprompt=False)
+        self.update_cli.display(f'Messenger `{self.identifier}` now forwarding (*:*) -> ({self.destination_host}:{self.destination_port}).', 'information', reprompt=False)
 
 
 class InvalidConfigError(Exception):
