@@ -5,6 +5,7 @@ import argparse
 import ssl
 import struct
 import urllib
+import http.client
 
 from abc import ABC, abstractmethod
 from urllib import request
@@ -206,12 +207,6 @@ class WebSocketClient(MessengerClient):
         )
         await self.send_downstream_message(downstream_message)
         del self.forwarder_clients[forwarder_client_identifier]
-
-
-#
-# Only the HTTP proxy code is changed below.
-#
-import http.client
 
 class SSLContextHTTPSHandler(urllib.request.HTTPSHandler):
     """
