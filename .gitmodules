@@ -1,0 +1,6 @@
+[submodule "messenger/builder/clients/python"]
+	path = messenger/builder/clients/python
+	url = https://github.com/skylerknecht/messenger-client-python.git
+[submodule "messenger/builder/clients/csharp"]
+	path = messenger/builder/clients/csharp
+	url = https://github.com/skylerknecht/messenger-client-csharp.git
