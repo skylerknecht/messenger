@@ -14,26 +14,26 @@ Clone this github repo to download the tool. Messenger requires Python 3.9+
 git clone https://github.com/skylerknecht/messenger
 ```
 
-Use the setup.py script to install both `messenger-server` and `messenger-client`.
+Use the setup.py script to install both `messenger-cli` and `messenger-client`.
 
 ```
 python3 setup.py install
 ```
-You should then be able to run the `messenger-server`.
+You should then be able to run the `messenger-cli`.
 
-Alternately, install the requirements, then you can use python3 to run the `messenger-server` file directly:
+Alternately, install the requirements, then you can use python3 to run the `messenger-cli` file directly:
 
 ```
 pip3 install -r requirements
-python3 messenger-server
+python3 messenger-cli
 ```
 
 ### Starting the server
 
-Messenger is designed with sensible defaults in mind. You should just be able to run `messenger-server` to start the server on port 8080. If you need to tweak server behavior, the following options are supported for the server:
+Messenger is designed with sensible defaults in mind. You should just be able to run `messenger-cli` to start the server on port 8080. If you need to tweak server behavior, the following options are supported for the server:
 ```
-$ messenger-server -h
-usage: messenger-server [-h] [-a ADDRESS] [-p PORT] [-s CERT KEY] [-e ENCRYPTION_KEY] [-q]
+$ messenger-cli -h
+usage: messenger-cli [-h] [-a ADDRESS] [-p PORT] [-s CERT KEY] [-e ENCRYPTION_KEY] [-q]
 
 optional arguments:
   -h, --help            show this help message and exit
