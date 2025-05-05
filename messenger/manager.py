@@ -9,6 +9,7 @@ from prompt_toolkit.completion import Completer, Completion
 
 from functools import wraps
 
+from messenger.clients.python.builder import build as build_python
 from messenger.messengers import Messenger
 from messenger.http_ws_server import HTTPWSServer
 from messenger.engine import Engine
@@ -132,6 +133,7 @@ class Manager:
             ssl (bool): Indicates whether SSL is enabled.
         """
         self.server_commands = {
+            'build_python': (build_python, "Builds a Python messenger client."),
             'forwarders': (self.print_forwarders, "Display a list of forwarders in a table format."),
             'messengers': (self.print_messengers, "Display a list of messengers in a table format."),
             'interact': (self.interact, "Interact with a messenger."),
