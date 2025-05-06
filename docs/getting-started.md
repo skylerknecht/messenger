@@ -115,4 +115,4 @@ In the Messenger Server console, use the `messengers` command to display a list 
 
 ### Next steps
 
-Congratulations! You've completed the basics of setting up Messenger. The next steps for configuration can be found in [Operational Usage](docs/operational-usage.md). Many readers may be particularily interested in setting up a SOCKS proxy.
+Congratulations! You've completed the basics of setting up Messenger. The next steps for configuration can be found in [Operational Usage](operational-usage.md). Many readers may be particularily interested in setting up a SOCKS proxy.
