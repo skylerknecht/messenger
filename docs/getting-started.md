@@ -8,13 +8,13 @@ Yes, we do. Existing proxy tools either have unfixable design problems or are wr
 
 ### Setup Instructions
 
-Clone this github repo to download the tool. Messenger requires Python 3.9+
+Clone this github repo **recursively** to download the tool. Messenger requires Python 3.9+
 
 ```
-git clone https://github.com/skylerknecht/messenger
+git clone --recurse-submodules https://github.com/skylerknecht/messenger.git
 ```
 
-Use the setup.py script to install both `messenger-cli` and `messenger-client`.
+Use the `setup.py` script to install both `messenger-cli` and `messenger-client`.
 
 ```
 python3 setup.py install
