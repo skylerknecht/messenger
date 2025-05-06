@@ -24,7 +24,7 @@ You should then be able to run the `messenger-cli`.
 Alternately, install the requirements, then you can use python3 to run the `messenger-cli` file directly:
 
 ```
-pip3 install -r requirements
+pip3 install -r requirements.txt
 python3 messenger-cli
 ```
 
