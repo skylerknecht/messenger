@@ -133,7 +133,7 @@ class Manager:
             ssl (bool): Indicates whether SSL is enabled.
         """
         self.server_commands = {
-            'build_python': (build_python, "Builds a Python messenger client."),
+            'build': (self.build, "Builds a messenger client."),
             'forwarders': (self.print_forwarders, "Display a list of forwarders in a table format."),
             'messengers': (self.print_messengers, "Display a list of messengers in a table format."),
             'interact': (self.interact, "Interact with a messenger."),
@@ -235,6 +235,12 @@ class Manager:
 
         if len(args) > 0 and (args[0] == '-h' or args[0] == '--help'):
             docstring = inspect.getdoc(func)
+            if not docstring:
+                self.update_cli.display(
+                    f'Command "{command}" does not have a help message.',
+                    'information', reprompt=False
+                )
+                return
             print(docstring)
             return
 
@@ -250,6 +256,12 @@ class Manager:
                 'warning', reprompt=False
             )
             docstring = inspect.getdoc(func)
+            if not docstring:
+                self.update_cli.display(
+                    f'Command "{command}" does not have a help message.',
+                    'information', reprompt=False
+                )
+                return
             print(docstring)
             return
 
@@ -290,6 +302,34 @@ class Manager:
         """
         self.current_messenger = None
 
+    async def build(self, messenger_client_type):
+        """
+        Interact with a messenger.
+
+        positional arguments:
+          messenger_client_type   The type of the Messenger to build.
+
+        examples:
+          build python
+          build csharp
+          build node_js
+        """
+        if not isinstance(messenger_client_type, str):
+            self.update_cli.display(f'Messenger Client Type `{messenger_client_type}` is not valid', 'error', reprompt=False)
+            return
+        if messenger_client_type.lower() == 'python':
+            await build_python()
+            return
+        elif messenger_client_type.lower() == 'csharp':
+            self.update_cli.display(f'Messenger Client Type `{messenger_client_type}` is not implemented', 'error', reprompt=False)
+            return
+        elif messenger_client_type.lower() == 'node_js':
+            self.update_cli.display(f'Messenger Client Type `{messenger_client_type}` is not implemented', 'error', reprompt=False)
+            return
+        else:
+            self.update_cli.display(f'Messenger Client Type `{messenger_client_type}` is not valid', 'error', reprompt=False)
+            return
+
     async def interact(self, messenger):
         """
         Interact with a messenger.
@@ -324,6 +364,12 @@ class Manager:
         if command and command in self.commands:
             func = self.commands[command][0]
             docstring = inspect.getdoc(func)
+            if not docstring:
+                self.update_cli.display(
+                    f'Command "{command}" does not have a help message.',
+                    'information', reprompt=False
+                )
+                return
             print(docstring)
             return
         print("Server commands:")
@@ -509,18 +555,9 @@ class Manager:
 
         positional arguments:
           forwarder_config   Configuration string for the local forwarder, in one of the following formats:
-                               - "8080"                               : Listening port only.
-                               - "192.168.1.10:8080"                  : Listening host and port.
                                - "192.168.1.10:8080:example.com:9090" : Full configuration with listening and destination details.
 
-                             Defaults:
-                               - listening_host: "127.0.0.1"
-                               - destination_host: "*"
-                               - destination_port: "*"
-
-        examples:
-          local 8080
-          local 192.168.1.10:8080
+        example:
           local 192.168.1.10:8080:example.com:9090
         """
         messenger = self.current_messenger
@@ -539,14 +576,9 @@ class Manager:
 
         positional arguments:
           forwarder_config   Configuration string for the remote forwarder, in one of the following formats:
-                               - "9090"                : Destination port only.
                                - "example.com:9090"    : Destination host and port.
 
-                             Defaults:
-                               - destination_host: "127.0.0.1" if only a port is provided.
-
         examples:
-          remote 9090
           remote example.com:9090
         """
         messenger = self.current_messenger
@@ -569,8 +601,6 @@ class Manager:
 
                              Defaults:
                                - listening_host: "127.0.0.1"
-                               - destination_host: "*"
-                               - destination_port: "*"
 
         examples:
           socks 8080

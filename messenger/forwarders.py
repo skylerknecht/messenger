@@ -230,29 +230,24 @@ class LocalPortForwarder(Forwarder):
     def parse_config(self, config):
         parts = config.split(':')
 
-        if len(parts) == 1 or len(parts) == 2:
+        if len(parts) <= 3:
             raise InvalidConfigError(f'Invalid configuration `{config}`, a {self.NAME} requires a complete configuration.')
-
-        elif len(parts) == 3:
-            raise InvalidConfigError(f'Invalid configuration `{config}`, cannot specify destination host without destination port.')
-
         elif len(parts) == 4:
             listening_host, listening_port, destination_host, destination_port = parts
-
         else:
-            raise ValueError("Invalid configuration format for LocalPortForwarder.")
+            raise InvalidConfigError("Invalid configuration format for LocalPortForwarder.")
 
-        if listening_host != '*' and not (self.is_valid_ip(listening_host) or self.is_valid_domain(listening_host)):
-            self.update_cli.display(f'The listening host `{listening_host}` does not appear to be a valid ip or domain.', 'warning', reprompt=False)
+        if not self.is_valid_ip(listening_host) and not self.is_valid_domain(listening_host):
+            raise InvalidConfigError(f'The listening host `{listening_host}` does not appear to be a valid ip or domain.')
 
-        if destination_host != '*' and not (self.is_valid_ip(destination_host) or self.is_valid_domain(destination_host)):
-            self.update_cli.display(f'The destination host `{destination_host}` does not appear to be a valid ip or domain.', 'warning', reprompt=False)
+        if not self.is_valid_ip(destination_host) and not self.is_valid_domain(destination_host):
+            raise InvalidConfigError(f'The destination host `{destination_host}` does not appear to be a valid ip or domain.')
 
         if not self.is_valid_port(listening_port):
-            self.update_cli.display(f'The listening port `{listening_port}` does not appear to be a valid port.', 'warning', reprompt=False)
+            raise InvalidConfigError(f'The listening host `{listening_port}` does not appear to be a valid port.')
 
-        if destination_port != '*' and not self.is_valid_port(destination_port):
-            self.update_cli.display(f'The destination port `{destination_port}` does not appear to be a valid port.', 'warning', reprompt=False)
+        if not self.is_valid_port(destination_port):
+            raise InvalidConfigError(f'The destination host `{destination_port}` does not appear to be a valid port.')
 
         return listening_host, int(listening_port), destination_host, int(
             destination_port) if destination_port != '*' else destination_port
@@ -337,19 +332,19 @@ class SocksProxy(LocalPortForwarder):
             listening_host, listening_port, _, _ = parts
 
         else:
-            raise ValueError("Invalid configuration format for LocalPortForwarder.")
+            raise InvalidConfigError("Invalid configuration format for LocalPortForwarder.")
 
-        if listening_host != '*' and not (self.is_valid_ip(listening_host) or self.is_valid_domain(listening_host)):
-            self.update_cli.display(f'The listening host `{listening_host}` does not appear to be a valid ip or domain.', 'warning', reprompt=False)
+        if not self.is_valid_ip(listening_host) and not self.is_valid_domain(listening_host):
+            raise InvalidConfigError(f'The listening host `{listening_host}` does not appear to be a valid ip or domain.')
 
         if destination_host != '*' and not (self.is_valid_ip(destination_host) or self.is_valid_domain(destination_host)):
-            self.update_cli.display(f'The destination host `{destination_host}` does not appear to be a valid ip or domain.', 'warning', reprompt=False)
+            raise InvalidConfigError(f'The destination host `{destination_host}` does not appear to be a valid ip or domain.')
 
         if not self.is_valid_port(listening_port):
-            self.update_cli.display(f'The listening port `{listening_port}` does not appear to be a valid port.', 'warning', reprompt=False)
+            raise InvalidConfigError(f'The listening port `{listening_port}` does not appear to be a port.')
 
         if destination_port != '*' and not self.is_valid_port(destination_port):
-            self.update_cli.display(f'The destination port `{destination_port}` does not appear to be a valid port.', 'warning', reprompt=False)
+            raise InvalidConfigError(f'The destination port `{destination_port}` does not appear to be a port.')
 
         return listening_host, int(listening_port), destination_host, int(
             destination_port) if destination_port != '*' else destination_port
@@ -399,23 +394,19 @@ class RemotePortForwarder(Forwarder):
         parts = config.split(':')
 
         # Default values for RemotePortForwarder
-        destination_host = '127.0.0.1'
+        destination_host = None
         destination_port = None
 
-        if len(parts) == 1:
-            destination_port = parts[0]
-
-        elif len(parts) == 2:
+        if len(parts) == 2:
             destination_host, destination_port = parts
-
         else:
-            self.update_cli.display(f'Invalid configuration `{config}`, a {self.NAME} expects only a destination port or destination host.', 'warning', reprompt=False)
+            raise InvalidConfigError(f'Invalid configuration `{config}`, a {self.NAME} expects a destination host and destination port.')
 
-        if destination_host != '*' and not (self.is_valid_ip(destination_host) or self.is_valid_domain(destination_host)):
-            self.update_cli.display(f'The destination host `{destination_host}` does not appear to be a valid ip or domain.', 'warning', reprompt=False)
+        if not self.is_valid_ip(destination_host) and not self.is_valid_domain(destination_host):
+            raise InvalidConfigError(f'The destination host `{destination_host}` does not appear to be a valid ip or domain.')
 
-        if destination_port != '*' and not self.is_valid_port(destination_port):
-            self.update_cli.display(f'The destination port `{destination_port}` does not appear to be a valid port.', 'warning', reprompt=False)
+        if not self.is_valid_port(destination_port):
+            raise InvalidConfigError(f'The destination port `{destination_port}` does not appear to be a port.')
 
         return destination_host, int(destination_port)
 
