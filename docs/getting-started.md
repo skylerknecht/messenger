@@ -64,10 +64,10 @@ by Skyler Knecht and Kevin Clark |___/ v0.2.5
 
 After the server is started, the next step is to connect a **messenger client**, refered to as a **messenger** for short.
 
-The messenger client is written in two (2) different languages: [C#](https://github.com/skylerknecht/messenger-client-python),
-[Python](https://github.com/skylerknecht/messenger-client-python), and Node JS. Which one you use will depend on your operational needs. In this example, the Python client is used.
+The messenger client is written in two (3) different languages: [C#](https://github.com/skylerknecht/messenger-client-python),
+[Python](https://github.com/skylerknecht/messenger-client-python), and Node JS. Which one you use will depend on your operational needs. 
 
-Messenger supports a build command that can be leveraged to build a messenger client. 
+In this example, we use the build command to create a Python messenger client. 
 
 ```
 (messenger)~# build python
@@ -115,4 +115,4 @@ In the Messenger Server console, use the `messengers` command to display a list 
 
 ### Next steps
 
-Congratulations! You've completed the basics of setting up Messenger. The next steps for configuration can be found in operational usage. Many readers may be particularily interested in setting up a SOCKS proxy.
+Congratulations! You've completed the basics of setting up Messenger. The next steps for configuration can be found in [Operational Usage](docs/operational-usage.md). Many readers may be particularily interested in setting up a SOCKS proxy.
