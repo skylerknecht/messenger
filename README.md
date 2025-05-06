@@ -5,8 +5,8 @@ evasively from one place to another. It supports three industry-standard
 tunneling methods: local port forwarding, remote port forwarding, and 
 SOCKS5 proxying. To achieve this, Messenger leverages a client-server 
 architecture while communicating over HTTP, WebSockets, and DNS. While 
-the server is written primarily in Python, Messenger currently supports 
-clients in [C#](https://github.com/skylerknecht/messenger-client-python),
+the server is written primarily in Python, there are (3) clients 
+written in [C#](https://github.com/skylerknecht/messenger-client-python),
 [Python](https://github.com/skylerknecht/messenger-client-python), and Node JS. 
 
 
