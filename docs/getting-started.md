@@ -64,16 +64,24 @@ by Skyler Knecht and Kevin Clark |___/ v0.2.5
 
 After the server is started, the next step is to connect a **messenger client**, refered to as a **messenger** for short.
 
-The messenger client is written in two (2) different languages: Python and C#. Which one you use will depend on your operational needs. The C# code is available in [a separate repo](https://github.com/skylerknecht/messenger-client). In this example, the Python client is used.
+The messenger client is written in two (2) different languages: [C#](https://github.com/skylerknecht/messenger-client-python),
+[Python](https://github.com/skylerknecht/messenger-client-python), and Node JS. Which one you use will depend on your operational needs. In this example, the Python client is used.
+
+Messenger supports a build command that can be leveraged to build a messenger client. 
+
+```
+(messenger)~# build python
+[+] Saved python client as messenger-client.py
+```
 
 You need to specify at least two (2) arguments to the messenger client: The location of the messenger server and the encryption key. This could look like the following command:
 ```
-python3 messenger-client 192.168.1.100:8080 ZDXgoqyVXqDpJyBMJt
+python3 messenger-client.py 192.168.1.100:8080 ZDXgoqyVXqDpJyBMJt
 ```
 Other options can be specified to change some messenger client behaviors, such as remote forward configurations and whether traffic should use an outgoing HTTP proxy.
 
 ```
-$ python3 messenger-client -h
+$ python3 messenger-client.py -h
 usage: messenger-client [-h] [--proxy PROXY] [--continue-after-success] server_url encryption_key [remote_port_forwards ...]
 
 Messenger Client for establishing HTTP or WebSocket connections with remote port forwarding.
