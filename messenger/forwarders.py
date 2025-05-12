@@ -10,24 +10,18 @@ from messenger.message import (
     SendDataMessage
 )
 
-
 class ForwarderClient:
     def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, messenger):
         self.identifier = alphanumeric_identifier()
         self.reader = reader
         self.writer = writer
         self.messenger = messenger
-        self.connected = False
 
     async def start(self):
-        self.connected = True
-        await self.stream()
+        raise NotImplementedError
 
     async def stream(self):
         while True:
-            if not self.connected:
-                await asyncio.sleep(1)
-                continue
             try:
                 upstream_message = await self.reader.read(4096)
                 if not upstream_message:
@@ -65,11 +59,12 @@ class LocalPortForwarderClient(ForwarderClient):
             ip_address=self.destination_host,
             port=int(self.destination_port)
         )
+        self.messenger.sent_bytes += 20
         await self.messenger.send_message_upstream(upstream_message)
         await self.stream()
 
-    def connect(self, bind_addr, bind_port, atype, rep):
-        self.connected = True
+    async def connect(self, bind_addr, bind_port, atype, rep):
+        pass
 
 
 class SocksForwarderClient(ForwarderClient):
@@ -80,7 +75,7 @@ class SocksForwarderClient(ForwarderClient):
     async def negotiate_authentication_method(self) -> bool:
         version, number_of_methods = await self.reader.read(2)
         if version != 5:
-            print(f'SOCKS{str(version)} is not supported')
+            self.messenger.update_cli.display(f'SOCKSv{version} is not supported, please use SOCKSv5.', 'error')
             return False
         methods = [ord(await self.reader.read(1)) for _ in range(number_of_methods)]
         if 0 not in methods:
@@ -135,23 +130,40 @@ class SocksForwarderClient(ForwarderClient):
             ip_address=self.remote_address,
             port=self.remote_port
         )
+        self.messenger.sent_bytes += 20
         await self.messenger.send_message_upstream(upstream_message)
         await self.stream()
 
+    import socket
+
     @staticmethod
-    def socks_results(rep, bind_addr, bind_port):
+    def socks_results(rep, bind_addr, bind_port, atype):
+        if atype == 1:
+            addr_bytes = socket.inet_aton(bind_addr) if bind_addr else b'\x00\x00\x00\x00'
+        elif atype == 3:
+            addr_bytes = (
+                len(bind_addr).to_bytes(1, 'big') + bind_addr.encode()
+                if bind_addr else b'\x00'
+            )
+        elif atype == 4:
+            addr_bytes = (
+                socket.inet_pton(socket.AF_INET6, bind_addr)
+                if bind_addr else b'\x00' * 16
+            )
+        else:
+            raise ValueError(f"Unsupported address type: {atype}")
+
         return b''.join([
             b'\x05',
             int(rep).to_bytes(1, 'big'),
-            int(0).to_bytes(1, 'big'),
-            int(1).to_bytes(1, 'big'),
-            socket.inet_aton(bind_addr) if bind_addr else int(0).to_bytes(1, 'big'),
-            bind_port.to_bytes(2, 'big') if bind_port else int(0).to_bytes(1, 'big')
+            b'\x00',  # Reserved
+            atype.to_bytes(1, 'big'),
+            addr_bytes,
+            bind_port.to_bytes(2, 'big') if bind_port else b'\x00\x00'
         ])
 
     def connect(self, bind_addr, bind_port, atype, rep):
-        self.connected = True
-        socks_connect_results = self.socks_results(rep, bind_addr, bind_port)
+        socks_connect_results = self.socks_results(rep, bind_addr, bind_port, atype)
         self.messenger.received_bytes += len(socks_connect_results)
         self.writer.write(socks_connect_results)
 

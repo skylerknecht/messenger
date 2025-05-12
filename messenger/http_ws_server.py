@@ -94,7 +94,6 @@ class HTTPWSServer:
         async for msg in ws:
             # 1) Deserialize all messages from this binary frame
             messages = self.messenger_engine.deserialize_messages(msg.data)
-
             # 2) Identify the messenger (if any) from the first message
             messenger_id = self.messenger_engine.get_messenger_id(messages[0])
 

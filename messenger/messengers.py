@@ -18,6 +18,7 @@ class Messenger:
         self.identifier = alphanumeric_identifier()
         self.update_cli = update_cli
         self.forwarders = []
+        self.scanners = {}
         self.upstream_messages = asyncio.Queue()
         self.serialize_messages = serialize_messages
 
@@ -71,7 +72,13 @@ class Messenger:
                 bind_port = message.bind_port
                 address_type = message.address_type
                 reason = message.reason
-
+                if forwarder_client_id in self.scanners:
+                    ip, port = self.scanners[forwarder_client_id]
+                    if reason == 0:
+                        self.update_cli.display(f'Successfully connected to {ip}:{port}', 'success')
+                    elif reason == 1:
+                        break
+                        self.update_cli.display(f'Failed to connect to {ip}:{port}', 'error')
                 # Search all forwarders’ clients
                 forwarder_clients = [c for fw in self.forwarders for c in fw.clients]
                 for forwarder_client in forwarder_clients:
@@ -190,5 +197,4 @@ class WebSocketMessenger(Messenger):
                 'warning'
             )
             return
-
         await self.websocket.send_bytes(self.serialize_messages([message]))

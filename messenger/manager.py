@@ -15,7 +15,7 @@ from messenger.http_ws_server import HTTPWSServer
 from messenger.engine import Engine
 from messenger.forwarders import LocalPortForwarder, SocksProxy, RemotePortForwarder, InvalidConfigError
 from messenger.generator import generate_encryption_key, generate_hash
-
+from messenger.scanner import Scanner
 
 class UpdateCLI:
     """
@@ -146,7 +146,8 @@ class Manager:
             'back': (self.back, "Return to the main menu."),
             'local': (self.start_local_forwarder, "Start a local forwarder."),
             'remote': (self.start_remote_forwarder, "Start a remote forwarder."),
-            'socks': (self.start_socks_proxy, "Start a socks proxy.")
+            'socks': (self.start_socks_proxy, "Start a socks proxy."),
+            'scan': (self.start_scanner, "Start a socks proxy.")
         }
         self.commands = {**self.server_commands, **self.messenger_commands}
         self.messengers = []
@@ -614,6 +615,11 @@ class Manager:
                 messenger.forwarders.append(forwarder)
             return
         self.update_cli.display(f'Messenger \'{messenger.identifier}\' is not alive.', 'error', reprompt=False)
+
+    @require_messenger
+    async def start_scanner(self, ip, port):
+        scanner = Scanner(ip, port, self.update_cli, self.current_messenger)
+        await scanner.start()
 
     async def stop(self, forwarder_id):
         """
