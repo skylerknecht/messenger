@@ -1,6 +1,9 @@
 import ipaddress
 import asyncio
+import time
+
 from collections import namedtuple
+
 from messenger.generator import alphanumeric_identifier
 from messenger.message import InitiateForwarderClientReq
 
@@ -8,14 +11,16 @@ ScanResult = namedtuple("ScanResult", ["identifier", "address", "port", "result"
 
 class Scanner:
     def __init__(self, subnet_or_ip, ports, update_cli, messenger):
+        self.identifier = alphanumeric_identifier()
+        self.subnet_or_ip = subnet_or_ip
         self.targets = self._expand_targets(subnet_or_ip)
         self.ports = self._parse_ports(ports)
         self.update_cli = update_cli
         self.messenger = messenger
         self.scans = []
         self.scan_results = {}
-        self.semaphore = asyncio.Semaphore(50)  # Limit 50 concurrent scans
         self.queue = asyncio.Queue()
+        self.semaphore = asyncio.Semaphore(50)  # Concurrency limit
 
     def _expand_targets(self, subnet_or_ip):
         try:
@@ -34,7 +39,6 @@ class Scanner:
         raise ValueError("Ports must be int, str, or list")
 
     def update_result(self, identifier, result):
-        # Called externally when a scan result is received
         for i, scan in enumerate(self.scans):
             if scan.identifier == identifier:
                 self.scans[i] = ScanResult(identifier, scan.address, scan.port, result)
@@ -44,13 +48,12 @@ class Scanner:
 
     async def _scan_worker(self):
         while True:
+            await self.semaphore.acquire()
             ip, port = await self.queue.get()
+
             identifier = alphanumeric_identifier()
             self.scans.append(ScanResult(identifier, ip, port, None))
-            self.messenger.scanners[identifier] = [ip, port]
 
-            await self.semaphore.acquire()
-            self.update_cli.display(f'Scanning {ip}:{port}', 'information', reprompt=False)
             message = InitiateForwarderClientReq(
                 forwarder_client_id=identifier,
                 ip_address=ip,
@@ -60,11 +63,15 @@ class Scanner:
             self.queue.task_done()
 
     async def start(self):
+        timestamp = time.strftime('%a, %b %d, %Y at %I:%M:%S %p %Z', time.localtime())
+        self.update_cli.display(f"Starting scan at {timestamp}", 'information')
+
         for ip in self.targets:
             for port in self.ports:
                 await self.queue.put((ip, port))
 
         workers = [asyncio.create_task(self._scan_worker()) for _ in range(50)]
         await self.queue.join()
-        for w in workers:
-            w.cancel()
+
+        for worker in workers:
+            worker.cancel()

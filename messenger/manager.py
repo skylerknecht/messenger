@@ -1,3 +1,4 @@
+import asyncio
 import inspect
 import sys
 import re
@@ -147,7 +148,8 @@ class Manager:
             'local': (self.start_local_forwarder, "Start a local forwarder."),
             'remote': (self.start_remote_forwarder, "Start a remote forwarder."),
             'socks': (self.start_socks_proxy, "Start a socks proxy."),
-            'scan': (self.start_scanner, "Start a socks proxy.")
+            'scan': (self.start_scanner, "Scan for open ports."),
+            'scans': (self.print_scans, "List scans from the current messenger."),
         }
         self.commands = {**self.server_commands, **self.messenger_commands}
         self.messengers = []
@@ -618,8 +620,99 @@ class Manager:
 
     @require_messenger
     async def start_scanner(self, ip, port):
+        """
+        Start a new scan session for the given IP or subnet and ports.
+
+        Arguments:
+          ip    → single IP or CIDR subnet (e.g. '10.1.0.1' or '10.1.0.0/24')
+          port  → single port, comma-separated list, or list of ports (e.g. 80, '22,443', [21, 80, 8080])
+
+        This creates a new Scanner object, tracks it under the current messenger,
+        and begins scanning with a concurrency limit of 50 requests at a time.
+        """
         scanner = Scanner(ip, port, self.update_cli, self.current_messenger)
-        await scanner.start()
+        self.current_messenger.scanners.append(scanner)
+        asyncio.create_task(scanner.start())
+
+    @require_messenger
+    async def print_scans(self, identifier=None, verbose=''):
+        """
+        Display scan results tracked by the current messenger's scanner.
+
+        Usage:
+          scans              → shows a summary of all scan sessions
+          scans <identifier> → shows detailed results for a specific scanner
+          scans -v           → includes incomplete results (e.g., no reply)
+
+        Without arguments:
+          - Displays a summary table of all scan sessions with:
+              - Identifier
+              - Addresses
+              - Ports
+              - Attempted scans
+              - Open and Closed result counts
+
+        With <identifier>:
+          - Lists each IP:Port scanned along with the result:
+              - open   → port responded successfully
+              - closed → port did not respond or was rejected
+              - •••    → no response yet (shown only if -v or --verbose is passed)
+        """
+        verbose = '-v' in verbose or '--verbose' in verbose
+
+        if not hasattr(self.current_messenger, 'scanners') or not self.current_messenger.scanners:
+            self.update_cli.display("No active scan sessions.", 'warning', reprompt=False)
+            return
+
+        if identifier:
+            scanner = next((s for s in self.current_messenger.scanners if s and s.identifier == identifier), None)
+            if not scanner:
+                self.update_cli.display(f"No scanner found with identifier {identifier}", 'warning', reprompt=False)
+                return
+
+            columns = ["Address", "Port", "Result"]
+            items = []
+
+            for scan in scanner.scans:
+                if scan.result == 0:
+                    result = 'open'
+                elif scan.result is None:
+                    if not verbose:
+                        continue
+                    result = '•••'
+                else:
+                    if not verbose:
+                        continue
+                    result = 'closed'
+                items.append({
+                    "Address": scan.address,
+                    "Port": scan.port,
+                    "Result": result
+                })
+
+            print(self.create_table('Scans', columns, items))
+        else:
+            columns = ["Identifier", "Addresses", "Ports", "Attempts", "Open", "Closed"]
+            items = []
+
+            for scanner in self.current_messenger.scanners:
+                if not hasattr(scanner, 'scans'):
+                    continue
+
+                attempts = len(scanner.scans)
+                open_count = sum(1 for s in scanner.scans if s.result == 0)
+                closed_count = sum(1 for s in scanner.scans if s.result not in (0, None))
+
+                items.append({
+                    "Identifier": scanner.identifier,
+                    "Addresses": scanner.subnet_or_ip,
+                    "Ports": ','.join(str(port) for port in scanner.ports),
+                    "Attempts": attempts,
+                    "Open": open_count,
+                    "Closed": closed_count
+                })
+
+            print(self.create_table('Scans', columns, items))
 
     async def stop(self, forwarder_id):
         """
@@ -675,6 +768,7 @@ class DynamicCompleter(Completer):
         options = list(self.manager.commands.keys())
         options.extend(messenger.identifier for messenger in self.manager.messengers)
         options.extend(forwarder.identifier for messenger in self.manager.messengers for forwarder in messenger.forwarders)
+        options.extend(scanner.identifier for messenger in self.manager.messengers for scanner in messenger.scanners)
 
         for option in options:
             if option.startswith(word_before_cursor):
