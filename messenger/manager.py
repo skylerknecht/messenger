@@ -636,7 +636,12 @@ class Manager:
           scan 192.168.1.10,192.168.1.20-30 80-445,1080
           scan 10.0.0.0/24 22-23,80 100
         """
-        scanner = Scanner(ip, port, self.update_cli, self.current_messenger, concurrency)
+        try:
+            concurrency = int(concurrency)
+        except:
+            self.update_cli.display(f'{concurrency} is not a valid concurrency.', 'error', reprompt=False)
+            return
+        scanner = Scanner(ip, port, self.update_cli, self.current_messenger, int(concurrency))
         self.current_messenger.scanners.append(scanner)
         asyncio.create_task(scanner.start())
 
