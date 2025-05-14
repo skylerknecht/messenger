@@ -83,6 +83,7 @@ class Scanner:
                 port=port
             )
             await self.messenger.send_message_upstream(msg)
+            await asyncio.sleep(1)
 
     async def start(self):
         timestamp = time.strftime('%a, %b %d, %Y at %I:%M:%S %p %Z', time.localtime())
