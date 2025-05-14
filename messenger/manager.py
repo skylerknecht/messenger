@@ -701,8 +701,8 @@ class Manager:
                     continue
 
                 attempts = len(scanner.scans)
-                open_count = sum(1 for s in scanner.scans if s.result == 0)
-                closed_count = sum(1 for s in scanner.scans if s.result not in (0, None))
+                open_count = sum(1 for s in scanner.scans.values() if s.result == 0)
+                closed_count = sum(1 for s in scanner.scans.values() if s.result not in (0, None))
 
                 items.append({
                     "Identifier": scanner.identifier,

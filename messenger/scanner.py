@@ -17,32 +17,31 @@ class Scanner:
         self.ports = self._parse_port_ranges(port_ranges)
         self.update_cli = update_cli
         self.messenger = messenger
-        self.scans = []
-        self.scan_results = {}
-        self.queue = asyncio.Queue()
+        self.scans = {}
         self.start_time = None
         self.semaphore = asyncio.Semaphore(50)
+        self._gen_lock = asyncio.Lock()
+        self._scan_gen = self._generate_scans()
 
     def _parse_ip_ranges(self, raw):
         hosts = set()
         parts = raw.split(',')
-
         for part in parts:
+            part = part.strip()
             if '/' in part:
                 try:
-                    net = ipaddress.ip_network(part.strip(), strict=False)
+                    net = ipaddress.ip_network(part, strict=False)
                     hosts.update(str(ip) for ip in net.hosts())
                 except ValueError:
                     continue
             elif '-' in part:
-                base, end = part.strip().rsplit('.', 1)
+                base, end = part.rsplit('.', 1)
                 start, stop = map(int, end.split('-'))
                 for i in range(start, stop + 1):
                     hosts.add(f"{base}.{i}")
             else:
-                hosts.add(part.strip())
-
-        return list(sorted(hosts))
+                hosts.add(part)
+        return sorted(hosts)
 
     def _parse_port_ranges(self, raw):
         ports = set()
@@ -55,27 +54,35 @@ class Scanner:
                 ports.add(int(entry))
         return sorted(ports)
 
+    def _generate_scans(self):
+        for ip in self.targets:
+            for port in self.ports:
+                yield ip, port
+
     def update_result(self, identifier, result):
-        for i, scan in enumerate(self.scans):
-            if scan.identifier == identifier:
-                self.scans[i] = ScanResult(identifier, scan.address, scan.port, result)
-                break
-        self.scan_results[identifier] = result
+        if identifier in self.scans:
+            current = self.scans[identifier]
+            self.scans[identifier] = ScanResult(identifier, current.address, current.port, result)
         self.semaphore.release()
 
     async def _scan_worker(self):
         while True:
+            async with self._gen_lock:
+                try:
+                    ip, port = next(self._scan_gen)
+                except StopIteration:
+                    return
+
             await self.semaphore.acquire()
-            ip, port = await self.queue.get()
             identifier = alphanumeric_identifier()
-            self.scans.append(ScanResult(identifier, ip, port, None))
-            message = InitiateForwarderClientReq(
+            self.scans[identifier] = ScanResult(identifier, ip, port, None)
+
+            msg = InitiateForwarderClientReq(
                 forwarder_client_id=identifier,
                 ip_address=ip,
                 port=port
             )
-            await self.messenger.send_message_upstream(message)
-            self.queue.task_done()
+            await self.messenger.send_message_upstream(msg)
 
     async def start(self):
         timestamp = time.strftime('%a, %b %d, %Y at %I:%M:%S %p %Z', time.localtime())
@@ -84,15 +91,8 @@ class Scanner:
             f"Starting scan session {self.identifier} at {timestamp}", 'information'
         )
 
-        for ip in self.targets:
-            for port in self.ports:
-                await self.queue.put((ip, port))
-
         workers = [asyncio.create_task(self._scan_worker()) for _ in range(50)]
-        await self.queue.join()
-
-        for w in workers:
-            w.cancel()
+        await asyncio.gather(*workers)
 
         self.update_cli.display(
             f"Finished scan session {self.identifier}", 'success'
