@@ -148,7 +148,7 @@ class Manager:
             'local': (self.start_local_forwarder, "Start a local forwarder."),
             'remote': (self.start_remote_forwarder, "Start a remote forwarder."),
             'socks': (self.start_socks_proxy, "Start a socks proxy."),
-            'scan': (self.start_scanner, "Scan for open ports."),
+            'portscan': (self.start_scanner, "Scan for open ports."),
             'scans': (self.print_scans, "List scans from the current messenger."),
         }
         self.commands = {**self.server_commands, **self.messenger_commands}
