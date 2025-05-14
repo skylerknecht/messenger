@@ -9,7 +9,7 @@ from messenger.message import InitiateForwarderClientReq
 ScanResult = namedtuple("ScanResult", ["identifier", "address", "port", "result"])
 
 class Scanner:
-    def __init__(self, ip_ranges, port_ranges, update_cli, messenger):
+    def __init__(self, ip_ranges, port_ranges, update_cli, messenger, concurrency=50):
         self.identifier = alphanumeric_identifier()
         self.ip_input = ip_ranges
         self.port_input = port_ranges
@@ -19,7 +19,7 @@ class Scanner:
         self.messenger = messenger
         self.scans = {}
         self.start_time = None
-        self.semaphore = asyncio.Semaphore(50)
+        self.semaphore = asyncio.Semaphore(concurrency)
         self._gen_lock = asyncio.Lock()
         self._scan_gen = self._generate_scans()
 

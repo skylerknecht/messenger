@@ -619,18 +619,24 @@ class Manager:
         self.update_cli.display(f'Messenger \'{messenger.identifier}\' is not alive.', 'error', reprompt=False)
 
     @require_messenger
-    async def start_scanner(self, ip, port):
+    async def start_scanner(self, ip, port, concurrency=50):
         """
-        Start a new scan session for the given IP or subnet and ports.
+        Start a scan for the given IP ranges and port ranges.
 
-        Arguments:
-          ip    → single IP or CIDR subnet (e.g. '10.1.0.1' or '10.1.0.0/24')
-          port  → single port, comma-separated list, or list of ports (e.g. 80, '22,443', [21, 80, 8080])
+        positional arguments:
+          ip           One or more IP addresses, CIDRs, or dash/comma-separated ranges.
+          port         One or more ports or port ranges (e.g., 80,443 or 20-25,8080).
 
-        This creates a new Scanner object, tracks it under the current messenger,
-        and begins scanning with a concurrency limit of 50 requests at a time.
+        optional arguments:
+          concurrency  Maximum number of concurrent scan attempts (default: 50).
+
+        examples:
+          scan 192.168.1.10 80
+          scan 192.168.1.10-50 80,443
+          scan 192.168.1.10,192.168.1.20-30 80-445,1080
+          scan 10.0.0.0/24 22-23,80 100
         """
-        scanner = Scanner(ip, port, self.update_cli, self.current_messenger)
+        scanner = Scanner(ip, port, self.update_cli, self.current_messenger, concurrency)
         self.current_messenger.scanners.append(scanner)
         asyncio.create_task(scanner.start())
 
