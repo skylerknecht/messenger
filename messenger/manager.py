@@ -692,7 +692,8 @@ class Manager:
 
             print(self.create_table('Scans', columns, items))
         else:
-            columns = ["Identifier", "Addresses", "Ports", "Attempts", "Open", "Closed"]
+            #columns = ["Identifier", "Addresses", "Ports", "Attempts", "Open", "Closed"]
+            columns = ["Identifier", "Addresses", "Start Time", "Attempts", "Open", "Closed"]
             items = []
 
             for scanner in self.current_messenger.scanners:
@@ -705,8 +706,9 @@ class Manager:
 
                 items.append({
                     "Identifier": scanner.identifier,
-                    "Addresses": scanner.subnet_or_ip,
-                    "Ports": ','.join(str(port) for port in scanner.ports),
+                    "Addresses": scanner.ip_input,
+                    #"Ports": ','.join(str(port) for port in scanner.ports),
+                    "Start Time": scanner.start_time if scanner.start_time else '•••',
                     "Attempts": attempts,
                     "Open": open_count,
                     "Closed": closed_count
