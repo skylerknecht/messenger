@@ -673,7 +673,7 @@ class Manager:
             columns = ["Address", "Port", "Result"]
             items = []
 
-            for scan in scanner.scans:
+            for scan in scanner.scans.values():
                 if scan.result == 0:
                     result = 'open'
                 elif scan.result is None:
