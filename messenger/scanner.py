@@ -19,6 +19,7 @@ class Scanner:
         self.messenger = messenger
         self.scans = {}
         self.start_time = None
+        self.concurrency = concurrency
         self.semaphore = asyncio.Semaphore(concurrency)
         self._gen_lock = asyncio.Lock()
         self._scan_gen = self._generate_scans()
@@ -92,7 +93,7 @@ class Scanner:
             f"Starting scan session {self.identifier} at {timestamp}", 'information'
         )
 
-        workers = [asyncio.create_task(self._scan_worker()) for _ in range(50)]
+        workers = [asyncio.create_task(self._scan_worker()) for _ in range(self.concurrency)]
         await asyncio.gather(*workers)
 
         self.update_cli.display(
