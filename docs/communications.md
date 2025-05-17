@@ -40,8 +40,6 @@ A `Message` is composed of multiple components and contains the necessary inform
 - **Message Length**: Indicates the total length of the message, including the header and the `Value` field (4 bytes).
 - **Value**: Variable-length field containing the specific data for each message type.
 
-Here is your corrected table with the typos fixed:
-
 | **Name**                          | **Message Type** | **Description**                                                               |
 |-----------------------------------|------------------|-------------------------------------------------------------------------------|
 | Initiate Forwarder Client Req     | `0x01`           | Establishes a new Forwarder Client.                                           |
