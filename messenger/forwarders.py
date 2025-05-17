@@ -298,14 +298,25 @@ class LocalPortForwarder(Forwarder):
 
     async def stop(self):
         self.server.close()
-        await self.server.wait_closed()
 
         for client in self.clients:
-            if not client.writer.transport.is_closing():
-                client.writer.close()
-                await client.writer.wait_closed()
-        self.update_cli.display(f'Messenger {self.messenger.identifier} has stopped forwarding ({self.listening_host}:{self.listening_port}) -> (*:*).', 'information', reprompt=False)
+            try:
+                transport = client.writer.transport
+                if transport:
+                    transport.abort()
+            except Exception:
+                pass
 
+        try:
+            await self.server.wait_closed()
+        except Exception:
+            pass
+
+        self.update_cli.display(
+            f'Messenger {self.messenger.identifier} has stopped forwarding ({self.listening_host}:{self.listening_port}) -> ({self.destination_host}:{self.destination_port}).',
+            'success',
+            reprompt=False
+        )
 
 class SocksProxy(LocalPortForwarder):
 

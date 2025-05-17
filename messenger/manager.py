@@ -672,7 +672,7 @@ class Manager:
         verbose = '-v' in verbose or '--verbose' in verbose
 
         if not hasattr(self.current_messenger, 'scanners') or not self.current_messenger.scanners:
-            self.update_cli.display("No active scan sessions.", 'warning', reprompt=False)
+            self.update_cli.display("There are no scans to display.", 'warning', reprompt=False)
             return
 
         if identifier:
