@@ -3,6 +3,7 @@ import inspect
 import sys
 import re
 import traceback
+import time
 from collections import namedtuple
 
 from prompt_toolkit import PromptSession
@@ -149,7 +150,7 @@ class Manager:
             'remote': (self.start_remote_forwarder, "Start a remote forwarder."),
             'socks': (self.start_socks_proxy, "Start a socks proxy."),
             'portscan': (self.start_scanner, "Scan for open ports."),
-            'scans': (self.print_scans, "List scans from the current messenger."),
+            'scans': (self.print_scanners, "List scans from the current messenger."),
         }
         self.commands = {**self.server_commands, **self.messenger_commands}
         self.messengers = []
@@ -230,7 +231,7 @@ class Manager:
             args (list): Arguments for the command.
         """
         if command not in self.commands:
-            self.update_cli.display(f'Command "{command}" not found. Type "help" for available commands.', 'warning',
+            self.update_cli.display(f'Command `{command}` not found. Type `help` for available commands.', 'warning',
                                     reprompt=False)
             return
 
@@ -240,7 +241,7 @@ class Manager:
             docstring = inspect.getdoc(func)
             if not docstring:
                 self.update_cli.display(
-                    f'Command "{command}" does not have a help message.',
+                    f'Command `{command}` does not have a help message.',
                     'information', reprompt=False
                 )
                 return
@@ -255,13 +256,13 @@ class Manager:
 
         if len(args) < len(required_params):
             self.update_cli.display(
-                f'Command "{command}" requires at least {len(required_params)} argument(s), but received {len(args)}.',
+                f'Command `{command}` requires at least {len(required_params)} argument(s), but received {len(args)}.',
                 'warning', reprompt=False
             )
             docstring = inspect.getdoc(func)
             if not docstring:
                 self.update_cli.display(
-                    f'Command "{command}" does not have a help message.',
+                    f'Command `{command}` does not have a help message.',
                     'information', reprompt=False
                 )
                 return
@@ -286,8 +287,7 @@ class Manager:
                 self.update_cli.display("Please interact with a messenger before using this command.", 'error',
                                         reprompt=False)
                 return
-            messenger_id = self.current_messenger.identifier
-            return await func(self, messenger_id, *args, **kwargs)
+            return await func(self, *args, **kwargs)
 
         return wrapper
 
@@ -357,7 +357,7 @@ class Manager:
             self.current_messenger = messenger
             self.update_cli.prompt = self.current_messenger.identifier
         else:
-            self.update_cli.display(f'Could not find Messenger with ID {messenger}', 'error', reprompt=False)
+            self.update_cli.display(f'Could not find Messenger with ID `{messenger.identifier}`', 'error', reprompt=False)
             return
 
     async def print_help(self, command=None):
@@ -369,7 +369,7 @@ class Manager:
             docstring = inspect.getdoc(func)
             if not docstring:
                 self.update_cli.display(
-                    f'Command "{command}" does not have a help message.',
+                    f'Command `{command}` does not have a help message.',
                     'information', reprompt=False
                 )
                 return
@@ -414,7 +414,7 @@ class Manager:
             return
 
         if messenger_id and messenger_id not in [messenger.identifier for messenger in self.messengers]:
-            self.update_cli.display(f'Messenger ID {messenger_id} does not exist.', 'status', reprompt=False)
+            self.update_cli.display(f'Messenger ID `{messenger_id}` does not exist.', 'status', reprompt=False)
             return
 
         for messenger in self.messengers:
@@ -440,7 +440,7 @@ class Manager:
                 })
         if len(items) == 0:
             if messenger_id:
-                self.update_cli.display(f'There are no forwarders to display for messenger {messenger_id}.', 'status', reprompt=False)
+                self.update_cli.display(f'There are no forwarders to display for messenger `{messenger_id}`.', 'status', reprompt=False)
             else:
                 self.update_cli.display('There are no forwarders to display.', 'status', reprompt=False)
             return
@@ -509,6 +509,95 @@ class Manager:
             return
         print(self.create_table('Messengers', columns, items))
 
+    @require_messenger
+    async def print_scanners(self, identifier=None, verbose=''):
+        """
+        Display scan results tracked by the current messenger's scanner.
+
+        Usage:
+          scans              → shows a summary of all scan sessions
+          scans <identifier> → shows detailed results for a specific scanner
+          scans -v           → includes incomplete results (e.g., no reply)
+
+        Without arguments:
+          - Displays a summary table of all scan sessions with:
+              - Identifier
+              - Runtime duration
+              - Attempted scans and percentage completion
+              - Open and Closed result counts
+
+        With <identifier>:
+          - Lists each IP:Port scanned along with the result:
+              - open   → port responded successfully
+              - closed → port did not respond or was rejected
+              - •••    → no response yet (shown only if -v or --verbose is passed)
+        """
+        verbose = '-v' in verbose or '--verbose' in verbose
+
+        if not hasattr(self.current_messenger, 'scanners') or not self.current_messenger.scanners:
+            self.update_cli.display("There are no scans to display.", 'warning', reprompt=False)
+            return
+
+        if identifier:
+            scanner = next((s for s in self.current_messenger.scanners if s and s.identifier == identifier), None)
+            if not scanner:
+                self.update_cli.display(f"No scanner found with identifier `{identifier}`", 'warning', reprompt=False)
+                return
+
+            columns = ["Address", "Port", "Result"]
+            items = []
+
+            for scan in scanner.scans.values():
+                if scan.result == 0:
+                    result = 'open'
+                elif scan.result is None:
+                    if not verbose:
+                        continue
+                    result = '•••'
+                else:
+                    if not verbose:
+                        continue
+                    result = 'closed'
+                items.append({
+                    "Address": scan.address,
+                    "Port": scan.port,
+                    "Result": result
+                })
+
+            print(self.create_table('Scans', columns, items))
+        else:
+            columns = ["Identifier", "Runtime", "Attempts", "Progress", "Open", "Closed"]
+            items = []
+
+            for scanner in self.current_messenger.scanners:
+                if not hasattr(scanner, 'scans'):
+                    continue
+
+                open_count = sum(1 for s in scanner.scans.values() if s.result == 0)
+                closed_count = sum(1 for s in scanner.scans.values() if s.result not in (0, None))
+                attempts = len(scanner.scans)
+                if scanner.end_time:
+                    runtime = int(scanner.end_time - scanner.start_time)
+                else:
+                    runtime = int(time.time() - scanner.start_time)
+                minutes, seconds = divmod(runtime, 60)
+                hours, minutes = divmod(minutes, 60)
+                formatted_runtime = f"{hours:02}:{minutes:02}:{seconds:02}"
+
+                percent = ((open_count + closed_count) / scanner.total_scans) * 100 if scanner.total_scans else 0
+                progress_str = f"{open_count + closed_count}/{scanner.total_scans} ({percent:.0f}%)"
+
+                items.append({
+                    "Identifier": scanner.identifier,
+                    "Runtime": formatted_runtime,
+                    "Attempts": attempts,
+                    "Progress": progress_str,
+                    "Open": open_count,
+                    "Closed": closed_count
+                })
+
+            print(self.create_table('Scans', columns, items))
+
     async def start_command_line_interface(self):
         """
         Start the CLI, display banner, and manage user input.
@@ -564,13 +653,13 @@ class Manager:
           local 192.168.1.10:8080:example.com:9090
         """
         messenger = self.current_messenger
-        if messenger.alive:
-            forwarder = LocalPortForwarder(messenger, forwarder_config, self.update_cli)
-            success = await forwarder.start()
-            if success:
-                messenger.forwarders.append(forwarder)
-            return
-        self.update_cli.display(f'Messenger \'{messenger.identifier}\' is not alive.', 'error', reprompt=False)
+        if not messenger.alive:
+            self.update_cli.display(f'Messenger `{messenger.identifier}` is not alive.', 'error', reprompt=False)
+        forwarder = LocalPortForwarder(messenger, forwarder_config, self.update_cli)
+        success = await forwarder.start()
+        if success:
+            messenger.forwarders.append(forwarder)
+        return
 
     @require_messenger
     async def start_remote_forwarder(self, forwarder_config):
@@ -585,12 +674,12 @@ class Manager:
           remote example.com:9090
         """
         messenger = self.current_messenger
-        if messenger.alive:
-            forwarder = RemotePortForwarder(messenger, forwarder_config, self.update_cli)
-            await forwarder.start()
-            messenger.forwarders.append(forwarder)
-            return
-        self.update_cli.display(f'Messenger \'{messenger.identifier}\' is not alive.', 'error', reprompt=False)
+        if not messenger.alive:
+            self.update_cli.display(f'Messenger `{messenger.identifier}` is not alive.', 'error', reprompt=False)
+        forwarder = RemotePortForwarder(messenger, forwarder_config, self.update_cli)
+        await forwarder.start()
+        messenger.forwarders.append(forwarder)
+        return
 
     @require_messenger
     async def start_socks_proxy(self, forwarder_config):
@@ -610,13 +699,13 @@ class Manager:
           socks 192.168.1.10:8080
         """
         messenger = self.current_messenger
-        if messenger.alive:
-            forwarder = SocksProxy(messenger, forwarder_config, self.update_cli)
-            success = await forwarder.start()
-            if success:
-                messenger.forwarders.append(forwarder)
-            return
-        self.update_cli.display(f'Messenger \'{messenger.identifier}\' is not alive.', 'error', reprompt=False)
+        if not messenger.alive:
+            self.update_cli.display(f'Messenger `{messenger.identifier}` is not alive.', 'error', reprompt=False)
+        forwarder = SocksProxy(messenger, forwarder_config, self.update_cli)
+        success = await forwarder.start()
+        if success:
+            messenger.forwarders.append(forwarder)
+        return
 
     @require_messenger
     async def start_scanner(self, ip, port, concurrency=50):
@@ -636,6 +725,9 @@ class Manager:
           scan 192.168.1.10,192.168.1.20-30 80-445,1080
           scan 10.0.0.0/24 22-23,80 100
         """
+        if not self.current_messenger.alive:
+            self.update_cli.display(f'Messenger `{self.current_messenger.identifier}` is not alive.', 'error', reprompt=False)
+            return
         try:
             concurrency = int(concurrency)
         except:
@@ -645,108 +737,31 @@ class Manager:
         self.current_messenger.scanners.append(scanner)
         asyncio.create_task(scanner.start())
 
-    @require_messenger
-    async def print_scans(self, identifier=None, verbose=''):
+    async def stop(self, id):
         """
-        Display scan results tracked by the current messenger's scanner.
-
-        Usage:
-          scans              → shows a summary of all scan sessions
-          scans <identifier> → shows detailed results for a specific scanner
-          scans -v           → includes incomplete results (e.g., no reply)
-
-        Without arguments:
-          - Displays a summary table of all scan sessions with:
-              - Identifier
-              - Addresses
-              - Ports
-              - Attempted scans
-              - Open and Closed result counts
-
-        With <identifier>:
-          - Lists each IP:Port scanned along with the result:
-              - open   → port responded successfully
-              - closed → port did not respond or was rejected
-              - •••    → no response yet (shown only if -v or --verbose is passed)
-        """
-        verbose = '-v' in verbose or '--verbose' in verbose
-
-        if not hasattr(self.current_messenger, 'scanners') or not self.current_messenger.scanners:
-            self.update_cli.display("There are no scans to display.", 'warning', reprompt=False)
-            return
-
-        if identifier:
-            scanner = next((s for s in self.current_messenger.scanners if s and s.identifier == identifier), None)
-            if not scanner:
-                self.update_cli.display(f"No scanner found with identifier {identifier}", 'warning', reprompt=False)
-                return
-
-            columns = ["Address", "Port", "Result"]
-            items = []
-
-            for scan in scanner.scans.values():
-                if scan.result == 0:
-                    result = 'open'
-                elif scan.result is None:
-                    if not verbose:
-                        continue
-                    result = '•••'
-                else:
-                    if not verbose:
-                        continue
-                    result = 'closed'
-                items.append({
-                    "Address": scan.address,
-                    "Port": scan.port,
-                    "Result": result
-                })
-
-            print(self.create_table('Scans', columns, items))
-        else:
-            #columns = ["Identifier", "Addresses", "Ports", "Attempts", "Open", "Closed"]
-            columns = ["Identifier", "Addresses", "Start Time", "Attempts", "Open", "Closed"]
-            items = []
-
-            for scanner in self.current_messenger.scanners:
-                if not hasattr(scanner, 'scans'):
-                    continue
-
-                attempts = len(scanner.scans)
-                open_count = sum(1 for s in scanner.scans.values() if s.result == 0)
-                closed_count = sum(1 for s in scanner.scans.values() if s.result not in (0, None))
-
-                items.append({
-                    "Identifier": scanner.identifier,
-                    "Addresses": scanner.ip_input,
-                    #"Ports": ','.join(str(port) for port in scanner.ports),
-                    "Start Time": scanner.start_time if scanner.start_time else '•••',
-                    "Attempts": attempts,
-                    "Open": open_count,
-                    "Closed": closed_count
-                })
-
-            print(self.create_table('Scans', columns, items))
-
-    async def stop(self, forwarder_id):
-        """
-        Stop and remove a forwarder by ID.
+        Stop and remove a forwarder or scanner by ID.
 
         positional arguments:
-          forwarder_id       ID of the forwarder to stop and remove.
+          id       ID of the forwarder or scanner to stop and remove.
 
         examples:
           stop NkMCyCrrcP
         """
         for messenger in self.messengers:
             for forwarder in messenger.forwarders:
-                if forwarder.identifier != forwarder_id:
+                if forwarder.identifier != id:
                     continue
                 if isinstance(forwarder, LocalPortForwarder):
                     await forwarder.stop()
                 messenger.forwarders.remove(forwarder)
-                self.update_cli.display(f'Removed \'{forwarder_id}\' from forwarders.', 'information', reprompt=False)
+                self.update_cli.display(f'Removed `{id}` from forwarders.', 'information', reprompt=False)
                 return
-        self.update_cli.display(f'Forwarder \'{forwarder_id}\' not found', 'error', reprompt=False)
+            for scanner in messenger.scanners:
+                if scanner.identifier != id:
+                    continue
+                await scanner.stop()
+                return
+        self.update_cli.display(f'`{id}` not found', 'error', reprompt=False)
 
 
 class DynamicCompleter(Completer):

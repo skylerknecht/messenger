@@ -134,8 +134,6 @@ class SocksForwarderClient(ForwarderClient):
         await self.messenger.send_message_upstream(upstream_message)
         await self.stream()
 
-    import socket
-
     @staticmethod
     def socks_results(rep, bind_addr, bind_port, atype):
         if atype == 1:
@@ -313,7 +311,7 @@ class LocalPortForwarder(Forwarder):
             pass
 
         self.update_cli.display(
-            f'Messenger {self.messenger.identifier} has stopped forwarding ({self.listening_host}:{self.listening_port}) -> ({self.destination_host}:{self.destination_port}).',
+            f'Messenger `{self.messenger.identifier}` has stopped forwarding ({self.listening_host}:{self.listening_port}) -> ({self.destination_host}:{self.destination_port}).',
             'success',
             reprompt=False
         )
@@ -397,7 +395,7 @@ class RemotePortForwarder(Forwarder):
             )
             await self.messenger.send_message_upstream(upstream_message)
         except:
-            self.update_cli.display(f'Remote Port Forwarder {self.identifier} could not connect to {self.destination_host}:{self.destination_port}', 'error')
+            self.update_cli.display(f'Remote Port Forwarder `{self.identifier}` could not connect to {self.destination_host}:{self.destination_port}', 'error')
             upstream_message = InitiateForwarderClientRep(
                 forwarder_client_id=client_identifier,
                 bind_address='',
@@ -415,10 +413,6 @@ class RemotePortForwarder(Forwarder):
 
     def parse_config(self, config):
         parts = config.split(':')
-
-        # Default values for RemotePortForwarder
-        destination_host = None
-        destination_port = None
 
         if len(parts) == 2:
             destination_host, destination_port = parts

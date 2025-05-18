@@ -19,10 +19,13 @@ class Scanner:
         self.messenger = messenger
         self.scans = {}
         self.start_time = None
+        self.end_time = None
         self.concurrency = concurrency
         self.semaphore = asyncio.Semaphore(concurrency)
         self._gen_lock = asyncio.Lock()
         self._scan_gen = self._generate_scans()
+        self._workers = []
+        self._scanning = False
 
     def _parse_ip_ranges(self, raw):
         hosts = set()
@@ -60,6 +63,10 @@ class Scanner:
             for port in self.ports:
                 yield ip, port
 
+    @property
+    def total_scans(self) -> int:
+        return len(self.targets) * len(self.ports)
+
     def update_result(self, identifier, result):
         if identifier in self.scans:
             current = self.scans[identifier]
@@ -67,7 +74,7 @@ class Scanner:
         self.semaphore.release()
 
     async def _scan_worker(self):
-        while True:
+        while self._scanning:
             async with self._gen_lock:
                 try:
                     ip, port = next(self._scan_gen)
@@ -87,15 +94,25 @@ class Scanner:
             await asyncio.sleep(1)
 
     async def start(self):
-        timestamp = time.strftime('%a, %b %d, %Y at %I:%M:%S %p %Z', time.localtime())
-        self.start_time = timestamp
+        self._scanning = True
+        self.start_time = time.time()
+        readable = time.strftime("%H:%M:%S %Z", time.localtime(self.start_time))
         self.update_cli.display(
-            f"Starting scan session {self.identifier} at {timestamp}", 'information'
+            f"Starting scan `{self.identifier}` at {readable}", 'information',
         )
 
-        workers = [asyncio.create_task(self._scan_worker()) for _ in range(self.concurrency)]
-        await asyncio.gather(*workers)
+        self._workers = [asyncio.create_task(self._scan_worker()) for _ in range(self.concurrency)]
+        await asyncio.gather(*self._workers)
 
+        self.end_time = time.time()
+        readable = time.strftime("%H:%M:%S %Z", time.localtime(self.end_time))
         self.update_cli.display(
-            f"Finished scan session {self.identifier}", 'success'
+            f"Finished scan `{self.identifier}` at {readable}", 'success',
         )
+
+    async def stop(self):
+        if not self._scanning or self.end_time:
+            self.update_cli.display(f"Scanner `{self.identifier}` has already finished.", 'information', reprompt=False)
+            return
+        self.update_cli.display(f"Stopping scan `{self.identifier}`", 'information', reprompt=False)
+        self._scanning = False
