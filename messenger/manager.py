@@ -242,7 +242,7 @@ class Manager:
             if not docstring:
                 self.update_cli.display(
                     f'Command `{command}` does not have a help message.',
-                    'information', reprompt=False
+                    'information'
                 )
                 return
             print(docstring)
@@ -252,7 +252,6 @@ class Manager:
         params = sig.parameters
 
         required_params = [p for p in params.values() if p.default == p.empty]
-        optional_params = [p for p in params.values() if p.default != p.empty]
 
         if len(args) < len(required_params):
             self.update_cli.display(
@@ -271,7 +270,7 @@ class Manager:
 
         call_args = []
         for idx, param in enumerate(params.values()):
-            if idx < len(args):
+            if idx < len(args) and args[idx] != "":
                 call_args.append(args[idx])
             elif param.default != param.empty:
                 call_args.append(param.default)
@@ -566,7 +565,7 @@ class Manager:
 
             print(self.create_table('Scans', columns, items))
         else:
-            columns = ["Identifier", "Runtime", "Attempts", "Progress", "Open", "Closed"]
+            columns = ["Identifier", "Scanning", "Runtime", "Attempts", "Progress", "Open", "Closed"]
             items = []
 
             for scanner in self.current_messenger.scanners:
@@ -589,6 +588,7 @@ class Manager:
 
                 items.append({
                     "Identifier": scanner.identifier,
+                    "Scanning": scanner.is_scanning,
                     "Runtime": formatted_runtime,
                     "Attempts": attempts,
                     "Progress": progress_str,

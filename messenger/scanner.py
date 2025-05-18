@@ -67,6 +67,10 @@ class Scanner:
     def total_scans(self) -> int:
         return len(self.targets) * len(self.ports)
 
+    @property
+    def is_scanning(self) -> str:
+        return "No" if not self._scanning else "Yes"
+
     def update_result(self, identifier, result):
         if identifier in self.scans:
             current = self.scans[identifier]
@@ -106,6 +110,7 @@ class Scanner:
 
         self.end_time = time.time()
         readable = time.strftime("%H:%M:%S %Z", time.localtime(self.end_time))
+        self._scanning = False
         self.update_cli.display(
             f"Finished scan `{self.identifier}` at {readable}", 'success',
         )
