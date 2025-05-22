@@ -508,7 +508,6 @@ class Manager:
             return
         print(self.create_table('Messengers', columns, items))
 
-    @require_messenger
     async def print_scanners(self, identifier=None, verbose=''):
         """
         Display scan results tracked by the current messenger's scanner.
@@ -532,13 +531,14 @@ class Manager:
               - •••    → no response yet (shown only if -v or --verbose is passed)
         """
         verbose = '-v' in verbose or '--verbose' in verbose
+        scanners = [scanner for messenger in self.messengers for scanner in messenger.scanners]
 
-        if not hasattr(self.current_messenger, 'scanners') or not self.current_messenger.scanners:
+        if not scanners:
             self.update_cli.display("There are no scans to display.", 'warning', reprompt=False)
             return
 
         if identifier:
-            scanner = next((s for s in self.current_messenger.scanners if s and s.identifier == identifier), None)
+            scanner = next((s for s in scanners if s and s.identifier == identifier), None)
             if not scanner:
                 self.update_cli.display(f"No scanner found with identifier `{identifier}`", 'warning', reprompt=False)
                 return
@@ -557,6 +557,7 @@ class Manager:
                     if not verbose:
                         continue
                     result = 'closed'
+
                 items.append({
                     "Address": scan.address,
                     "Port": scan.port,
@@ -564,39 +565,36 @@ class Manager:
                 })
 
             print(self.create_table('Scans', columns, items))
-        else:
-            columns = ["Identifier", "Scanning", "Runtime", "Attempts", "Progress", "Open", "Closed"]
-            items = []
+            return
 
-            for scanner in self.current_messenger.scanners:
-                if not hasattr(scanner, 'scans'):
-                    continue
+        columns = ["Identifier", "Runtime", "Attempts", "Progress", "Open", "Closed"]
+        items = []
 
-                open_count = sum(1 for s in scanner.scans.values() if s.result == 0)
-                closed_count = sum(1 for s in scanner.scans.values() if s.result not in (0, None))
-                attempts = len(scanner.scans)
-                if scanner.end_time:
-                    runtime = int(scanner.end_time - scanner.start_time)
-                else:
-                    runtime = int(time.time() - scanner.start_time)
-                minutes, seconds = divmod(runtime, 60)
-                hours, minutes = divmod(minutes, 60)
-                formatted_runtime = f"{hours:02}:{minutes:02}:{seconds:02}"
+        for scanner in scanners:
+            if not hasattr(scanner, 'scans'):
+                continue
 
-                percent = ((open_count + closed_count) / scanner.total_scans) * 100 if scanner.total_scans else 0
-                progress_str = f"{open_count + closed_count}/{scanner.total_scans} ({percent:.0f}%)"
+            open_count = sum(1 for s in scanner.scans.values() if s.result == 0)
+            closed_count = sum(1 for s in scanner.scans.values() if s.result not in (0, None))
+            attempts = len(scanner.scans)
+            runtime = int((scanner.end_time or time.time()) - scanner.start_time)
+            hours, minutes = divmod(runtime, 3600)
+            minutes, seconds = divmod(minutes, 60)
+            formatted_runtime = f"{hours:02}:{minutes:02}:{seconds:02}"
 
-                items.append({
-                    "Identifier": scanner.identifier,
-                    "Scanning": scanner.is_scanning,
-                    "Runtime": formatted_runtime,
-                    "Attempts": attempts,
-                    "Progress": progress_str,
-                    "Open": open_count,
-                    "Closed": closed_count
-                })
+            percent = ((open_count + closed_count) / scanner.total_scans) * 100 if scanner.total_scans else 0
+            progress_str = f"{open_count + closed_count}/{scanner.total_scans} ({percent:.0f}%)"
 
-            print(self.create_table('Scans', columns, items))
+            items.append({
+                "Identifier": scanner.identifier,
+                "Runtime": formatted_runtime,
+                "Attempts": attempts,
+                "Progress": progress_str,
+                "Open": open_count,
+                "Closed": closed_count
+            })
+
+        print(self.create_table('Scans', columns, items))
 
     async def start_command_line_interface(self):
         """
