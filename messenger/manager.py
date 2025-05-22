@@ -138,8 +138,9 @@ class Manager:
             'build': (self.build, "Builds a messenger client."),
             'forwarders': (self.print_forwarders, "Display a list of forwarders in a table format."),
             'messengers': (self.print_messengers, "Display a list of messengers in a table format."),
+            'scans': (self.print_scanners, "Display a list of scanners in a table format."),
             'interact': (self.interact, "Interact with a messenger."),
-            'stop': (self.stop, "Stop a forwarder."),
+            'stop': (self.stop, "Stop a forwarder or a scanner."),
             'help': (self.print_help, "Display this help message."),
             '?': (self.print_help, "Display this help message but with fewer characters."),
             'exit': (self.exit, "Exit Messenger, stopping the server."),
@@ -150,7 +151,6 @@ class Manager:
             'remote': (self.start_remote_forwarder, "Start a remote forwarder."),
             'socks': (self.start_socks_proxy, "Start a socks proxy."),
             'portscan': (self.start_scanner, "Scan for open ports."),
-            'scans': (self.print_scanners, "List scans from the current messenger."),
         }
         self.commands = {**self.server_commands, **self.messenger_commands}
         self.messengers = []
