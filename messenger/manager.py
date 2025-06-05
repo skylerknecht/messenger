@@ -567,31 +567,20 @@ class Manager:
             print(self.create_table('Scans', columns, items))
             return
 
-        columns = ["Identifier", "Runtime", "Attempts", "Progress", "Open", "Closed"]
+        columns = ["Messenger", "Scanner", "Runtime", "Progress", "Open", "Closed"]
         items = []
 
         for scanner in scanners:
             if not hasattr(scanner, 'scans'):
                 continue
 
-            open_count = sum(1 for s in scanner.scans.values() if s.result == 0)
-            closed_count = sum(1 for s in scanner.scans.values() if s.result not in (0, None))
-            attempts = len(scanner.scans)
-            runtime = int((scanner.end_time or time.time()) - scanner.start_time)
-            hours, minutes = divmod(runtime, 3600)
-            minutes, seconds = divmod(minutes, 60)
-            formatted_runtime = f"{hours:02}:{minutes:02}:{seconds:02}"
-
-            percent = ((open_count + closed_count) / scanner.total_scans) * 100 if scanner.total_scans else 0
-            progress_str = f"{open_count + closed_count}/{scanner.total_scans} ({percent:.0f}%)"
-
             items.append({
-                "Identifier": scanner.identifier,
-                "Runtime": formatted_runtime,
-                "Attempts": attempts,
-                "Progress": progress_str,
-                "Open": open_count,
-                "Closed": closed_count
+                "Messenger": scanner.messenger.identifier,
+                "Scanner": scanner.identifier,
+                "Runtime": scanner.formatted_runtime,
+                "Progress": scanner.progress_str,
+                "Open": scanner.open_count,
+                "Closed": scanner.closed_count
             })
 
         print(self.create_table('Scans', columns, items))
@@ -718,10 +707,10 @@ class Manager:
           concurrency  Maximum number of concurrent scan attempts (default: 50).
 
         examples:
-          scan 192.168.1.10 80
-          scan 192.168.1.10-50 80,443
-          scan 192.168.1.10,192.168.1.20-30 80-445,1080
-          scan 10.0.0.0/24 22-23,80 100
+          portscan 192.168.1.10 80
+          portscan 192.168.1.10-50 80,443
+          portscan 192.168.1.10,192.168.1.20-30 80-445,1080
+          portscan 10.0.0.0/24 22-23,80 100
         """
         if not self.current_messenger.alive:
             self.update_cli.display(f'Messenger `{self.current_messenger.identifier}` is not alive.', 'error', reprompt=False)

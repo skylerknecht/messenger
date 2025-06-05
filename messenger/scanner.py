@@ -25,7 +25,6 @@ class Scanner:
         self._gen_lock = asyncio.Lock()
         self._scan_gen = self._generate_scans()
         self._workers = []
-        self._scanning = False
 
     def _parse_ip_ranges(self, raw):
         hosts = set()
@@ -68,8 +67,34 @@ class Scanner:
         return len(self.targets) * len(self.ports)
 
     @property
-    def is_scanning(self) -> str:
-        return "No" if not self._scanning else "Yes"
+    def attempts(self) -> int:
+        return len(self.scans)
+
+    @property
+    def open_count(self) -> int:
+        return sum(1 for s in self.scans.values() if s.result == 0)
+
+    @property
+    def closed_count(self) -> int:
+        return sum(1 for s in self.scans.values() if s.result not in (0, None))
+
+    @property
+    def formatted_runtime(self) -> str:
+        runtime = int((self.end_time or time.time()) - self.start_time)
+        hours, minutes = divmod(runtime, 3600)
+        minutes, seconds = divmod(minutes, 60)
+        return f"{hours:02}:{minutes:02}:{seconds:02}"
+
+    @property
+    def progress_str(self) -> str:
+        progress = self.open_count + self.closed_count
+        percent = (progress / self.total_scans) * 100 if self.total_scans else 0
+        return f"{progress}/{self.total_scans} ({percent:.0f}%)"
+
+    @property
+    def completed(self) -> bool:
+        progress = self.open_count + self.closed_count
+        return progress == self.total_scans
 
     def update_result(self, identifier, result):
         if identifier in self.scans:
@@ -77,8 +102,15 @@ class Scanner:
             self.scans[identifier] = ScanResult(identifier, current.address, current.port, result)
         self.semaphore.release()
 
+        if self.completed:
+            self.end_time = time.time()
+            readable = time.strftime("%H:%M:%S %Z", time.localtime(self.end_time))
+            self.update_cli.display(
+                f"Scan `{self.identifier}` completed at {readable}. All results received.", 'success'
+            )
+
     async def _scan_worker(self):
-        while self._scanning:
+        while True:
             async with self._gen_lock:
                 try:
                     ip, port = next(self._scan_gen)
@@ -98,7 +130,6 @@ class Scanner:
             await asyncio.sleep(1)
 
     async def start(self):
-        self._scanning = True
         self.start_time = time.time()
         readable = time.strftime("%H:%M:%S %Z", time.localtime(self.start_time))
         self.update_cli.display(
@@ -108,16 +139,15 @@ class Scanner:
         self._workers = [asyncio.create_task(self._scan_worker()) for _ in range(self.concurrency)]
         await asyncio.gather(*self._workers)
 
-        self.end_time = time.time()
-        readable = time.strftime("%H:%M:%S %Z", time.localtime(self.end_time))
-        self._scanning = False
         self.update_cli.display(
-            f"Finished scan `{self.identifier}` at {readable}", 'success',
+            f"Scanner `{self.identifier}` finished sending all attempts. Waiting for results...", 'information',
         )
 
     async def stop(self):
-        if not self._scanning or self.end_time:
-            self.update_cli.display(f"Scanner `{self.identifier}` has already finished.", 'information', reprompt=False)
+        if self.end_time:
+            self.update_cli.display(f"Scanner `{self.identifier}` already stopped.", 'information', reprompt=False)
             return
+
         self.update_cli.display(f"Stopping scan `{self.identifier}`", 'information', reprompt=False)
-        self._scanning = False
+        for w in self._workers:
+            w.cancel()
