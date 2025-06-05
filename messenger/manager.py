@@ -319,23 +319,26 @@ class Manager:
         """
         self.current_messenger = None
 
-    async def build(self, messenger_client_type):
+    async def build(self, messenger_client_type, no_obfuscate=False, name="messenger-client"):
         """
-        Interact with a messenger.
+         Build a messenger client.
 
-        positional arguments:
-          messenger_client_type   The type of the Messenger to build.
+         required:
+           messenger_client_type   The type of the Messenger to build (e.g., python, csharp, node_js).
 
-        examples:
-          build python
-          build csharp
-          build node_js
-        """
+         optional:
+           --no-obfuscate           Disable obfuscation of the messenger client (default: False).
+           --name                   Name of the output client (default: messenger-client).
+
+         examples:
+           build python
+           build csharp --no-obfuscate --name custom-client
+         """
         if not isinstance(messenger_client_type, str):
             self.update_cli.display(f'Messenger Client Type `{messenger_client_type}` is not valid', 'error', reprompt=False)
             return
         if messenger_client_type.lower() == 'python':
-            await build_python()
+            await build_python(no_obfuscate, name)
             return
         elif messenger_client_type.lower() == 'csharp':
             self.update_cli.display(f'Messenger Client Type `{messenger_client_type}` is not implemented', 'error', reprompt=False)
@@ -351,16 +354,14 @@ class Manager:
         """
         Interact with a messenger.
 
-        note:
-        Operators can omit the interact command and just provide the Messenger ID to interact with a Messenger.
-
-        positional arguments:
-          messenger_id   The ID of the Messenger to interact with.
+        required:
+          messenger                The ID or Messenger object to interact with.
 
         examples:
-          NkMCyCrrcP
           interact NkMCyCrrcP
+          NkMCyCrrcP
         """
+
         if isinstance(messenger, str):
             for _messenger in self.messengers:
                 if messenger == _messenger.identifier:
@@ -376,7 +377,14 @@ class Manager:
 
     async def print_help(self, command=None):
         """
-        Display available commands and descriptions.
+        Display help message.
+
+        optional:
+          command                  Specific command to show detailed help for.
+
+        examples:
+          help
+          help build
         """
         if command and command in self.commands:
             func = self.commands[command][0]
@@ -401,20 +409,8 @@ class Manager:
         """
         Display active forwarders in a table format.
 
-        optional arguments:
-          messenger_id       If provided, only displays forwarders for that messenger.
-
-        table columns:
-          Type               Type of the forwarder (e.g., "Local Port Forwarder" or "Remote Port Forwarder").
-          ID                 Unique identifier for the forwarder instance, color-coded:
-                              - Remote forwarders in red.
-                              - SOCKS proxies in blue.
-                              - Local forwarders in green.
-          Clients            Number of clients currently connected to the forwarder.
-          Listening Host     Host on which the forwarder is listening for incoming connections.
-          Listening Port     Port on which the forwarder is listening for incoming connections.
-          Destination Host   Host to which the forwarder relays connections.
-          Destination Port   Port to which the forwarder relays connections.
+        optional:
+          messenger_id             Filter by Messenger ID.
 
         examples:
           forwarders
@@ -464,25 +460,12 @@ class Manager:
         """
         Display active messengers in a table format.
 
-        Optional Arguments:
-          verbose            Include '-v' or '--verbose' to display additional columns for User-Agent
-                             and IP address.
+        optional:
+          --verbose, -v            Show additional columns for User-Agent and IP address (default: False).
 
-        Table Columns:
-          - Identifier:       Unique identifier for the messenger instance.
-          - Transport:        Type of transport protocol used by the messenger (e.g., "HTTP" or "WebSocket").
-          - Alive:            Connection status, showing "Yes" if the messenger is actively connected, otherwise "No".
-          - Forwarders:       Comma-separated list of forwarder IDs associated with the messenger, color-coded:
-                                - Remote forwarders in red.
-                                - SOCKS proxies in blue.
-                                - Local forwarders in green.
-          - User-Agent:       (Verbose) User-Agent string of the messenger's connection.
-          - IP:               (Verbose) IP address of the messenger's connection.
-
-        Example Usage:
-            messengers
-            messengers -v
-            messengers --verbose
+        examples:
+          messengers
+          messengers --verbose
         """
         columns = ["Identifier", "Transport", "Alive", "Forwarders", "Sent", "Received"]
         if verbose:
@@ -524,25 +507,16 @@ class Manager:
 
     async def print_scanners(self, identifier=None, verbose=False):
         """
-        Display scan results tracked by the current messenger's scanner.
+        Display scan results.
 
-        Usage:
-          scans              → shows a summary of all scan sessions
-          scans <identifier> → shows detailed results for a specific scanner
-          scans -v           → includes incomplete results (e.g., no reply)
+        optional:
+          identifier               Specific scanner ID to show detailed scan results.
+          --verbose, -v            Include incomplete/no-response results (default: False).
 
-        Without arguments:
-          - Displays a summary table of all scan sessions with:
-              - Identifier
-              - Runtime duration
-              - Attempted scans and percentage completion
-              - Open and Closed result counts
-
-        With <identifier>:
-          - Lists each IP:Port scanned along with the result:
-              - open   → port responded successfully
-              - closed → port did not respond or was rejected
-              - •••    → no response yet (shown only if -v or --verbose is passed)
+        examples:
+          scans
+          scans NkMCyCrrcP
+          scans --verbose
         """
         scanners = [scanner for messenger in self.messengers for scanner in messenger.scanners]
 
@@ -646,14 +620,13 @@ class Manager:
     @require_messenger
     async def start_local_forwarder(self, forwarder_config):
         """
-        Start a socks proxy or local forwarder for the currently selected messenger.
+        Start a local forwarder.
 
-        positional arguments:
-          forwarder_config   Configuration string for the local forwarder, in one of the following formats:
-                               - "192.168.1.10:8080:example.com:9090" : Full configuration with listening and destination details.
+        required:
+          forwarder_config         Format: listening_host:port:destination_host:port
 
-        example:
-          local 192.168.1.10:8080:example.com:9090
+        examples:
+          local 127.0.0.1:8080:example.com:9090
         """
         messenger = self.current_messenger
         if not messenger.alive:
@@ -667,11 +640,10 @@ class Manager:
     @require_messenger
     async def start_remote_forwarder(self, forwarder_config):
         """
-        Start a remote forwarder for the currently selected messenger.
+        Start a remote forwarder.
 
-        positional arguments:
-          forwarder_config   Configuration string for the remote forwarder, in one of the following formats:
-                               - "example.com:9090"    : Destination host and port.
+        required:
+          forwarder_config         Format: destination_host:port
 
         examples:
           remote example.com:9090
@@ -687,19 +659,14 @@ class Manager:
     @require_messenger
     async def start_socks_proxy(self, forwarder_config):
         """
-        Start a socks proxy for the currently selected messenger.
+        Start a SOCKS proxy.
 
-        positional arguments:
-          forwarder_config   Configuration string for the socks proxy, in one of the following formats:
-                               - "8080"                               : Listening port only.
-                               - "192.168.1.10:8080"                  : Listening host and port.
-
-                             Defaults:
-                               - listening_host: "127.0.0.1"
+        required:
+          forwarder_config         Format: [listening_host:]port
 
         examples:
           socks 8080
-          socks 192.168.1.10:8080
+          socks 127.0.0.1:8080
         """
         messenger = self.current_messenger
         if not messenger.alive:
@@ -713,21 +680,19 @@ class Manager:
     @require_messenger
     async def start_scanner(self, ips, ports=None, concurrency=50, top_ports=100):
         """
-        Start a scan for the given IP ranges and port ranges.
+        Start a scan against IPs and ports.
 
-        positional arguments:
-          ip(s)          One or more IP addresses, CIDRs, or dash/comma-separated ranges.
+        required:
+          ips                      IPs, CIDRs, or ranges to scan.
 
-        optional arguments:
-          port(s)         One or more ports or port ranges (e.g., 80,443 or 20-25,8080).
-          --concurrency  Maximum number of concurrent scan attempts (default: 50).
-          --top-ports  Maximum number of concurrent scan attempts (default: 100).
+        optional:
+          ports                    Specific ports/ranges to scan (e.g., 80,443 or 1-1024).
+          --concurrency            Max concurrent scan attempts (default: 50).
+          --top-ports              Use top N ports if ports not specified (default: 100).
 
         examples:
-          portscan 192.168.1.10 80
-          portscan 192.168.1.10-50 80,443
-          portscan 192.168.1.10,192.168.1.20-30 80-445,1080
-          portscan 10.0.0.0/24 22-23,80 --concurrency 100 --top-ports 1000
+          portscan 192.168.1.10
+          portscan 10.0.0.0/24 --top-ports 1000 --concurrency 100
         """
         if not self.current_messenger.alive:
             self.update_cli.display(f'Messenger `{self.current_messenger.identifier}` is not alive.', 'error', reprompt=False)
@@ -749,10 +714,10 @@ class Manager:
 
     async def stop(self, id):
         """
-        Stop and remove a forwarder or scanner by ID.
+        Stop a forwarder or scanner by ID.
 
-        positional arguments:
-          id       ID of the forwarder or scanner to stop and remove.
+        required:
+          id                       ID of the forwarder or scanner to stop.
 
         examples:
           stop NkMCyCrrcP
