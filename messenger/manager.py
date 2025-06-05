@@ -3,13 +3,13 @@ import inspect
 import sys
 import re
 import traceback
-import time
 from collections import namedtuple
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import Completer, Completion
 
 from functools import wraps
+from inspect import Parameter
 
 from messenger.clients.python.builder import build as build_python
 from messenger.messengers import Messenger
@@ -222,14 +222,7 @@ class Manager:
         table = header + ''.join(rows)
         return table
 
-    async def execute_command(self, command, args):
-        """
-        Execute a command with optional arguments.
-
-        Args:
-            command (str): Command to execute.
-            args (list): Arguments for the command.
-        """
+    async def execute_command(self, command, tokens):
         if command not in self.commands:
             self.update_cli.display(f'Command `{command}` not found. Type `help` for available commands.', 'warning',
                                     reprompt=False)
@@ -237,45 +230,67 @@ class Manager:
 
         func, _ = self.commands[command]
 
-        if len(args) > 0 and (args[0] == '-h' or args[0] == '--help'):
+        if '-h' in tokens or '--help' in tokens:
             docstring = inspect.getdoc(func)
-            if not docstring:
-                self.update_cli.display(
-                    f'Command `{command}` does not have a help message.',
-                    'information'
-                )
-                return
-            print(docstring)
+            print(docstring or f'Command `{command}` does not have a help message.')
             return
 
         sig = inspect.signature(func)
         params = sig.parameters
 
-        required_params = [p for p in params.values() if p.default == p.empty]
+        positional_args = []
+        keyword_args = {}
+        consumed_flags = set()
+        tokens_iter = iter(tokens)
 
-        if len(args) < len(required_params):
+        for token in tokens_iter:
+            if token.startswith('--') or token.startswith('-'):
+                name = token.lstrip('-').replace('-', '_')
+                param = params.get(name)
+
+                if param is None or param.kind not in (Parameter.POSITIONAL_OR_KEYWORD, Parameter.KEYWORD_ONLY):
+                    self.update_cli.display(f'{command} does not support the flag `{token}`.', 'error', reprompt=False)
+                    return
+
+                consumed_flags.add(name)
+                default = param.default
+
+                if isinstance(default, bool):
+                    keyword_args[name] = not default
+                else:
+                    try:
+                        keyword_args[name] = next(tokens_iter)
+                    except StopIteration:
+                        self.update_cli.display(f'Flag `{token}` requires a value.', 'error', reprompt=False)
+                        return
+            else:
+                positional_args.append(token)
+
+        required_params = [
+            p for p in params.values()
+            if p.name != 'self'
+               and p.name not in consumed_flags
+               and p.kind not in (Parameter.VAR_POSITIONAL, Parameter.VAR_KEYWORD)
+               and p.default == Parameter.empty
+        ]
+
+        if len(positional_args) < len(required_params):
             self.update_cli.display(
-                f'Command `{command}` requires at least {len(required_params)} argument(s), but received {len(args)}.',
+                f'Command `{command}` requires {len(required_params)} argument(s), but got {len(positional_args)}.',
                 'warning', reprompt=False
             )
-            docstring = inspect.getdoc(func)
-            if not docstring:
-                self.update_cli.display(
-                    f'Command `{command}` does not have a help message.',
-                    'information', reprompt=False
-                )
-                return
-            print(docstring)
             return
 
-        call_args = []
-        for idx, param in enumerate(params.values()):
-            if idx < len(args) and args[idx] != "":
-                call_args.append(args[idx])
-            elif param.default != param.empty:
-                call_args.append(param.default)
+        final_args = []
+        for i, param in enumerate(params.values()):
+            if param.name in consumed_flags or param.name == 'self':
+                continue
+            if i < len(positional_args):
+                final_args.append(positional_args[i])
+            elif param.default != Parameter.empty:
+                final_args.append(param.default)
 
-        await func(*call_args)
+        await func(*final_args, **keyword_args)
 
     def require_messenger(func):
         """Decorator to ensure a messenger is selected before executing the command."""
@@ -445,7 +460,7 @@ class Manager:
             return
         print(self.create_table('Forwarders', columns, items))
 
-    async def print_messengers(self, verbose=''):
+    async def print_messengers(self, verbose=False):
         """
         Display active messengers in a table format.
 
@@ -469,7 +484,6 @@ class Manager:
             messengers -v
             messengers --verbose
         """
-        verbose = '-v' in verbose or '--verbose' in verbose
         columns = ["Identifier", "Transport", "Alive", "Forwarders", "Sent", "Received"]
         if verbose:
             columns.extend(["External IP", "User-Agent"])
@@ -508,7 +522,7 @@ class Manager:
             return
         print(self.create_table('Messengers', columns, items))
 
-    async def print_scanners(self, identifier=None, verbose=''):
+    async def print_scanners(self, identifier=None, verbose=False):
         """
         Display scan results tracked by the current messenger's scanner.
 
@@ -530,7 +544,6 @@ class Manager:
               - closed → port did not respond or was rejected
               - •••    → no response yet (shown only if -v or --verbose is passed)
         """
-        verbose = '-v' in verbose or '--verbose' in verbose
         scanners = [scanner for messenger in self.messengers for scanner in messenger.scanners]
 
         if not scanners:
@@ -567,7 +580,7 @@ class Manager:
             print(self.create_table('Scans', columns, items))
             return
 
-        columns = ["Messenger", "Scanner", "Runtime", "Progress", "Open", "Closed"]
+        columns = ["Messenger", "Scanner", "Runtime", "Attempts", "Progress", "Open", "Closed"]
         items = []
 
         for scanner in scanners:
@@ -578,6 +591,7 @@ class Manager:
                 "Messenger": scanner.messenger.identifier,
                 "Scanner": scanner.identifier,
                 "Runtime": scanner.formatted_runtime,
+                "Attempts": scanner.attempts,
                 "Progress": scanner.progress_str,
                 "Open": scanner.open_count,
                 "Closed": scanner.closed_count
@@ -611,7 +625,9 @@ class Manager:
                 self.update_cli.display(f"Unexpected {type(e).__name__}:\n{traceback.format_exc()}", 'error',
                                         reprompt=False)
             except KeyboardInterrupt:
-                break
+                self.update_cli.display(f"CTRL+C caught, type `exit` to quit Messenger.", 'information',
+                                        reprompt=False)
+                continue
         await self.exit()
 
     def require_messenger(func):
@@ -695,22 +711,23 @@ class Manager:
         return
 
     @require_messenger
-    async def start_scanner(self, ip, port, concurrency=50):
+    async def start_scanner(self, ips, ports=None, concurrency=50, top_ports=100):
         """
         Start a scan for the given IP ranges and port ranges.
 
         positional arguments:
-          ip           One or more IP addresses, CIDRs, or dash/comma-separated ranges.
-          port         One or more ports or port ranges (e.g., 80,443 or 20-25,8080).
+          ip(s)          One or more IP addresses, CIDRs, or dash/comma-separated ranges.
 
         optional arguments:
-          concurrency  Maximum number of concurrent scan attempts (default: 50).
+          port(s)         One or more ports or port ranges (e.g., 80,443 or 20-25,8080).
+          --concurrency  Maximum number of concurrent scan attempts (default: 50).
+          --top-ports  Maximum number of concurrent scan attempts (default: 100).
 
         examples:
           portscan 192.168.1.10 80
           portscan 192.168.1.10-50 80,443
           portscan 192.168.1.10,192.168.1.20-30 80-445,1080
-          portscan 10.0.0.0/24 22-23,80 100
+          portscan 10.0.0.0/24 22-23,80 --concurrency 100 --top-ports 1000
         """
         if not self.current_messenger.alive:
             self.update_cli.display(f'Messenger `{self.current_messenger.identifier}` is not alive.', 'error', reprompt=False)
@@ -720,7 +737,13 @@ class Manager:
         except:
             self.update_cli.display(f'{concurrency} is not a valid concurrency.', 'error', reprompt=False)
             return
-        scanner = Scanner(ip, port, self.update_cli, self.current_messenger, int(concurrency))
+        try:
+            top_ports = int(top_ports)
+        except:
+            self.update_cli.display(f'{top_ports} is not a valid integer.', 'error', reprompt=False)
+            return
+
+        scanner = Scanner(ips, ports, int(top_ports), self.update_cli, self.current_messenger, int(concurrency))
         self.current_messenger.scanners.append(scanner)
         asyncio.create_task(scanner.start())
 

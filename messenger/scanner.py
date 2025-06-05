@@ -1,6 +1,8 @@
 import ipaddress
 import asyncio
 import time
+import csv
+import os
 from collections import namedtuple
 
 from messenger.generator import alphanumeric_identifier
@@ -9,12 +11,15 @@ from messenger.message import InitiateForwarderClientReq
 ScanResult = namedtuple("ScanResult", ["identifier", "address", "port", "result"])
 
 class Scanner:
-    def __init__(self, ip_ranges, port_ranges, update_cli, messenger, concurrency=50):
+    def __init__(self, ip_ranges, port_ranges, top_ports, update_cli, messenger, concurrency):
         self.identifier = alphanumeric_identifier()
         self.ip_input = ip_ranges
         self.port_input = port_ranges
+        self.update_cli = update_cli
+        self.messenger = messenger
+        self.concurrency = concurrency
         self.targets = self._parse_ip_ranges(ip_ranges)
-        self.ports = self._parse_port_ranges(port_ranges)
+        self.ports = self._parse_port_ranges(port_ranges) if port_ranges else self._get_top_ports(top_ports)
         self.update_cli = update_cli
         self.messenger = messenger
         self.scans = {}
@@ -25,6 +30,14 @@ class Scanner:
         self._gen_lock = asyncio.Lock()
         self._scan_gen = self._generate_scans()
         self._workers = []
+
+    @staticmethod
+    def _get_top_ports(n):
+        base_dir = os.path.dirname(__file__)
+        path = os.path.join(base_dir, 'resources', 'top_ports.txt')
+        with open(path, 'r') as file:
+            ports = [int(line.strip()) for line in file if line.strip().isdigit()]
+        return ports[:n]
 
     def _parse_ip_ranges(self, raw):
         hosts = set()
@@ -133,21 +146,22 @@ class Scanner:
         self.start_time = time.time()
         readable = time.strftime("%H:%M:%S %Z", time.localtime(self.start_time))
         self.update_cli.display(
-            f"Starting scan `{self.identifier}` at {readable}", 'information',
+            f"Starting scan `{self.identifier}` at {readable} with a concurrency of `{self.concurrency}`.", 'information',
         )
 
         self._workers = [asyncio.create_task(self._scan_worker()) for _ in range(self.concurrency)]
         await asyncio.gather(*self._workers)
 
         self.update_cli.display(
-            f"Scanner `{self.identifier}` finished sending all attempts. Waiting for results...", 'information',
+            f"Scanner `{self.identifier}` finished sending all scan attempts.", 'information',
         )
 
     async def stop(self):
         if self.end_time:
-            self.update_cli.display(f"Scanner `{self.identifier}` already stopped.", 'information', reprompt=False)
+            self.update_cli.display(f"Scanner `{self.identifier}` already stopped sending scan attempts.", 'information', reprompt=False)
             return
 
-        self.update_cli.display(f"Stopping scan `{self.identifier}`", 'information', reprompt=False)
+        self.update_cli.display(f"Scanner `{self.identifier}` has stopped and no further scans attempts will be made. Existing attempts will still update as they arrive.", 'success', reprompt=False)
         for w in self._workers:
             w.cancel()
+
