@@ -35,9 +35,20 @@ class Scanner:
     def _get_top_ports(n):
         base_dir = os.path.dirname(__file__)
         path = os.path.join(base_dir, 'resources', 'top_ports.txt')
+
         with open(path, 'r') as file:
-            ports = [int(line.strip()) for line in file if line.strip().isdigit()]
-        return ports[:n]
+            ranked_ports = [int(line.strip()) for line in file if line.strip().isdigit()]
+
+        seen = set(ranked_ports)
+        all_ports = ranked_ports.copy()
+
+        for port in range(1, 65536):
+            if port not in seen:
+                all_ports.append(port)
+            if len(all_ports) >= n:
+                break
+
+        return all_ports[:n]
 
     def _parse_ip_ranges(self, raw):
         hosts = set()
@@ -115,7 +126,7 @@ class Scanner:
             self.scans[identifier] = ScanResult(identifier, current.address, current.port, result)
         self.semaphore.release()
 
-        if self.completed:
+        if not self.end_time and self.completed:
             self.end_time = time.time()
             readable = time.strftime("%H:%M:%S %Z", time.localtime(self.end_time))
             self.update_cli.display(
