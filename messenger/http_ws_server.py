@@ -70,7 +70,7 @@ class HTTPWSServer:
         self.update_cli.display(
             f'The HTTP handler received the following data\n{data}.',
             'debug',
-            debug_level = 2
+            debug_level = 4
         )
         messages = self.messenger_engine.deserialize_messages(data)
         messenger_id = self.messenger_engine.get_messenger_id(messages[0])
@@ -111,7 +111,7 @@ class HTTPWSServer:
         self.update_cli.display(
             f'The WS handler received the following data\n{msg.data}.',
             'debug',
-            debug_level=2
+            debug_level=4
         )
         messages = self.messenger_engine.deserialize_messages(msg.data)
         messenger_id = self.messenger_engine.get_messenger_id(messages[0])

@@ -320,6 +320,16 @@ class Manager:
         """
         Set the debug level for CLI output.
 
+        Debug Level | Scope                           | Description
+        ------------|---------------------------------|---------------------------------------------------------
+        0           | None                            | No debug output
+        1           | Handler Messages                | Handler received/sent messages
+        2           | Messenger Messages              | Messenger received/sent messages
+        3           | Forwarder Clients Messages      | Forwarder clients received/sent messages
+        4           | Handler Data                    | Handler received/sent raw data
+        5           | Messenger Data                  | Messenger received/sent raw data
+        6           | Forwarder Clients Data          | Forwarder clients received/sent raw data
+
         required:
           level        The numeric debug level
 

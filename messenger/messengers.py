@@ -54,14 +54,14 @@ class Messenger:
     @abstractmethod
     async def send_messages_downstream(self, messages):
         self.update_cli.display(
-            f'Messenger {self.identifier} received a downstream message(s).',
+            f'Messenger {self.identifier} received downstream message(s).',
             'debug',
             debug_level = 2
         )
         self.update_cli.display(
             f'Messenger {self.identifier} received the following downstream message(s)\n{messages}.',
             'debug',
-            debug_level = 3
+            debug_level = 5
         )
         for message in messages:
             # 1) Initiate Forwarder Client Request (0x01)
@@ -180,7 +180,7 @@ class HTTPMessenger(Messenger):
         self.update_cli.display(
             f'Messenger {self.identifier} sent the following upstream message\n{message}.',
             'debug',
-            debug_level = 3
+            debug_level = 5
         )
         await self.upstream_messages.put(self.serialize_messages([message]))
 
@@ -251,6 +251,6 @@ class WebSocketMessenger(Messenger):
         self.update_cli.display(
             f'Messenger {self.identifier} sent the following upstream message\n{message}.',
             'debug',
-            debug_level = 3
+            debug_level = 5
         )
         await self.websocket.send_bytes(self.serialize_messages([message]))
