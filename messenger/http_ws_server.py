@@ -62,12 +62,33 @@ class HTTPWSServer:
 
         upstream_message_data = b''
         data = await request.read()
+        self.update_cli.display(
+            f'The HTTP handler received a post request from {ip}.',
+            'debug',
+            debug_level = 1
+        )
+        self.update_cli.display(
+            f'The HTTP handler received the following data\n{data}.',
+            'debug',
+            debug_level = 2
+        )
         messages = self.messenger_engine.deserialize_messages(data)
         messenger_id = self.messenger_engine.get_messenger_id(messages[0])
-        if not messenger_id:
-            http_messenger = HTTPMessenger(ip, user_agent, self.update_cli, self.messenger_engine.serialize_messages)
+        messenger = self.messenger_engine.get_messenger(messenger_id)
+        if not messenger:
+            http_messenger = HTTPMessenger(
+                ip,
+                user_agent,
+                self.update_cli,
+                self.messenger_engine.serialize_messages
+            )
+            if messenger_id:
+                http_messenger.identifier = messenger_id
+
             check_in_message = self.messenger_engine.add_messenger(http_messenger)
-            upstream_message_data += check_in_message
+
+            if not messenger_id:
+                upstream_message_data += check_in_message
         else:
             upstream_message_data += await self.messenger_engine.send_messages(messenger_id, messages[1:])
 
@@ -75,35 +96,51 @@ class HTTPWSServer:
 
     async def websocket_handler(self, request):
         # Prepare the WebSocket handshake
-
         ws = web.WebSocketResponse()
         await ws.prepare(request)
 
         ip = request.remote
         user_agent = request.headers.get('User-Agent', 'Unknown')
-        ws_messenger = WebSocketMessenger(
-            ws,
-            ip,
-            user_agent,
-            self.update_cli,
-            self.messenger_engine.serialize_messages
+        self.update_cli.display(
+            f'The WS handler received a post request from {ip}.',
+            'debug',
+            debug_level=1
         )
-        check_in_message = self.messenger_engine.add_messenger(ws_messenger)
-        await ws.send_bytes(check_in_message)
+
+        msg = await ws.receive()
+        self.update_cli.display(
+            f'The WS handler received the following data\n{msg.data}.',
+            'debug',
+            debug_level=2
+        )
+        messages = self.messenger_engine.deserialize_messages(msg.data)
+        messenger_id = self.messenger_engine.get_messenger_id(messages[0])
+        messenger = self.messenger_engine.get_messenger(messenger_id)
+        if not messenger:
+            ws_messenger = WebSocketMessenger(
+                ws,
+                ip,
+                user_agent,
+                self.update_cli,
+                self.messenger_engine.serialize_messages
+            )
+
+            if messenger_id:
+                ws_messenger.identifier = messenger_id
+
+            check_in_msg = self.messenger_engine.add_messenger(ws_messenger)
+
+            if not messenger_id:
+                await ws.send_bytes(check_in_msg)
+        else:
+            messenger.set_websocket(ws)
 
         async for msg in ws:
-            # 1) Deserialize all messages from this binary frame
             messages = self.messenger_engine.deserialize_messages(msg.data)
-            # 2) Identify the messenger (if any) from the first message
             messenger_id = self.messenger_engine.get_messenger_id(messages[0])
-
-            # 3b) Send the subsequent messages to the existing Messenger
             await self.messenger_engine.send_messages(
                 messenger_id,
                 messages[1:]
             )
-
-        if ws_messenger:
-            ws_messenger.alive = False
 
         return ws
