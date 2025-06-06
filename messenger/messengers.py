@@ -14,7 +14,6 @@ class Messenger:
     transport_type = 'undefined'
 
     def __init__(self, update_cli, serialize_messages):
-        self.alive = True
         self.identifier = alphanumeric_identifier()
         self.update_cli = update_cli
         self.forwarders = []
@@ -22,14 +21,17 @@ class Messenger:
         self.upstream_messages = asyncio.Queue()
         self.serialize_messages = serialize_messages
 
+        # utility for non-stateful Messengers like HTTP
+        self.last_check_in = time.time()
+
         # Private raw counters
         self.sent_bytes = 0
         self.received_bytes = 0
 
+        asyncio.create_task(self.expiration())
+
+
     async def get_upstream_messages(self):
-        if self.alive == False:
-            self.alive = True
-            self.update_cli.display(f'{self.transport_type} Messenger `{self.identifier}` has reconnected.', 'success')
         self.last_check_in = time.time()
         upstream_messages = b''
         while not self.upstream_messages.empty():
@@ -37,12 +39,30 @@ class Messenger:
 
         return upstream_messages
 
+    @property
+    def alive(self):
+        raise NotImplementedError
+
+    @property
+    def expiration(self):
+        raise NotImplementedError
+
     @abstractmethod
     async def send_message_upstream(self, message):
         raise NotImplementedError
 
     @abstractmethod
     async def send_messages_downstream(self, messages):
+        self.update_cli.display(
+            f'Messenger {self.identifier} received downstream message(s).',
+            'debug',
+            debug_level = 2
+        )
+        self.update_cli.display(
+            f'Messenger {self.identifier} received the following downstream message(s)\n{messages}.',
+            'debug',
+            debug_level = 5
+        )
         for message in messages:
             # 1) Initiate Forwarder Client Request (0x01)
             if isinstance(message, InitiateForwarderClientReq):
@@ -137,10 +157,13 @@ class HTTPMessenger(Messenger):
 
     def __init__(self, ip, user_agent, update_cli, serialize_messages):
         super().__init__(update_cli, serialize_messages)
-        asyncio.create_task(self.expiration())
         self.ip = ip
         self.user_agent = user_agent
-        self.last_check_in = time.time()
+        self.disconnected = False
+
+    @property
+    def alive(self):
+        return not self.disconnected
 
     async def send_message_upstream(self, message):
         if not self.alive:
@@ -149,31 +172,37 @@ class HTTPMessenger(Messenger):
                 'warning'
             )
             return
+        self.update_cli.display(
+            f'Messenger {self.identifier} sent a upstream message.',
+            'debug',
+            debug_level = 2
+        )
+        self.update_cli.display(
+            f'Messenger {self.identifier} sent the following upstream message\n{message}.',
+            'debug',
+            debug_level = 5
+        )
         await self.upstream_messages.put(self.serialize_messages([message]))
 
     async def expiration(self):
+        disconnection_rate = 30
         while True:
             await asyncio.sleep(10)
             expired = int(time.time() - self.last_check_in)
-            if expired >= 30:
-                self.alive = False
-                self.update_cli.display(
-                    f'{self.transport_type} Messenger `{self.identifier}` has disconnected.',
-                    'warning'
-                )
-                break
-            elif expired >= 20:
-                self.update_cli.display(
-                    f'{self.transport_type} Messenger `{self.identifier}` has not checked in the past 20 seconds '
-                    'and will disconnect soon.',
-                    'warning'
-                )
-            elif expired >= 10:
-                self.update_cli.display(
-                    f'{self.transport_type} Messenger `{self.identifier}` has not checked in the past 10 seconds '
-                    'and will disconnect soon.',
-                    'warning'
-                )
+            if expired >= disconnection_rate:
+                if not self.disconnected:
+                    self.disconnected = True
+                    self.update_cli.display(
+                        f'{self.transport_type} Messenger `{self.identifier}` has not checked in within the past `{disconnection_rate}` seconds and is now set to disconnected.',
+                        'warning'
+                    )
+            else:
+                if self.disconnected:
+                    self.update_cli.display(
+                        f'{self.transport_type} Messenger `{self.identifier}` has reconnected.',
+                        'success'
+                    )
+                self.disconnected = False
 
 class WebSocketMessenger(Messenger):
 
@@ -185,6 +214,28 @@ class WebSocketMessenger(Messenger):
         self.user_agent = user_agent
         self.websocket = websocket
 
+    @property
+    def alive(self):
+        return not self.websocket.closed
+
+    def set_websocket(self, ws):
+        self.websocket = ws
+        self.update_cli.display(
+            f'{self.transport_type} Messenger `{self.identifier}` has reconnected.',
+            'success'
+        )
+        asyncio.create_task(self.expiration())
+
+    async def expiration(self):
+        while True:
+            await asyncio.sleep(10)
+            if not self.alive:
+                self.update_cli.display(
+                    f'{self.transport_type} Messenger `{self.identifier}` has disconnected.',
+                    'warning'
+                )
+            break
+
     async def send_message_upstream(self, message):
         if not self.alive:
             self.update_cli.display(
@@ -192,4 +243,14 @@ class WebSocketMessenger(Messenger):
                 'warning'
             )
             return
+        self.update_cli.display(
+            f'Messenger {self.identifier} sent a upstream message.',
+            'debug',
+            debug_level = 2
+        )
+        self.update_cli.display(
+            f'Messenger {self.identifier} sent the following upstream message\n{message}.',
+            'debug',
+            debug_level = 5
+        )
         await self.websocket.send_bytes(self.serialize_messages([message]))

@@ -61,6 +61,12 @@ class Engine:
         upstream_messages = self.serialize_messages([upstream_message])
         return upstream_messages
 
+    def get_messenger(self, messenger_id):
+        for messenger in self.messengers:
+            if messenger.identifier == messenger_id:
+                return messenger
+        return None
+
     async def send_messages(self, messenger_id: str, messages):
         upstream_messages_data = b''
         for messenger in self.messengers:

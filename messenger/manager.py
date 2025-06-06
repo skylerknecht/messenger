@@ -31,7 +31,7 @@ class UpdateCLI:
     Status = namedtuple('Status', ['icon', 'color'])
 
     STATUS_LEVELS = {
-        'debug': Status('[DBG]', 'white'),
+        'debug': Status('[DBG {}]', 'white'),
         'information': Status('[*]', 'cyan'),
         'warning': Status('[!]', 'yellow'),
         'error': Status('[-]', 'red'),
@@ -49,23 +49,19 @@ class UpdateCLI:
         """
         self.prompt = prompt
         self.session = session
-        self.debug = False
+        self.debug_level = 0
 
-    def display(self, stdout, status='standard', reprompt=True):
-        """
-        Display output with a status icon and optionally reprompt.
-
-        Args:
-            stdout (str): The output message to display.
-            status (str): The status level for the message (e.g., 'debug', 'information', 'warning').
-            reprompt (bool): If True, reprompts with the current buffer content.
-        """
+    def display(self, stdout, status='standard', reprompt=True, debug_level=0):
         status_info = self.STATUS_LEVELS.get(status, self.STATUS_LEVELS['information'])
 
-        if status == 'debug' and not self.debug:
-            return
+        if status == 'debug':
+            if self.debug_level < debug_level:
+                return
+            icon_label = status_info.icon.format(debug_level)
+            icon = self.color_text(icon_label, status_info.color)
+        else:
+            icon = self.color_text(status_info.icon, status_info.color)
 
-        icon = self.color_text(status_info.icon, status_info.color)
         print(f'\r{icon} {stdout}')
 
         if reprompt:
@@ -136,6 +132,7 @@ class Manager:
         """
         self.server_commands = {
             'build': (self.build, "Builds a messenger client."),
+            'debug': (self.debug, "Set the debug level."),
             'forwarders': (self.print_forwarders, "Display a list of forwarders in a table format."),
             'messengers': (self.print_messengers, "Display a list of messengers in a table format."),
             'scans': (self.print_scanners, "Display a list of scanners in a table format."),
@@ -318,6 +315,35 @@ class Manager:
         Return to the main menu.
         """
         self.current_messenger = None
+
+    async def debug(self, level: int):
+        """
+        Set the debug level for CLI output.
+
+        Debug Level | Scope                           | Description
+        ------------|---------------------------------|---------------------------------------------------------
+        0           | None                            | No debug output
+        1           | Handler Messages                | Handler received/sent messages
+        2           | Messenger Messages              | Messenger received/sent messages
+        3           | Forwarder Clients Messages      | Forwarder clients received/sent messages
+        4           | Handler Data                    | Handler received/sent raw data
+        5           | Messenger Data                  | Messenger received/sent raw data
+        6           | Forwarder Clients Data          | Forwarder clients received/sent raw data
+
+        required:
+          level        The numeric debug level
+
+        examples:
+          debug 0
+        """
+        try:
+            level = int(level)
+        except ValueError:
+            self.update_cli.display("Debug level must be an integer.", "error", reprompt=False)
+            return
+
+        self.update_cli.debug_level = level
+        self.update_cli.display(f"Debug level set to {level}.", "success", reprompt=False)
 
     async def build(self, messenger_client_type, no_obfuscate=False, name="messenger-client"):
         """
