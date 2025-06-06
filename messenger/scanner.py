@@ -1,7 +1,6 @@
 import ipaddress
 import asyncio
 import time
-import csv
 import os
 from collections import namedtuple
 
