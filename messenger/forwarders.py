@@ -27,6 +27,16 @@ class ForwarderClient:
                 if not upstream_message:
                     break
                 self.messenger.sent_bytes += len(upstream_message)
+                self.messenger.update_cli.display(
+                    f'Forwarder Client {self.identifier} sent {len(upstream_message)} bytes.',
+                    'debug',
+                    debug_level=3
+                )
+                self.messenger.update_cli.display(
+                    f'Forwarder Client {self.identifier} sent\n{upstream_message}.',
+                    'debug',
+                    debug_level=6
+                )
                 await self.messenger.send_message_upstream(
                     SendDataMessage(
                         forwarder_client_id=self.identifier,
@@ -44,6 +54,16 @@ class ForwarderClient:
 
     def write(self, data):
         self.messenger.received_bytes += len(data)
+        self.messenger.update_cli.display(
+            f'Forwarder Client {self.identifier} received {len(data)} bytes.',
+            'debug',
+            debug_level=3
+        )
+        self.messenger.update_cli.display(
+            f'Forwarder Client {self.identifier} received\n{data}.',
+            'debug',
+            debug_level=6
+        )
         self.writer.write(data)
 
 
