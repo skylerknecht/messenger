@@ -16,12 +16,14 @@ class ForwarderClient:
         self.reader = reader
         self.writer = writer
         self.messenger = messenger
+        self.streaming = False
 
     async def start(self):
         raise NotImplementedError
 
     async def stream(self):
-        while True:
+        self.streaming = True
+        while self.streaming:
             try:
                 upstream_message = await self.reader.read(4096)
                 if not upstream_message:
@@ -51,6 +53,8 @@ class ForwarderClient:
                 data=b''  # empty to signal close
             )
         )
+        self.streaming = False
+
 
     def write(self, data):
         self.messenger.received_bytes += len(data)
@@ -81,11 +85,9 @@ class LocalPortForwarderClient(ForwarderClient):
         )
         self.messenger.sent_bytes += 20
         await self.messenger.send_message_upstream(upstream_message)
-        await self.stream()
 
     async def connect(self, bind_addr, bind_port, atype, rep):
-        pass
-
+        await self.stream()
 
 class SocksForwarderClient(ForwarderClient):
 
@@ -152,7 +154,6 @@ class SocksForwarderClient(ForwarderClient):
         )
         self.messenger.sent_bytes += 20
         await self.messenger.send_message_upstream(upstream_message)
-        await self.stream()
 
     @staticmethod
     def socks_results(rep, bind_addr, bind_port, atype):
@@ -180,10 +181,11 @@ class SocksForwarderClient(ForwarderClient):
             bind_port.to_bytes(2, 'big') if bind_port else b'\x00\x00'
         ])
 
-    def connect(self, bind_addr, bind_port, atype, rep):
+    async def connect(self, bind_addr, bind_port, atype, rep):
         socks_connect_results = self.socks_results(rep, bind_addr, bind_port, atype)
         self.messenger.received_bytes += len(socks_connect_results)
         self.writer.write(socks_connect_results)
+        await self.stream()
 
 
 class Forwarder:
@@ -255,7 +257,6 @@ class LocalPortForwarder(Forwarder):
         client = LocalPortForwarderClient(reader, writer, self.destination_host, self.destination_port, self.messenger)
         self.clients.append(client)
         await client.start()
-        self.clients.remove(client)
 
     def parse_config(self, config):
         parts = config.split(':')
@@ -350,7 +351,6 @@ class SocksProxy(LocalPortForwarder):
         client = SocksForwarderClient(reader, writer, self.messenger)
         self.clients.append(client)
         await client.start()
-        self.clients.remove(client)
 
     def parse_config(self, config):
         parts = config.split(':')

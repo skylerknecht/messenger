@@ -98,7 +98,7 @@ class Messenger:
                 forwarder_clients = [c for fw in self.forwarders for c in fw.clients]
                 for forwarder_client in forwarder_clients:
                     if forwarder_client.identifier == forwarder_client_id:
-                        forwarder_client.connect(bind_addr, bind_port, address_type, reason)
+                        asyncio.create_task(forwarder_client.connect(bind_addr, bind_port, address_type, reason))
                         break
 
             # 3) Send Data (0x03)

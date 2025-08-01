@@ -465,10 +465,16 @@ class Manager:
                 else:
                     colored_id = self.update_cli.color_text(forwarder.identifier, 'green')
 
+                streaming_clients = [
+                    client
+                    for client in forwarder.clients
+                    if client.streaming
+                ]
+
                 items.append({
                     "Type": forwarder.NAME,
                     "Identifier": colored_id,
-                    "Clients": len(forwarder.clients),
+                    "Clients": len(streaming_clients),
                     "Listening Host": forwarder.listening_host,
                     "Listening Port": forwarder.listening_port,
                     "Destination Host": forwarder.destination_host,

@@ -95,7 +95,6 @@ class HTTPWSServer:
         return web.Response(status=200, body=upstream_message_data)
 
     async def websocket_handler(self, request):
-        # Prepare the WebSocket handshake
         ws = web.WebSocketResponse()
         await ws.prepare(request)
 
