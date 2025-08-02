@@ -11,7 +11,11 @@ from prompt_toolkit.completion import Completer, Completion
 from functools import wraps
 from inspect import Parameter
 
-from messenger.clients.python.builder import build as build_python
+try:
+    from messenger.clients.python.builder import build as build_python
+    imported_python_client = True
+except ImportError:
+    imported_python_client = False
 from messenger.messengers import Messenger
 from messenger.http_ws_server import HTTPWSServer
 from messenger.engine import Engine
@@ -364,6 +368,10 @@ class Manager:
             self.update_cli.display(f'Messenger Client Type `{messenger_client_type}` is not valid', 'error', reprompt=False)
             return
         if messenger_client_type.lower() == 'python':
+            if not imported_python_client:
+                self.update_cli.display(f'Messenger Client Type `{messenger_client_type}` is not available, try `{sys.argv[0]} --update-submodules`', 'error',
+                                        reprompt=False)
+                return
             await build_python(no_obfuscate, name)
             return
         elif messenger_client_type.lower() == 'csharp':
