@@ -564,54 +564,50 @@ class Manager:
             self.update_cli.display("There are no scans to display.", 'warning', reprompt=False)
             return
 
-        if identifier:
-            scanner = next((s for s in scanners if s and s.identifier == identifier), None)
-            if not scanner:
-                self.update_cli.display(f"No scanner found with identifier `{identifier}`", 'warning', reprompt=False)
-                return
-
-            columns = ["Address", "Port", "Result"]
+        if not identifier:
+            columns = ["Messenger", "Scanner", "Runtime", "Attempts", "Progress", "Open", "Closed"]
             items = []
 
-            for scan in scanner.scans.values():
-                if scan.result == 0:
-                    result = 'open'
-                elif scan.result is None:
-                    if not verbose:
-                        continue
-                    result = '•••'
-                else:
-                    if not verbose:
-                        continue
-                    result = 'closed'
+            for scanner in scanners:
+                if not hasattr(scanner, 'scans'):
+                    continue
 
                 items.append({
-                    "Address": scan.address,
-                    "Port": scan.port,
-                    "Result": result
+                    "Messenger": scanner.messenger.identifier,
+                    "Scanner": scanner.identifier,
+                    "Runtime": scanner.formatted_runtime,
+                    "Attempts": scanner.attempts,
+                    "Progress": scanner.progress_str,
+                    "Open": scanner.open_count,
+                    "Closed": scanner.closed_count
                 })
 
             print(self.create_table('Scans', columns, items))
+
+        scanner = next((s for s in scanners if s and s.identifier == identifier), None)
+        if not scanner:
+            self.update_cli.display(f"No scanner found with identifier `{identifier}`", 'warning', reprompt=False)
             return
 
-        columns = ["Messenger", "Scanner", "Runtime", "Attempts", "Progress", "Open", "Closed"]
+        columns = ["Address", "Port", "Result"]
         items = []
 
-        for scanner in scanners:
-            if not hasattr(scanner, 'scans'):
+        for scan in scanner.scans.values():
+            result = "•••"
+            if scan.result == 0:
+                result = "open"
+            elif isinstance(scan.result, int):
+                result = "closed"
+            if (result == "closed" or result ==  "•••") and not verbose:
                 continue
 
             items.append({
-                "Messenger": scanner.messenger.identifier,
-                "Scanner": scanner.identifier,
-                "Runtime": scanner.formatted_runtime,
-                "Attempts": scanner.attempts,
-                "Progress": scanner.progress_str,
-                "Open": scanner.open_count,
-                "Closed": scanner.closed_count
+                "Address": scan.address,
+                "Port": scan.port,
+                "Result": result
             })
 
-        print(self.create_table('Scans', columns, items))
+        print(self.create_table(f"Scanner {identifier} Results", columns, items))
 
     async def start_command_line_interface(self):
         """
@@ -644,26 +640,13 @@ class Manager:
                 continue
         await self.exit()
 
-    def require_messenger(func):
-        """Decorator to ensure a messenger is selected before executing the command."""
-
-        @wraps(func)
-        async def wrapper(self, *args, **kwargs):
-            if not self.current_messenger:
-                self.update_cli.display("Please interact with a messenger before using this command.", 'error',
-                                        reprompt=False)
-                return
-            return await func(self, *args, **kwargs)
-
-        return wrapper
-
     @require_messenger
     async def start_local_forwarder(self, forwarder_config):
         """
         Start a local forwarder.
 
         required:
-          forwarder_config         Format: listening_host:port:destination_host:port
+          forwarder_config         Format: listening_host:listening_port:destination_host:destination_port
 
         examples:
           local 127.0.0.1:8080:example.com:9090
@@ -683,7 +666,7 @@ class Manager:
         Start a remote forwarder.
 
         required:
-          forwarder_config         Format: destination_host:port
+          forwarder_config         Format: destination_host:destination_port
 
         examples:
           remote example.com:9090
@@ -702,11 +685,11 @@ class Manager:
         Start a SOCKS proxy.
 
         required:
-          forwarder_config         Format: [listening_host:]port
+          forwarder_config         Format: [listening_host:]listening_port
 
         examples:
-          socks 8080
-          socks 127.0.0.1:8080
+          socks 9050
+          socks 127.0.0.1:9050
         """
         messenger = self.current_messenger
         if not messenger.alive:
