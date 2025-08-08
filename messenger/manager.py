@@ -242,20 +242,17 @@ class Manager:
         positional_args = []
         keyword_args = {}
         consumed_flags = set()
-        tokens_iter = iter(tokens)
 
+        tokens_iter = iter(tokens)
         for token in tokens_iter:
             if token.startswith('--') or token.startswith('-'):
                 name = token.lstrip('-').replace('-', '_')
                 param = params.get(name)
-
                 if param is None or param.kind not in (Parameter.POSITIONAL_OR_KEYWORD, Parameter.KEYWORD_ONLY):
                     self.update_cli.display(f'{command} does not support the flag `{token}`.', 'error', reprompt=False)
                     return
-
                 consumed_flags.add(name)
                 default = param.default
-
                 if isinstance(default, bool):
                     keyword_args[name] = not default
                 else:
@@ -267,14 +264,18 @@ class Manager:
             else:
                 positional_args.append(token)
 
-        required_params = [
+        # Params that can take positionals (exclude self and any provided via flags)
+        bindable_params = [
             p for p in params.values()
-            if p.name != 'self'
-               and p.name not in consumed_flags
-               and p.kind not in (Parameter.VAR_POSITIONAL, Parameter.VAR_KEYWORD)
-               and p.default == Parameter.empty
+            if p.name != 'self' and p.name not in consumed_flags
         ]
 
+        # Count required params (no defaults) among bindables
+        required_params = [
+            p for p in bindable_params
+            if p.kind in (Parameter.POSITIONAL_OR_KEYWORD, Parameter.KEYWORD_ONLY)
+               and p.default == Parameter.empty
+        ]
         if len(positional_args) < len(required_params):
             self.update_cli.display(
                 f'Command `{command}` requires {len(required_params)} argument(s), but got {len(positional_args)}.',
@@ -282,15 +283,14 @@ class Manager:
             )
             return
 
+        # Map ONLY provided positionals; DO NOT append defaults positionally
         final_args = []
-        for i, param in enumerate(params.values()):
-            if param.name in consumed_flags or param.name == 'self':
-                continue
+        for i, param in enumerate(bindable_params):
             if i < len(positional_args):
                 final_args.append(positional_args[i])
-            elif param.default != Parameter.empty:
-                final_args.append(param.default)
+            # else: leave it out; Python will use the function's default or the keyword we set
 
+        # DEBUG: print("DEBUG:", final_args, keyword_args)
         await func(*final_args, **keyword_args)
 
     def require_messenger(func):
