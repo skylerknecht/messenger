@@ -583,6 +583,7 @@ class Manager:
                 })
 
             print(self.create_table('Scans', columns, items))
+            return
 
         scanner = next((s for s in scanners if s and s.identifier == identifier), None)
         if not scanner:

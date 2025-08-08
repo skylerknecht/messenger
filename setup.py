@@ -50,5 +50,9 @@ setup(
         'Operating System :: OS Independent',
     ],
     python_requires='>=3.6',
-    scripts=['messenger-cli']
+    scripts=['messenger-cli'],
+    include_package_data = True,
+    package_data = {
+        "messenger": ["resources/*"],  # include all files in resources/
+    }
 )
