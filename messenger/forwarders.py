@@ -19,7 +19,7 @@ class ForwarderClient:
         self.streaming = False
 
     async def start(self):
-        raise NotImplementedError
+        await self.stream() # TODO: Fix this later is was not implemented but remote port forwards use this
 
     async def stream(self):
         self.streaming = True
