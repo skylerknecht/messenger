@@ -476,7 +476,6 @@ class Manager:
                 streaming_clients = [
                     client
                     for client in forwarder.clients
-                    if client.streaming
                 ]
 
                 items.append({

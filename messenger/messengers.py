@@ -68,38 +68,23 @@ class Messenger:
             if isinstance(message, InitiateForwarderClientReq):
                 destination_host = message.ip_address
                 destination_port = message.port
-                forwarder_client_id = message.forwarder_client_id
-
-                # Find a matching RemotePortForwarder
                 for forwarder in self.forwarders:
-                    if (forwarder.destination_host == destination_host and
-                            int(forwarder.destination_port) == destination_port):
-                        # If we have a match, create a new client asynchronously
-                        asyncio.create_task(forwarder.create_client(forwarder_client_id))
+                    if forwarder.destination_host == destination_host and int(forwarder.destination_port) == destination_port:
+                        await forwarder.handle_initiate_forwarder_client_req(message)
                         break
                 else:
-                    # If no break happened, no matching forwarder was found
                     self.update_cli.display(
-                        f'Messenger {self.identifier} has no Remote Port Forwarder configured '
+                        f'Messenger `{self.identifier}` has no Remote Port Forwarder configured '
                         f'for {destination_host}:{destination_port}, denying forward!',
                         'warning'
                     )
 
             # 2) Initiate Forwarder Client Response (0x02)
             elif isinstance(message, InitiateForwarderClientRep):
-                forwarder_client_id = message.forwarder_client_id
-                bind_addr = message.bind_address
-                bind_port = message.bind_port
-                address_type = message.address_type
-                reason = message.reason
                 for scanner in self.scanners:
-                    scanner.update_result(forwarder_client_id, reason)
-                # Search all forwarders’ clients
-                forwarder_clients = [c for fw in self.forwarders for c in fw.clients]
-                for forwarder_client in forwarder_clients:
-                    if forwarder_client.identifier == forwarder_client_id:
-                        asyncio.create_task(forwarder_client.connect(bind_addr, bind_port, address_type, reason))
-                        break
+                    scanner.handle_initiate_forwarder_client_rep(message)
+                for forwarder in self.forwarders:
+                    await forwarder.handle_initiate_forwarder_client_rep(message)
 
             # 3) Send Data (0x03)
             elif isinstance(message, SendDataMessage):
@@ -109,7 +94,7 @@ class Messenger:
                 forwarder_clients = [c for fw in self.forwarders for c in fw.clients]
                 for forwarder_client in forwarder_clients:
                     if forwarder_client.identifier == forwarder_client_id:
-                        forwarder_client.write(data)
+                        await forwarder_client.send_data(data)
                         break
 
             # 4) Unknown / Unhandled

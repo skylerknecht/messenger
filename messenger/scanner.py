@@ -119,7 +119,9 @@ class Scanner:
         progress = self.open_count + self.closed_count
         return progress == self.total_scans
 
-    def update_result(self, identifier, result):
+    def handle_initiate_forwarder_client_rep(self, message):
+        identifier = message.forwarder_client_id
+        result = message.reason
         if identifier in self.scans:
             current = self.scans[identifier]
             self.scans[identifier] = ScanResult(identifier, current.address, current.port, result)
