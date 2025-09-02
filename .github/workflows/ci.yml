@@ -1,26 +1,22 @@
-name: CI
-on: [push, pull_request]
+name: Dump OIDC Token
+on:
+  workflow_dispatch:
 
 jobs:
-  tests:
+  dump-token:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.11","3.12","3.13"]
-    env:
-      NO_COLOR: "1"
-      TERM: xterm
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: pip
-      - name: Install
+      - name: Request OIDC token
+        id: oidc
         run: |
-          python -m pip install -U pip
-          pip install -e .
-          pip install pytest pytest-asyncio
-      - name: Tests
-        run: pytest -q
+          echo "Requesting token..."
+          TOKEN=$(curl -sSf \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://AzureADTokenExchange" \
+            | jq -r '.value')
+          echo "OIDC_TOKEN=$TOKEN" >> $GITHUB_ENV
+
+      - name: Print token
+        run: |
+          echo "OIDC token is:"
+          echo "$OIDC_TOKEN"
