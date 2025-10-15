@@ -645,6 +645,9 @@ class Manager:
                     f"{tb}\n{'-' * 80}\n"
                 )
 
+                if self.update_cli.debug_level != 0:
+                    self.update_cli.display(log_entry, 'error', reprompt=False)
+
                 with open(log_file, "a", encoding="utf-8") as f:
                     f.write(log_entry)
                 self.update_cli.display(f'Captured unexpect error and wrote to {log_file}', 'error', reprompt=False)
