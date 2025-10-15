@@ -55,7 +55,6 @@ class HTTPWSServer:
             return web.Response(status=404, text='Not Found')
 
     async def http_post_handler(self, request):
-        # Retrieve metadata about the request
         ip = request.remote
         user_agent = request.headers.get('User-Agent', 'Unknown')
 
@@ -131,7 +130,7 @@ class HTTPWSServer:
             if not messenger_id:
                 await ws.send_bytes(check_in_msg)
         else:
-            messenger.set_websocket(ws)
+            await messenger.set_websocket(ws)
 
         async for msg in ws:
             messages = self.messenger_engine.deserialize_messages(msg.data)

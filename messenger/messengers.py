@@ -21,10 +21,8 @@ class Messenger:
         self.upstream_messages = asyncio.Queue()
         self.serialize_messages = serialize_messages
 
-        # utility for non-stateful Messengers like HTTP
         self.last_check_in = time.time()
 
-        # Private raw counters
         self.sent_bytes = 0
         self.received_bytes = 0
 
@@ -153,9 +151,10 @@ class HTTPMessenger(Messenger):
     async def send_message_upstream(self, message):
         if not self.alive:
             self.update_cli.display(
-                f'Messenger {self.identifier} is not alive, cannot send upstream message.',
+                f'Attempted to send upstream message but {self.transport_type} Messenger `{self.identifier}` is not alive.',
                 'warning'
             )
+            await self.upstream_messages.put(self.serialize_messages([message]))
             return
         self.update_cli.display(
             f'Messenger {self.identifier} sent a upstream message.',
@@ -203,12 +202,14 @@ class WebSocketMessenger(Messenger):
     def alive(self):
         return not self.websocket.closed
 
-    def set_websocket(self, ws):
+    async def set_websocket(self, ws):
         self.websocket = ws
         self.update_cli.display(
             f'{self.transport_type} Messenger `{self.identifier}` has reconnected.',
             'success'
         )
+        for message in self.update_cli.messages:
+            await self.websocket.send_bytes(self.serialize_messages([message]))
         asyncio.create_task(self.expiration())
 
     async def expiration(self):
@@ -224,9 +225,10 @@ class WebSocketMessenger(Messenger):
     async def send_message_upstream(self, message):
         if not self.alive:
             self.update_cli.display(
-                f'{self.transport_type} Messenger ({self.identifier}) is not alive, cannot send upstream message.',
+                f'Attempted to send upstream message but {self.transport_type} Messenger `{self.identifier}` is not alive.',
                 'warning'
             )
+            await self.upstream_messages.put(self.serialize_messages([message]))
             return
         self.update_cli.display(
             f'Messenger {self.identifier} sent a upstream message.',
