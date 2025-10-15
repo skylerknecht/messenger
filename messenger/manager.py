@@ -3,6 +3,8 @@ import inspect
 import sys
 import re
 import traceback
+import os
+from datetime import datetime
 from collections import namedtuple
 
 from prompt_toolkit import PromptSession
@@ -632,8 +634,21 @@ class Manager:
             except InvalidConfigError as e:
                 self.update_cli.display(str(e), 'error',reprompt=False)
             except Exception as e:
-                self.update_cli.display(f"Unexpected {type(e).__name__}:\n{traceback.format_exc()}", 'error',
-                                        reprompt=False)
+                log_dir = os.path.join(os.path.expanduser("~"), ".messenger")
+                os.makedirs(log_dir, exist_ok=True)
+                log_file = os.path.join(log_dir, "exceptions.log")
+
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                tb = traceback.format_exc()
+                log_entry = (
+                    f"[{timestamp}] Unexpected {type(e).__name__}: {e}\n"
+                    f"{tb}\n{'-' * 80}\n"
+                )
+
+                with open(log_file, "a", encoding="utf-8") as f:
+                    f.write(log_entry)
+                self.update_cli.display(f'Captured unexpect error and wrote to {log_file}', 'error', reprompt=False)
+                self.update_cli.display(f'Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new', 'information', reprompt=False)
             except KeyboardInterrupt:
                 self.update_cli.display(f"CTRL+C caught, type `exit` to quit Messenger.", 'information',
                                         reprompt=False)
