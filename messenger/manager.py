@@ -366,6 +366,8 @@ class Manager:
            build python
            build csharp --no-obfuscate --name custom-client
          """
+        self.update_cli.display("The build command is currently not supported.", "status", reprompt=False)
+        return
         if not isinstance(messenger_client_type, str):
             self.update_cli.display(f'Messenger Client Type `{messenger_client_type}` is not valid', 'error', reprompt=False)
             return
@@ -508,7 +510,7 @@ class Manager:
           messengers
           messengers --verbose
         """
-        columns = ["Identifier", "Transport", "Alive", "Forwarders", "Sent", "Received"]
+        columns = ["Identifier", "Transport", "Status", "Forwarders", "Sent", "Received"]
         if verbose:
             columns.extend(["External IP", "User-Agent"])
         items = []
@@ -529,7 +531,7 @@ class Manager:
             item = {
                 "Identifier": identifier,
                 "Transport": messenger.transport_type,
-                "Alive": "Yes" if messenger.alive else "No",
+                "Status": messenger.status,
                 "Forwarders": ', '.join(forwarder_ids) if forwarder_ids else '•••',
                 "Sent": f"{messenger.format_sent_bytes()}",
                 "Received": f"{messenger.format_received_bytes()}"
@@ -670,8 +672,6 @@ class Manager:
           local 127.0.0.1:8080:example.com:9090
         """
         messenger = self.current_messenger
-        if not messenger.alive:
-            self.update_cli.display(f'Messenger `{messenger.identifier}` is not alive.', 'error', reprompt=False)
         forwarder = LocalPortForwarder(messenger, forwarder_config, self.update_cli)
         success = await forwarder.start()
         if success:
@@ -690,8 +690,6 @@ class Manager:
           remote example.com:9090
         """
         messenger = self.current_messenger
-        if not messenger.alive:
-            self.update_cli.display(f'Messenger `{messenger.identifier}` is not alive.', 'error', reprompt=False)
         forwarder = RemotePortForwarder(messenger, forwarder_config, self.update_cli)
         await forwarder.start()
         messenger.forwarders.append(forwarder)
@@ -710,8 +708,6 @@ class Manager:
           socks 127.0.0.1:9050
         """
         messenger = self.current_messenger
-        if not messenger.alive:
-            self.update_cli.display(f'Messenger `{messenger.identifier}` is not alive.', 'error', reprompt=False)
         forwarder = SocksProxy(messenger, forwarder_config, self.update_cli)
         success = await forwarder.start()
         if success:
@@ -735,9 +731,6 @@ class Manager:
           portscan 192.168.1.10
           portscan 10.0.0.0/24 --top-ports 1000 --concurrency 100
         """
-        if not self.current_messenger.alive:
-            self.update_cli.display(f'Messenger `{self.current_messenger.identifier}` is not alive.', 'error', reprompt=False)
-            return
         try:
             concurrency = int(concurrency)
         except:

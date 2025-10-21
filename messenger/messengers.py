@@ -26,9 +26,6 @@ class Messenger:
         self.sent_bytes = 0
         self.received_bytes = 0
 
-        asyncio.create_task(self.expiration())
-
-
     async def get_upstream_messages(self):
         self.last_check_in = time.time()
         upstream_messages = b''
@@ -38,11 +35,7 @@ class Messenger:
         return upstream_messages
 
     @property
-    def alive(self):
-        raise NotImplementedError
-
-    @property
-    def expiration(self):
+    def status(self):
         raise NotImplementedError
 
     @abstractmethod
@@ -145,24 +138,23 @@ class HTTPMessenger(Messenger):
         self.disconnected = False
 
     @property
-    def alive(self):
-        return not self.disconnected
+    def status(self):
+        elapsed = time.time() - self.last_check_in
+        if elapsed < 60:
+            return f"Last Seen {elapsed:.1f} seconds ago"
+        elif elapsed < 3600:
+            return f"Last Seen {elapsed / 60:.1f} minutes ago"
+        else:
+            return f"Last Seen {elapsed / 3600:.1f} hours ago"
 
     async def send_message_upstream(self, message):
-        if not self.alive:
-            self.update_cli.display(
-                f'Attempted to send upstream message but {self.transport_type} Messenger `{self.identifier}` is not alive.',
-                'warning'
-            )
-            await self.upstream_messages.put(self.serialize_messages([message]))
-            return
         self.update_cli.display(
-            f'Messenger {self.identifier} sent a upstream message.',
+            f'Messenger {self.identifier} queued a upstream message.',
             'debug',
             debug_level = 2
         )
         self.update_cli.display(
-            f'Messenger {self.identifier} sent the following upstream message\n{message}.',
+            f'Messenger {self.identifier} queued the following upstream message\n{message}.',
             'debug',
             debug_level = 5
         )
@@ -199,8 +191,10 @@ class WebSocketMessenger(Messenger):
         self.websocket = websocket
 
     @property
-    def alive(self):
-        return not self.websocket.closed
+    def status(self):
+        if not self.websocket.closed:
+            return 'Connected'
+        return 'Disconnected'
 
     async def set_websocket(self, ws):
         self.websocket = ws
@@ -210,22 +204,11 @@ class WebSocketMessenger(Messenger):
         )
         for message in self.update_cli.messages:
             await self.websocket.send_bytes(self.serialize_messages([message]))
-        asyncio.create_task(self.expiration())
-
-    async def expiration(self):
-        while True:
-            await asyncio.sleep(10)
-            if not self.alive:
-                self.update_cli.display(
-                    f'{self.transport_type} Messenger `{self.identifier}` has disconnected.',
-                    'warning'
-                )
-            break
 
     async def send_message_upstream(self, message):
-        if not self.alive:
+        if self.websocket.closed:
             self.update_cli.display(
-                f'Attempted to send upstream message but {self.transport_type} Messenger `{self.identifier}` is not alive.',
+                f'Messenger `{self.identifier}` queued a upstream message.',
                 'warning'
             )
             await self.upstream_messages.put(self.serialize_messages([message]))
