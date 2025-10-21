@@ -140,12 +140,14 @@ class HTTPMessenger(Messenger):
     @property
     def status(self):
         elapsed = time.time() - self.last_check_in
-        if elapsed < 60:
-            return f"Last Seen {elapsed:.1f} seconds ago"
+        if elapsed < 1:
+            return f"{elapsed * 1000:.0f}ms delay"
+        elif elapsed < 60:
+            return f"{elapsed:.0f}s delay"
         elif elapsed < 3600:
-            return f"Last Seen {elapsed / 60:.1f} minutes ago"
+            return f"{elapsed / 60:.0f}m delay"
         else:
-            return f"Last Seen {elapsed / 3600:.1f} hours ago"
+            return f"{elapsed / 3600:.0f}h delay"
 
     async def send_message_upstream(self, message):
         self.update_cli.display(
@@ -193,8 +195,8 @@ class WebSocketMessenger(Messenger):
     @property
     def status(self):
         if not self.websocket.closed:
-            return 'Connected'
-        return 'Disconnected'
+            return 'connected'
+        return 'disconnected'
 
     async def set_websocket(self, ws):
         self.websocket = ws
