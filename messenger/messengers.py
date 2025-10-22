@@ -162,26 +162,6 @@ class HTTPMessenger(Messenger):
         )
         await self.upstream_messages.put(self.serialize_messages([message]))
 
-    async def expiration(self):
-        disconnection_rate = 30
-        while True:
-            await asyncio.sleep(10)
-            expired = int(time.time() - self.last_check_in)
-            if expired >= disconnection_rate:
-                if not self.disconnected:
-                    self.disconnected = True
-                    self.update_cli.display(
-                        f'{self.transport_type} Messenger `{self.identifier}` has not checked in within the past `{disconnection_rate}` seconds and is now set to disconnected.',
-                        'warning'
-                    )
-            else:
-                if self.disconnected:
-                    self.update_cli.display(
-                        f'{self.transport_type} Messenger `{self.identifier}` has reconnected.',
-                        'success'
-                    )
-                self.disconnected = False
-
 class WebSocketMessenger(Messenger):
 
     transport_type = 'WebSocket'
@@ -204,8 +184,8 @@ class WebSocketMessenger(Messenger):
             f'{self.transport_type} Messenger `{self.identifier}` has reconnected.',
             'success'
         )
-        for message in self.update_cli.messages:
-            await self.websocket.send_bytes(self.serialize_messages([message]))
+        messages = await self.get_upstream_messages()
+        await self.websocket.send_bytes(messages)
 
     async def send_message_upstream(self, message):
         if self.websocket.closed:
