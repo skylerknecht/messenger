@@ -618,6 +618,7 @@ class Manager:
         Start the CLI, display banner, and manage user input.
         """
         await self.messenger_server.start()
+
         while True:
             try:
                 prompt = self.current_messenger.identifier if self.current_messenger else self.PROMPT

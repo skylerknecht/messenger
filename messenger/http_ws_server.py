@@ -1,10 +1,10 @@
 import ssl
-import sys
 import traceback
 
 from aiohttp import web
 
 from messenger.messengers import HTTPMessenger, WebSocketMessenger
+
 
 class HTTPWSServer:
     def __init__(self, update_cli, messenger_engine, ip: str = '127.0.0.1', port: int = 1337, ssl: tuple = None):
@@ -45,6 +45,18 @@ class HTTPWSServer:
 
     async def redirect_handler(self, request):
         transport = request.query.get('transport', None)
+        ip = request.remote
+        data = await request.read()
+        self.update_cli.display(
+            f'The handler received a request from {ip} to with a transport {transport}.',
+            'debug',
+            debug_level = 1
+        )
+        self.update_cli.display(
+            f'The handler received the following data\n{data}.',
+            'debug',
+            debug_level = 4
+        )
         if not transport:
             return web.Response(status=404, text='Not Found')
         elif transport == 'websocket':
@@ -60,16 +72,6 @@ class HTTPWSServer:
 
         upstream_message_data = b''
         data = await request.read()
-        self.update_cli.display(
-            f'The HTTP handler received a post request from {ip}.',
-            'debug',
-            debug_level = 1
-        )
-        self.update_cli.display(
-            f'The HTTP handler received the following data\n{data}.',
-            'debug',
-            debug_level = 4
-        )
         messages = self.messenger_engine.deserialize_messages(data)
         messenger_id = self.messenger_engine.get_messenger_id(messages[0])
         messenger = self.messenger_engine.get_messenger(messenger_id)
@@ -98,18 +100,7 @@ class HTTPWSServer:
 
         ip = request.remote
         user_agent = request.headers.get('User-Agent', 'Unknown')
-        self.update_cli.display(
-            f'The WS handler received a post request from {ip}.',
-            'debug',
-            debug_level=1
-        )
-
         msg = await ws.receive()
-        self.update_cli.display(
-            f'The WS handler received the following data\n{msg.data}.',
-            'debug',
-            debug_level=4
-        )
         messages = self.messenger_engine.deserialize_messages(msg.data)
         messenger_id = self.messenger_engine.get_messenger_id(messages[0])
         messenger = self.messenger_engine.get_messenger(messenger_id)
