@@ -137,7 +137,6 @@ class Manager:
             ssl (bool): Indicates whether SSL is enabled.
         """
         self.server_commands = {
-            'build': (self.build, "Builds a messenger client."),
             'debug': (self.debug, "Set the debug level."),
             'forwarders': (self.print_forwarders, "Display a list of forwarders in a table format."),
             'messengers': (self.print_messengers, "Display a list of messengers in a table format."),
@@ -155,7 +154,10 @@ class Manager:
             'socks': (self.start_socks_proxy, "Start a socks proxy."),
             'portscan': (self.start_scanner, "Scan for open ports."),
         }
-        self.commands = {**self.server_commands, **self.messenger_commands}
+        self.build_commands = {
+            'build_python': (build_python, "Build a python messenger client."),
+        }
+        self.commands = {**self.server_commands, **self.messenger_commands, **self.build_commands}
         self.messengers = []
         self.current_messenger = None
         self.session = PromptSession(completer=DynamicCompleter(self), reserve_space_for_menu=0)
@@ -351,43 +353,6 @@ class Manager:
         self.update_cli.debug_level = level
         self.update_cli.display(f"Debug level set to {level}.", "success", reprompt=False)
 
-    async def build(self, messenger_client_type, no_obfuscate=False, name="messenger-client"):
-        """
-         Build a messenger client.
-
-         required:
-           messenger_client_type   The type of the Messenger to build (e.g., python, csharp, node_js).
-
-         optional:
-           --no-obfuscate           Disable obfuscation of the messenger client (default: False).
-           --name                   Name of the output client (default: messenger-client).
-
-         examples:
-           build python
-           build csharp --no-obfuscate --name custom-client
-         """
-        self.update_cli.display("The build command is currently not supported.", "status", reprompt=False)
-        return
-        if not isinstance(messenger_client_type, str):
-            self.update_cli.display(f'Messenger Client Type `{messenger_client_type}` is not valid', 'error', reprompt=False)
-            return
-        if messenger_client_type.lower() == 'python':
-            if not imported_python_client:
-                self.update_cli.display(f'Messenger Client Type `{messenger_client_type}` is not available, try `{sys.argv[0]} --update-submodules`', 'error',
-                                        reprompt=False)
-                return
-            await build_python(no_obfuscate, name)
-            return
-        elif messenger_client_type.lower() == 'csharp':
-            self.update_cli.display(f'Messenger Client Type `{messenger_client_type}` is not implemented', 'error', reprompt=False)
-            return
-        elif messenger_client_type.lower() == 'node_js':
-            self.update_cli.display(f'Messenger Client Type `{messenger_client_type}` is not implemented', 'error', reprompt=False)
-            return
-        else:
-            self.update_cli.display(f'Messenger Client Type `{messenger_client_type}` is not valid', 'error', reprompt=False)
-            return
-
     async def interact(self, messenger):
         """
         Interact with a messenger.
@@ -422,7 +387,7 @@ class Manager:
 
         examples:
           help
-          help build
+          help forwarders
         """
         if command and command in self.commands:
             func = self.commands[command][0]
@@ -437,6 +402,10 @@ class Manager:
             return
         print("Server commands:")
         for command, (func, description) in self.server_commands.items():
+            print(f"  {command:10} {description}")
+        print()
+        print("Build Commands:")
+        for command, (func, description) in self.build_commands.items():
             print(f"  {command:10} {description}")
         print()
         print("Messenger commands (must be interacting with a messenger):")
