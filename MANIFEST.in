@@ -1,0 +1,8 @@
+# Include the README like before
+include README.md
+
+# Include messenger resources already handled via package_data, but keep as a safety net
+recursive-include messenger/resources *
+
+# Include the entire builder tree (both submodules and any helper files)
+recursive-include builder *

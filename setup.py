@@ -12,13 +12,13 @@ except ImportError:
     sys.exit(1)
 
 try:
-    with open(os.path.join(base_directory, 'README.md')) as file_h:
+    with open(os.path.join(base_directory, 'README.md'), encoding='utf-8') as file_h:
         long_description = file_h.read()
 except OSError:
     sys.stderr.write('README.md is unavailable, cannot generate the long description\n')
     long_description = None
 
-with open(os.path.join(base_directory, 'messenger', '__init__.py')) as file_h:
+with open(os.path.join(base_directory, 'messenger', '__init__.py'), encoding='utf-8') as file_h:
     match = re.search(r'^__version__\s*=\s*([\'"])(?P<version>\d+(\.\d)*)\1$', file_h.read(), flags=re.MULTILINE)
 if match is None:
     raise RuntimeError('Unable to find the version information')
@@ -32,10 +32,10 @@ server will create a local SOCKS5 tunnel that can be used to interact with the l
 setup(
     name='messenger',
     version=version,
-    packages=find_packages(),
+    packages=find_packages(include=['messenger', 'messenger.*', 'builder', 'builder.*']),
     install_requires=[
         'aiohttp',
-        'prompt-toolkit'
+        'prompt-toolkit',
     ],
     author='Skyler Knecht',
     author_email='skyler.knecht@outlook.com',
@@ -50,9 +50,12 @@ setup(
         'Operating System :: OS Independent',
     ],
     python_requires='>=3.6',
-    scripts=['messenger-cli'],
-    include_package_data = True,
-    package_data = {
-        "messenger": ["resources/*"],  # include all files in resources/
-    }
+    # Install both command-line entry scripts
+    scripts=['messenger-cli', 'messenger-builder'],
+    include_package_data=True,
+    package_data={
+        # keep shipping runtime assets from messenger/resources
+        'messenger': ['resources/*'],
+        # builder files (submodules) are brought in via MANIFEST.in + include_package_data
+    },
 )
