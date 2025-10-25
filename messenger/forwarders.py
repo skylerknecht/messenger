@@ -92,11 +92,16 @@ class LocalPortForwarder(Forwarder):
         for forwarder_client in self.clients:
             if forwarder_client.identifier != forwarder_client_id:
                 continue
+            if message.reason != 0:
+                forwarder_client.writer.close()
+                await forwarder_client.writer.wait_closed()
+                self.clients.remove(forwarder_client)
+                break
             await forwarder_client.handle_initiate_forwarder_client_rep(message.bind_address, message.bind_port, message.address_type, message.reason)
             break
 
     async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-        client = LocalForwarderClient(reader, writer, self.destination_host, self.destination_port, self.messenger, self.on_close)
+        client = LocalForwarderClient(self.destination_host, self.destination_port, reader, writer, self.messenger, self.on_close)
         await client.initiate_forwarder_client()
         self.clients.append(client)
 

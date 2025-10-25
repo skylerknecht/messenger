@@ -83,6 +83,7 @@ class LocalForwarderClient(ForwarderClient):
 
     async def handle_initiate_forwarder_client_rep(self, bind_addr, bind_port, atype, rep):
         if rep != 0:
+            print('non zero rep')
             return
         asyncio.create_task(self.receive_data())
 
