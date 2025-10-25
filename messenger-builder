@@ -79,9 +79,9 @@ def main(banner):
     parser = argparse.ArgumentParser(
         prog="messenger-cli",
         formatter_class=argparse.RawTextHelpFormatter,
+        usage=argparse.SUPPRESS
     )
 
-    # Per-language subcommands (builders add their own args)
     subparsers = parser.add_subparsers(dest="language", required=True)
     available = discover_and_register_languages(subparsers)
 

@@ -13,11 +13,6 @@ from prompt_toolkit.completion import Completer, Completion
 from functools import wraps
 from inspect import Parameter
 
-try:
-    from messenger.clients.python.builder import build as build_python
-    imported_python_client = True
-except ImportError:
-    imported_python_client = False
 from messenger.messengers import Messenger
 from messenger.http_ws_server import HTTPWSServer
 from messenger.engine import Engine
@@ -154,10 +149,7 @@ class Manager:
             'socks': (self.start_socks_proxy, "Start a socks proxy."),
             'portscan': (self.start_scanner, "Scan for open ports."),
         }
-        self.build_commands = {
-            'build_python': (build_python, "Build a python messenger client."),
-        }
-        self.commands = {**self.server_commands, **self.messenger_commands, **self.build_commands}
+        self.commands = {**self.server_commands, **self.messenger_commands}
         self.messengers = []
         self.current_messenger = None
         self.session = PromptSession(completer=DynamicCompleter(self), reserve_space_for_menu=0)
