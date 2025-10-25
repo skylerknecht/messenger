@@ -69,6 +69,15 @@ class Messenger:
                         f'for {destination_host}:{destination_port}, denying forward!',
                         'warning'
                     )
+                    await self.send_message_upstream(
+                        InitiateForwarderClientRep(
+                            forwarder_client_id=message.forwarder_client_id,
+                            bind_address="0.0.0.0",
+                            bind_port=0,
+                            address_type=1,
+                            reason=2
+                        )
+                    )
 
             # 2) Initiate Forwarder Client Response (0x02)
             elif isinstance(message, InitiateForwarderClientRep):
