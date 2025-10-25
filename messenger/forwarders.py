@@ -319,7 +319,7 @@ class RemotePortForwarder(Forwarder):
         return destination_host, int(destination_port)
 
     async def start(self):
-        self.update_cli.display(f'Messenger `{self.identifier}` now forwarding (*:*) -> ({self.destination_host}:{self.destination_port}).', 'success', reprompt=False)
+        self.update_cli.display(f'Messenger `{self.messenger.identifier}` now forwarding (*:*) -> ({self.destination_host}:{self.destination_port}).', 'success', reprompt=False)
 
 
 class InvalidConfigError(Exception):
