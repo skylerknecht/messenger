@@ -574,7 +574,7 @@ class Manager:
 
                 with open(log_file, "a", encoding="utf-8") as f:
                     f.write(log_entry)
-                self.update_cli.display(f'Captured unexpect error and wrote to {log_file}', 'error', reprompt=False)
+                self.update_cli.display(f'Captured unexpected error and wrote to {log_file}', 'error', reprompt=False)
                 self.update_cli.display(f'Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new', 'information', reprompt=False)
             except KeyboardInterrupt:
                 self.update_cli.display(f"CTRL+C caught, type `exit` to quit Messenger.", 'information',
