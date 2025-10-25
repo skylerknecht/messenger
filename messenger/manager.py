@@ -360,10 +360,6 @@ class Manager:
         for command, (func, description) in self.server_commands.items():
             print(f"  {command:10} {description}")
         print()
-        print("Build Commands:")
-        for command, (func, description) in self.build_commands.items():
-            print(f"  {command:10} {description}")
-        print()
         print("Messenger commands (must be interacting with a messenger):")
         for command, (func, description) in self.messenger_commands.items():
             print(f"  {command:10} {description}")
