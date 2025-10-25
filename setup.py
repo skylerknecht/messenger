@@ -50,12 +50,9 @@ setup(
         'Operating System :: OS Independent',
     ],
     python_requires='>=3.6',
-    # Install both command-line entry scripts
     scripts=['messenger-cli'],
     include_package_data=True,
     package_data={
-        # keep shipping runtime assets from messenger/resources
         'messenger': ['resources/*'],
-        # builder files (submodules) are brought in via MANIFEST.in + include_package_data
     },
 )
