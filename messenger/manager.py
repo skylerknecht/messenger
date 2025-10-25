@@ -19,6 +19,7 @@ from messenger.engine import Engine
 from messenger.forwarders import LocalPortForwarder, SocksProxy, RemotePortForwarder, InvalidConfigError
 from messenger.generator import generate_encryption_key, generate_hash
 from messenger.scanner import Scanner
+from messenger.text import color_text, bold_text
 
 class UpdateCLI:
     """
@@ -59,52 +60,15 @@ class UpdateCLI:
             if self.debug_level < debug_level:
                 return
             icon_label = status_info.icon.format(debug_level)
-            icon = self.color_text(icon_label, status_info.color)
+            icon = color_text(icon_label, status_info.color)
         else:
-            icon = self.color_text(status_info.icon, status_info.color)
+            icon = color_text(status_info.icon, status_info.color)
 
         print(f'\r{icon} {stdout}')
 
         if reprompt:
             print(f'({self.prompt})~# ' + self.session.app.current_buffer.text, end='')
             sys.stdout.flush()
-
-    @staticmethod
-    def color_text(text, color):
-        """
-        Apply ANSI color codes to text.
-
-        Args:
-            text (str): The text to color.
-            color (str): The color code to apply.
-
-        Returns:
-            str: Colored text.
-        """
-        colors = {
-            'white': '\033[97m',
-            'cyan': '\033[96m',
-            'yellow': '\033[93m',
-            'red': '\033[91m',
-            'green': '\033[92m',
-            'blue': '\033[94m',
-            'reset': '\033[0m'
-        }
-
-        return colors.get(color, colors['reset']) + text + colors['reset']
-
-    @staticmethod
-    def bold_text(text):
-        """
-        Returns bolded text using ANSI escape codes.
-
-        Args:
-            text (str): The text to bold.
-
-        Returns:
-            str: Bolded text.
-        """
-        return "\033[1m" + text + "\033[0m"
 
 
 class Manager:
@@ -155,7 +119,7 @@ class Manager:
         self.session = PromptSession(completer=DynamicCompleter(self), reserve_space_for_menu=0)
         self.update_cli = UpdateCLI(self.PROMPT, self.session)
         self.encryption_key = encryption_key if encryption_key is not None else generate_encryption_key()
-        self.update_cli.display(f'The AES encryption key is {self.update_cli.bold_text(self.encryption_key)}', 'Information', reprompt=False)
+        self.update_cli.display(f'The AES encryption key is {bold_text(self.encryption_key)}', 'Information', reprompt=False)
         self.messenger_engine = Engine(self.messengers, self.update_cli, generate_hash(self.encryption_key))
         self.messenger_server = HTTPWSServer(self.update_cli, self.messenger_engine, ip=server_ip, port=server_port, ssl=ssl)
 
@@ -432,11 +396,11 @@ class Manager:
             for forwarder in messenger.forwarders:
                 # Determine color based on type and configuration
                 if isinstance(forwarder, RemotePortForwarder):
-                    colored_id = self.update_cli.color_text(forwarder.identifier, 'red')
+                    colored_id = color_text(forwarder.identifier, 'cyan')
                 elif forwarder.destination_host == '*' and forwarder.destination_port == '*':
-                    colored_id = self.update_cli.color_text(forwarder.identifier, 'blue')
+                    colored_id = color_text(forwarder.identifier, 'blue')
                 else:
-                    colored_id = self.update_cli.color_text(forwarder.identifier, 'green')
+                    colored_id = color_text(forwarder.identifier, 'green')
 
                 streaming_clients = [
                     client
@@ -478,16 +442,16 @@ class Manager:
 
         for messenger in self.messengers:
             forwarder_ids = [
-                self.update_cli.color_text(
+                color_text(
                     forwarder.identifier,
-                    'red' if isinstance(forwarder, RemotePortForwarder)
+                    'cyan' if isinstance(forwarder, RemotePortForwarder)
                     else 'blue' if forwarder.destination_host == '*' and forwarder.destination_port == '*'
                     else 'green'
                 )
                 for forwarder in messenger.forwarders
             ]
-            current_messenger_identifier = f"{self.update_cli.color_text('>', 'red')} {self.update_cli.bold_text(messenger.identifier)}"
-            messenger_identifier = self.update_cli.bold_text(messenger.identifier)
+            current_messenger_identifier = f"{color_text('>', 'white')} {bold_text(messenger.identifier)}"
+            messenger_identifier = bold_text(messenger.identifier)
             identifier = current_messenger_identifier if self.current_messenger == messenger else messenger_identifier
             item = {
                 "Identifier": identifier,

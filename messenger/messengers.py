@@ -8,6 +8,7 @@ from messenger.message import (
     InitiateForwarderClientRep,
     SendDataMessage
 )
+from messenger.text import color_text
 
 class Messenger:
 
@@ -150,13 +151,13 @@ class HTTPMessenger(Messenger):
     def status(self):
         elapsed = time.time() - self.last_check_in
         if elapsed < 1:
-            return f"{elapsed * 1000:.0f}ms delay"
+            return color_text(f"{elapsed * 1000:.0f}ms delay", "green")
         elif elapsed < 60:
-            return f"{elapsed:.0f}s delay"
+            return color_text(f"{elapsed:.0f}s delay", "yellow")
         elif elapsed < 3600:
-            return f"{elapsed / 60:.0f}m delay"
+            return color_text(f"{elapsed / 60:.0f}m delay", "red")
         else:
-            return f"{elapsed / 3600:.0f}h delay"
+            return color_text(f"{elapsed / 3600:.0f}h delay", "red")
 
     async def send_message_upstream(self, message):
         self.update_cli.display(
@@ -184,8 +185,8 @@ class WebSocketMessenger(Messenger):
     @property
     def status(self):
         if not self.websocket.closed:
-            return 'connected'
-        return 'disconnected'
+            return color_text('connected', "green")
+        return color_text('disconnected', 'red')
 
     async def set_websocket(self, ws):
         self.websocket = ws
