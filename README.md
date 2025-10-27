@@ -1,37 +1,76 @@
 # Messenger
 
-Messenger is a tunneling toolkit that enables operators to move data 
-evasively from one place to another. It supports three industry-standard 
-tunneling methods: local port forwarding, remote port forwarding, and 
-SOCKS5 proxying. To achieve this, Messenger leverages a client-server 
-architecture while communicating over HTTP, WebSockets, and DNS. While 
-the server is written primarily in Python, there are (3) clients 
-written in [C#](https://github.com/skylerknecht/messenger-client-python),
-[Python](https://github.com/skylerknecht/messenger-client-python), and [Node JS](https://github.com/skylerknecht/messenger-client-nodejs). 
+Messenger is a tunneling toolkit that leverages a client-server infrastructure
+to establish SOCKS5 proxies, local port forwards and remote port forwards. While 
+the server is primarily written in Python, there are several clients written in
+varying languages. Their details and major feature support can be 
+[found below](https://github.com/skylerknecht/messenger/edit/main/README.md#client-support-matrix). 
 
+## Quick Start
+
+To setup Messenger and establish a client connection execute the following commands. 
 
 ### Installation
-
-To install Messenger, clone the repository with `git` and install with `pipx`. 
-
+Messenger has a setup.py file that can be ran directly or installed with pipx. 
 ```
-git clone --recurse-submodules https://github.com/skylerknecht/messenger.git
-cd Messenger
-pipx install .
+operator~# git clone https://github.com/skylerknecht/messenger.git --recurse-submodules
+operator~# cd messenger
+operator~/messenger# pipx install .
 ```
 
-### Usage Guide
+### Launch
+Luanching Messenger will output several details that will be leveraged in later commands including
+an AES encryption key and server URL. 
+```
+operator~# messenger-cli
+ __  __
+|  \/  | ___  ___ ___  ___ _ __   __ _  ___ _ __
+| |\/| |/ _ \/ __/ __|/ _ \ '_ \ / _` |/ _ \ '__|
+| |  | |  __/\__ \__ \  __/ | | | (_| |  __/ |
+|_|  |_|\___||___/___/\___|_| |_|\__, |\___|_|
+by Skyler Knecht and Kevin Clark |___/ v0.3.6
 
-Please review the following guides for a in-depth usage guide.
+[*] The AES encryption key is ZDXgoqyVXqDpJyBMJt
+[*] Waiting for messengers on ws+http://0.0.0.0:8080/
+```
 
+### Build
+Messenger comes with a builder utility to create clients. Leverage the help menu or the 
+[client support matrix](https://github.com/skylerknecht/messenger/edit/main/README.md#client-support-matrix)
+to see builder-supported clients.
+```
+operator~# messenger-builder python --encryption-key ZDXgoqyVXqDpJyBMJt
+Wrote Python client to 'client.py'
+```
+
+### Connect
+Once a client is built execute it to connect to the server. Options can typically be hardcoded and overriden 
+with command line arguments. 
+```
+operator~# ./client.py
+[+] Connected to http://localhost:8080/socketio/?EIO=4&transport=websocket
+```
+
+## Detailed Guides
+
+### Operators
 - [Getting Started](docs/getting-started.md)  
 - [Operational Usage](docs/operational-usage.md)  
 
-For developers feel free to review the communication specification below.
 
+### Developers 
 - [Communications Overview](docs/communications.md)
 
-### Credits 
+
+## Client Support Matrix
+
+| Clients                                                            | Messenger Builder | Protocols         | Local/Remote Port Forwarding | SOCKS5 TCP | SOCKS5 UDP    |
+|--------------------------------------------------------------------|-------------------|-------------------|------------------------------|------------|---------------|
+| [Python](https://github.com/skylerknecht/messenger-client-python)  | Supported         | HTTP & WebSockets | Supported                    | Supported  | Not Supported |
+| [C#](https://github.com/skylerknecht/messenger-client-python)      | Not Supported     | HTTP & WebSockets | Supported                    | Supported  | Not Supported |
+| [Node JS](https://github.com/skylerknecht/messenger-client-nodejs) | Not Supported     | HTTP & WebSockets | Supported                    | Supported  | Not Supported |
+
+## Credits 
 
 - Skyler Knecht (@SkylerKnecht)
 - Kevin Clark (@GuhnooPlusLinux)
