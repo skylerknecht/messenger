@@ -4,7 +4,7 @@ Messenger is a tunneling toolkit that leverages a client-server infrastructure
 to establish SOCKS5 proxies, local port forwards and remote port forwards. While 
 the server is primarily written in Python, there are several clients written in
 varying languages. Their details and major feature support can be 
-[found below](https://github.com/skylerknecht/messenger/edit/main/README.md#client-support-matrix). 
+[found below](https://github.com/skylerknecht/messenger?tab=readme-ov-file#client-support-matrix). 
 
 ## Quick Start
 
@@ -36,7 +36,7 @@ by Skyler Knecht and Kevin Clark |___/ v0.3.6
 
 ### Build
 Messenger comes with a builder utility to create clients. Leverage the help menu or the 
-[client support matrix](https://github.com/skylerknecht/messenger/edit/main/README.md#client-support-matrix)
+[client support matrix](https://github.com/skylerknecht/messenger?tab=readme-ov-file#client-support-matrix)
 to see builder-supported clients.
 ```
 operator~# messenger-builder python --encryption-key ZDXgoqyVXqDpJyBMJt
