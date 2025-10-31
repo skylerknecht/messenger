@@ -8,7 +8,7 @@ from pathlib import Path
 
 from messenger import BANNER
 
-LANG_MODULES = ("python", "csharp", "node", "ruby")
+LANG_MODULES = ("python", "csharp", "nodejs", "ruby")
 
 def status(msg: str):
     print(f"[status] {msg}")
