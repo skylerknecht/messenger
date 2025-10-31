@@ -195,6 +195,8 @@ class WebSocketMessenger(Messenger):
             'success'
         )
         messages = await self.get_upstream_messages()
+        if not messages:
+            return
         await self.websocket.send_bytes(messages)
 
     async def send_message_upstream(self, message):
