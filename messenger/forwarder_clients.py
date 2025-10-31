@@ -23,7 +23,7 @@ class ForwarderClient(ABC):
     async def initiate_forwarder_client(self):
         pass
 
-    async def receive_data(self):
+    async def stream(self):
         while True:
             try:
                 upstream_message = await self.reader.read(4096)
@@ -48,7 +48,7 @@ class ForwarderClient(ABC):
                 )
             except (EOFError, ConnectionResetError):
                 break
-        self.on_close(self)
+        self.on_close()
         await self.messenger.send_message_upstream(
             SendDataMessage(
                 forwarder_client_id=self.identifier,
@@ -58,7 +58,7 @@ class ForwarderClient(ABC):
 
     async def send_data(self, data):
         if len(data) == 0:
-            self.writer.write_eof()
+            self.writer.close()
             return
         self.messenger.received_bytes += len(data)
         self.writer.write(data)
@@ -82,10 +82,7 @@ class LocalForwarderClient(ForwarderClient):
         await self.messenger.send_message_upstream(upstream_message)
 
     async def handle_initiate_forwarder_client_rep(self, bind_addr, bind_port, atype, rep):
-        if rep != 0:
-            print('non zero rep')
-            return
-        asyncio.create_task(self.receive_data())
+        asyncio.create_task(self.stream())
 
 class RemoteForwarderClient(ForwarderClient):
     def __init__(self, identifier, reader, writer, messenger, on_close):
@@ -93,11 +90,11 @@ class RemoteForwarderClient(ForwarderClient):
         self.identifier = identifier
 
     async def initiate_forwarder_client(self):
-        asyncio.create_task(self.receive_data())
+        asyncio.create_task(self.stream())
 
 class SocksForwarderClient(LocalForwarderClient):
-    def __init__(self, reader, writer, messenger, cleanup):
-        super().__init__('*', '*', reader, writer, messenger, cleanup)
+    def __init__(self, reader, writer, messenger, on_close):
+        super().__init__('*', '*', reader, writer, messenger, on_close)
 
     async def initiate_forwarder_client(self):
         if not await self.negotiate_authentication_method():
@@ -110,13 +107,10 @@ class SocksForwarderClient(LocalForwarderClient):
         await self.send_initiate_forwarder_client_req()
 
     async def handle_initiate_forwarder_client_rep(self, bind_addr, bind_port, atype, rep):
-        if rep != 0:
-            self.on_close(self)
-            return
         socks_connect_results = self.create_socks_reply(rep, bind_addr, bind_port, atype)
         self.messenger.received_bytes += len(socks_connect_results)
         self.writer.write(socks_connect_results)
-        asyncio.create_task(self.receive_data())
+        asyncio.create_task(self.stream())
 
     @staticmethod
     def create_socks_reply(rep, bind_addr, bind_port, atype):
