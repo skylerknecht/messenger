@@ -1,13 +1,14 @@
 [submodule "builder/clients/csharp"]
-  path = builder/clients/csharp
-  url  = https://github.com/skylerknecht/messenger-client-csharp.git
-  branch = main
+    path = builder/clients/csharp
+    url  = https://github.com/skylerknecht/messenger-client-csharp.git
+    branch = main
 
 [submodule "builder/clients/python"]
-  path = builder/clients/python
-  url  = https://github.com/skylerknecht/messenger-client-python.git
-  branch = main
+    path = builder/clients/python
+    url  = https://github.com/skylerknecht/messenger-client-python.git
+    branch = main
 
 [submodule "builder/clients/nodejs"]
 	path = builder/clients/nodejs
 	url = https://github.com/skylerknecht/messenger-client-nodejs
+	branch = main
