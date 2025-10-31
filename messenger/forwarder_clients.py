@@ -48,7 +48,7 @@ class ForwarderClient(ABC):
                 )
             except (EOFError, ConnectionResetError):
                 break
-        self.on_close()
+        self.on_close(self)
         await self.messenger.send_message_upstream(
             SendDataMessage(
                 forwarder_client_id=self.identifier,
