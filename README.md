@@ -68,7 +68,7 @@ operator~# ./client.py
 |--------------------------------------------------------------------|-------------------|-------------------|------------------------------|------------|---------------|
 | [Python](https://github.com/skylerknecht/messenger-client-python)  | Supported         | HTTP & WebSockets | Supported                    | Supported  | Not Supported |
 | [C#](https://github.com/skylerknecht/messenger-client-python)      | Not Supported     | HTTP & WebSockets | Supported                    | Supported  | Not Supported |
-| [Node JS](https://github.com/skylerknecht/messenger-client-nodejs) | Not Supported     | HTTP & WebSockets | Supported                    | Supported  | Not Supported |
+| [Node JS](https://github.com/skylerknecht/messenger-client-nodejs) | Not Supported     |        WebSockets | Supported                    | Supported  | Not Supported |
 
 ## Credits 
 
