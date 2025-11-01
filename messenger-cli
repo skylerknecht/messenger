@@ -1,30 +1,9 @@
 #!/usr/bin/env python3
 import asyncio
 import argparse
-import subprocess
 
 from messenger.manager import Manager
 from messenger import BANNER
-from pathlib import Path
-
-def update_submodules(repo_path='.', branch='main'):
-    """
-    Sync submodule URLs, initialize/update them, and then
-    checkout the given branch and pull the latest in each.
-
-    Args:
-        repo_path (str or Path): Path to the superproject root.
-        branch (str): Branch name to checkout & pull in each submodule.
-    """
-    repo_path = Path(repo_path)
-
-    commands = [
-        ['git', 'submodule', 'sync', '--recursive'],
-        ['git', 'submodule', 'update', '--init', '--recursive'],
-        ['git', 'submodule', 'foreach', '--recursive', f'git checkout {branch} && git pull']
-    ]
-    for cmd in commands:
-        subprocess.run(cmd, cwd=repo_path, check=True)
 
 async def main(banner, manager):
     parser = argparse.ArgumentParser()
@@ -35,15 +14,9 @@ async def main(banner, manager):
     parser.add_argument("-s", "--ssl", nargs=2, metavar=('CERT', 'KEY'), default=None,
                         help="SSL certificate and key files. Expect two strings: path to the certificate and path to "
                              "the key.")
-    parser.add_argument(
-        "--update-submodules", action="store_true",
-        help="Run 'git submodule sync/update/foreach' before starting the CLI"
-    )
     parser.add_argument("-e", "--encryption-key", type=str, default=None, help="The AES encryption key.")
     parser.add_argument("-q", "--quiet", action="store_true", help="Suppress the banner.")
     args = parser.parse_args()
-    if args.update_submodules:
-        update_submodules()
     if not args.quiet:
         print(banner)
     messenger_manager = manager(args.address, args.port, args.ssl, args.encryption_key)

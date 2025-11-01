@@ -5,15 +5,13 @@ import sys
 import os
 import importlib
 import importlib.util
-
 from pathlib import Path
 
 from messenger import BANNER
+import builder.clients as _clients  # anchor to installed builder.clients
 
+CLIENTS_DIR = Path(_clients.__file__).resolve().parent
 LANG_MODULES = ("python", "csharp", "nodejs", "ruby")
-
-def status(msg: str):
-    print(f"[status] {msg}")
 
 def update_submodules(branch="main"):
     repo_path = Path.cwd()
@@ -26,56 +24,47 @@ def update_submodules(branch="main"):
         subprocess.run(cmd, cwd=repo_path, check=True)
 
 def in_git_repo_root() -> bool:
-    """
-    Returns True only if:
-    - we're inside a git repo, AND
-    - the current working directory is the repo root (contains .git folder)
-    """
     return (
-        os.path.isdir(".git") and
-        subprocess.run(
+        os.path.isdir(".git")
+        and subprocess.run(
             ["git", "rev-parse", "--is-inside-work-tree"],
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+            stderr=subprocess.PIPE,
         ).returncode == 0
     )
 
+def available_languages():
+    langs = []
+    for p in CLIENTS_DIR.iterdir():
+        if p.is_dir() and (p / "builder.py").is_file():
+            langs.append(p.name)
+    return sorted(langs)
+
 def try_import_builder(lang: str):
-    """
-    Try importing the builder module for a given language.
-
-    - First tries normal import (works when installed as a package)
-    - Falls back to a relative import from ./builder/clients if running from source
-    """
-    module_name = f"builder.clients.{lang}.builder"
-
-    try:
-        return importlib.import_module(module_name)
-    except ModuleNotFoundError:
-        # fallback: relative path when running directly from repo
-        local_path = Path(__file__).resolve().parent / "builder" / "clients" / lang
-        builder_file = local_path / "builder.py"
-        if builder_file.exists():
-            spec = importlib.util.spec_from_file_location(module_name, builder_file)
-            mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(mod)
-            return mod
+    builder_file = CLIENTS_DIR / lang / "builder.py"
+    if not builder_file.exists():
         return None
+
+    module_name = f"builder.clients.{lang}.builder"
+    spec = importlib.util.spec_from_file_location(module_name, str(builder_file))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 def attach_language_subparser(subparsers, lang: str, mod):
     sp = subparsers.add_parser(lang, help=f"Build {lang} client")
     if not hasattr(mod, "add_arguments") or not callable(mod.add_arguments):
-        raise SystemExit(f"'{lang}' builder missing add_arguments(subparser)")
+        raise SystemExit(f"{lang} builder missing add_arguments(subparser)")
     mod.add_arguments(sp)
 
     if not hasattr(mod, "build") or not callable(mod.build):
-        raise SystemExit(f"'{lang}' builder missing build(args)")
+        raise SystemExit(f"{lang} builder missing build(args)")
 
     sp.set_defaults(func=lambda args, _mod=mod: _mod.build(args))
 
 def discover_and_register_languages(subparsers):
     available = {}
-    for lang in LANG_MODULES:
+    for lang in available_languages():
         mod = try_import_builder(lang)
         if mod:
             attach_language_subparser(subparsers, lang, mod)
@@ -83,23 +72,23 @@ def discover_and_register_languages(subparsers):
     return available
 
 def main(banner):
-    if len(sys.argv) > 1 and sys.argv[1] == 'update-clients':
+    if len(sys.argv) > 1 and sys.argv[1] == "update-clients":
         if in_git_repo_root():
+            print("[*] Updating submodules...")
             update_submodules("main")
+            print("[+] Submodules updated.")
         else:
-            print("[!] 'update-clients' is only available in the git source directory.")
-            print("    (pipx or pip installs will not have the .git folder)")
+            print("[!] 'update-clients' only works in the git source directory.")
         sys.exit(0)
 
     if BANNER:
         print(banner)
 
     parser = argparse.ArgumentParser(
-        prog="messenger-cli",
+        prog="messenger-builder",
         formatter_class=argparse.RawTextHelpFormatter,
-        usage=argparse.SUPPRESS
+        usage=None,
     )
-
     subparsers = parser.add_subparsers(dest="language", required=True)
     available = discover_and_register_languages(subparsers)
 
@@ -107,17 +96,15 @@ def main(banner):
 
     if not hasattr(args, "func"):
         found = ", ".join(sorted(available.keys())) or "none"
-        raise SystemExit(f"No language handler bound. Discovered: {found}")
+        raise SystemExit(f"No language handler found. Discovered: {found}")
 
     try:
-        artifact = args.func(args)  # NOTE: passes argparse.Namespace directly
-        status("Build complete.")
-        if artifact:
-            status(f"Artifact: {artifact}")
+        print('[*] Building Messenger Client')
+        args.func(args)
     except KeyboardInterrupt:
         print("\rBuild canceled.")
     except Exception as e:
-        status(f"Build failed: {e}")
+        print(f"[!] Build failed: {type(e).__name__}: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":
