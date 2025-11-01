@@ -29,6 +29,11 @@ class Messenger:
 
     async def get_upstream_messages(self):
         self.last_check_in = time.time()
+        if time.time() - self.last_check_in > 60:
+            self.update_cli.display(
+                f'{self.transport_type} Messenger `{self.identifier}` has reconnected.',
+                'success'
+            )
         upstream_messages = b''
         while not self.upstream_messages.empty():
             upstream_messages += await self.upstream_messages.get()
@@ -171,6 +176,7 @@ class HTTPMessenger(Messenger):
             debug_level = 5
         )
         await self.upstream_messages.put(self.serialize_messages([message]))
+
 
 class WebSocketMessenger(Messenger):
 

@@ -75,7 +75,9 @@ class HTTPWSServer:
         messages = self.messenger_engine.deserialize_messages(data)
         messenger_id = self.messenger_engine.get_messenger_id(messages[0])
         messenger = self.messenger_engine.get_messenger(messenger_id)
-        if not messenger:
+        if messenger:
+            upstream_message_data += await self.messenger_engine.send_messages(messenger_id, messages[1:])
+        else:
             http_messenger = HTTPMessenger(
                 ip,
                 user_agent,
@@ -89,8 +91,6 @@ class HTTPWSServer:
 
             if not messenger_id:
                 upstream_message_data += check_in_message
-        else:
-            upstream_message_data += await self.messenger_engine.send_messages(messenger_id, messages[1:])
 
         return web.Response(status=200, body=upstream_message_data)
 
@@ -104,7 +104,9 @@ class HTTPWSServer:
         messages = self.messenger_engine.deserialize_messages(msg.data)
         messenger_id = self.messenger_engine.get_messenger_id(messages[0])
         messenger = self.messenger_engine.get_messenger(messenger_id)
-        if not messenger:
+        if messenger:
+            await messenger.set_websocket(ws)
+        else:
             ws_messenger = WebSocketMessenger(
                 ws,
                 ip,
@@ -120,8 +122,7 @@ class HTTPWSServer:
 
             if not messenger_id:
                 await ws.send_bytes(check_in_msg)
-        else:
-            await messenger.set_websocket(ws)
+
 
         async for msg in ws:
             messages = self.messenger_engine.deserialize_messages(msg.data)
