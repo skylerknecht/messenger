@@ -51,9 +51,10 @@ setup(
         'Operating System :: OS Independent',
     ],
     python_requires='>=3.6',
-    scripts=['messenger-cli'],
+    scripts=['messenger-cli', 'messenger-builder'],
     include_package_data=True,
     package_data={
         'messenger': ['resources/*'],
+        'builder': ['clients/**', 'clients/**/*']
     },
 )
