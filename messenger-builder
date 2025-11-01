@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 import argparse
-import importlib
 import subprocess
 import sys
 import os
+import importlib
+import importlib.util
+
 from pathlib import Path
 
 from messenger import BANNER
@@ -39,9 +41,25 @@ def in_git_repo_root() -> bool:
     )
 
 def try_import_builder(lang: str):
+    """
+    Try importing the builder module for a given language.
+
+    - First tries normal import (works when installed as a package)
+    - Falls back to a relative import from ./builder/clients if running from source
+    """
+    module_name = f"builder.clients.{lang}.builder"
+
     try:
-        return importlib.import_module(f"builder.clients.{lang}.builder")
-    except Exception:
+        return importlib.import_module(module_name)
+    except ModuleNotFoundError:
+        # fallback: relative path when running directly from repo
+        local_path = Path(__file__).resolve().parent / "builder" / "clients" / lang
+        builder_file = local_path / "builder.py"
+        if builder_file.exists():
+            spec = importlib.util.spec_from_file_location(module_name, builder_file)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            return mod
         return None
 
 def attach_language_subparser(subparsers, lang: str, mod):
