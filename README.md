@@ -59,7 +59,7 @@ operator~# ./client.py
 
 
 ### Developers 
-- [Communications Overview](docs/communications.md)
+- [Communication Overview](docs/communication.md)
 
 
 ## Client Support Matrix
