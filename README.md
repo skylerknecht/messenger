@@ -54,8 +54,10 @@ operator~# ./client.py
 ## Detailed Guides
 
 ### Operators
-- [Getting Started](docs/getting-started.md)  
-- [Operational Usage](docs/operational-usage.md)  
+- [Setup a SOCKS Proxy or Local Port Forward](docs/local-port-forwards-and-socks.md)
+- [Setup a Remote Port Forward](docs/remote-port-forwards.md)
+- [Chain Messenger Clients](docs/chaining-messengers.md)
+- [Perform NTLMRelay2Self with Messenger](docs/ntlmrelay2self-with-messenger.md)
 
 
 ### Developers 
