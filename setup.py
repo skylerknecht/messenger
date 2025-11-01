@@ -36,7 +36,8 @@ setup(
     install_requires=[
         'aiohttp',
         'prompt-toolkit',
-        'pycryptodome'
+        'pycryptodome',
+        'jinja2'
     ],
     author='Skyler Knecht',
     author_email='skyler.knecht@outlook.com',
