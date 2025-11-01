@@ -44,7 +44,7 @@ Wrote Python client to 'client.py'
 ```
 
 ### Connect
-Once a client is built execute it to connect to the server. Options can typically be hardcoded or overriden 
+Once a client is built, execute it to connect to the server. Options can typically be hardcoded or overridden 
 with command line arguments. 
 ```
 operator~# ./client.py
