@@ -15,6 +15,7 @@ from inspect import Parameter
 
 from messenger.messengers import Messenger
 from messenger.http_ws_server import HTTPWSServer
+from messenger.dns_server import DNSServer
 from messenger.engine import Engine
 from messenger.forwarders import LocalPortForwarder, SocksProxy, RemotePortForwarder, InvalidConfigError
 from messenger.generator import generate_encryption_key, generate_hash
@@ -86,7 +87,8 @@ class Manager:
 
     PROMPT = 'messenger'
 
-    def __init__(self, server_ip, server_port, ssl, encryption_key):
+    def __init__(self, server_ip, server_port, ssl, encryption_key,
+                 dns_domain=None, dns_bind='0.0.0.0', dns_port=53):
         """
         Initialize Manager with command definitions, messengers, and prompt session.
 
@@ -122,6 +124,12 @@ class Manager:
         self.update_cli.display(f'The AES encryption key is {bold_text(self.encryption_key)}', 'Information', reprompt=False)
         self.messenger_engine = Engine(self.messengers, self.update_cli, generate_hash(self.encryption_key))
         self.messenger_server = HTTPWSServer(self.update_cli, self.messenger_engine, ip=server_ip, port=server_port, ssl=ssl)
+        self.dns_server = None
+        if dns_domain:
+            self.dns_server = DNSServer(
+                self.update_cli, self.messenger_engine,
+                parent_domain=dns_domain, ip=dns_bind, port=dns_port
+            )
 
     @staticmethod
     def strip_ansi_codes(text):
@@ -542,6 +550,8 @@ class Manager:
         Start the CLI, display banner, and manage user input.
         """
         await self.messenger_server.start()
+        if self.dns_server:
+            await self.dns_server.start()
 
         while True:
             try:

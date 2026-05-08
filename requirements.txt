@@ -1,3 +1,4 @@
 aiohttp
 prompt-toolkit
 pycryptodome
+dnslib

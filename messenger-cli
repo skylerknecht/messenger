@@ -15,11 +15,18 @@ async def main(banner, manager):
                         help="SSL certificate and key files. Expect two strings: path to the certificate and path to "
                              "the key.")
     parser.add_argument("-e", "--encryption-key", type=str, default=None, help="The AES encryption key.")
+    parser.add_argument("--dns-domain", type=str, default=None,
+                        help="Parent DNS domain (enables DNS listener when set, e.g. c2.example.com).")
+    parser.add_argument("--dns-bind", type=str, default="0.0.0.0",
+                        help="IP address the DNS server should bind to. Default is '0.0.0.0'.")
+    parser.add_argument("--dns-port", type=int, default=53,
+                        help="Port the DNS server should listen on. Default is 53.")
     parser.add_argument("-q", "--quiet", action="store_true", help="Suppress the banner.")
     args = parser.parse_args()
     if not args.quiet:
         print(banner)
-    messenger_manager = manager(args.address, args.port, args.ssl, args.encryption_key)
+    messenger_manager = manager(args.address, args.port, args.ssl, args.encryption_key,
+                                dns_domain=args.dns_domain, dns_bind=args.dns_bind, dns_port=args.dns_port)
 
     await messenger_manager.start_command_line_interface()
 

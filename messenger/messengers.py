@@ -178,6 +178,44 @@ class HTTPMessenger(Messenger):
         await self.upstream_messages.put(self.serialize_messages([message]))
 
 
+class DNSMessenger(Messenger):
+
+    transport_type = 'DNS'
+
+    def __init__(self, resolver_ip: str, update_cli, serialize_messages):
+        super().__init__(update_cli, serialize_messages)
+        self.last_resolver_ip = resolver_ip
+
+    def touch(self, resolver_ip: str):
+        self.last_resolver_ip = resolver_ip
+        self.last_check_in = time.time()
+
+    @property
+    def status(self):
+        elapsed = time.time() - self.last_check_in
+        if elapsed < 1:
+            return color_text(f"{elapsed * 1000:.0f}ms delay", "green")
+        elif elapsed < 60:
+            return color_text(f"{elapsed:.0f}s delay", "yellow")
+        elif elapsed < 3600:
+            return color_text(f"{elapsed / 60:.0f}m delay", "red")
+        else:
+            return color_text(f"{elapsed / 3600:.0f}h delay", "red")
+
+    async def send_message_upstream(self, message):
+        self.update_cli.display(
+            f'Messenger {self.identifier} queued an upstream message.',
+            'debug',
+            debug_level=2
+        )
+        self.update_cli.display(
+            f'Messenger {self.identifier} queued the following upstream message\n{message}.',
+            'debug',
+            debug_level=5
+        )
+        await self.upstream_messages.put(self.serialize_messages([message]))
+
+
 class WebSocketMessenger(Messenger):
 
     transport_type = 'WebSocket'

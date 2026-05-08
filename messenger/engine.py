@@ -1,6 +1,6 @@
 import struct
 
-from messenger.messengers import Messenger, HTTPMessenger
+from messenger.messengers import Messenger, HTTPMessenger, DNSMessenger
 from messenger.message import MessageBuilder, MessageParser, CheckInMessage
 
 class Engine:
@@ -8,7 +8,8 @@ class Engine:
     name = 'Messenger Engine'
 
     transport_type_to_messenger = {
-        'http': HTTPMessenger
+        'http': HTTPMessenger,
+        'dns': DNSMessenger,
     }
 
     def __init__(self, messengers, update_cli, encryption_key):
@@ -62,8 +63,9 @@ class Engine:
         return upstream_messages
 
     def get_messenger(self, messenger_id):
+        messenger_id_lower = messenger_id.lower()
         for messenger in self.messengers:
-            if messenger.identifier == messenger_id:
+            if messenger.identifier.lower() == messenger_id_lower:
                 return messenger
         return None
 
