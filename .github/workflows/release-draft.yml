@@ -140,21 +140,25 @@ jobs:
           git push -u origin release/${{ inputs.version }}
 
           if [[ "${{ inputs.version }}" == *-* ]]; then
-            body="Triggered by @${{ github.actor }}. Pre-release: **${{ inputs.version }}**.
-
-## Checklist
-
-- [ ] \`[Unreleased]\` section cleaned up (delete the auto-draft block, organize into \`### Added\` / \`### Changed\` / \`### Fixed\`)
-- [ ] \`README.md\` updated where needed (Launch block banner shows new version, any docs referencing the old version)
-- [ ] Ready to publish — after merge, run **Publish Release**"
+            printf '%s\n' \
+              "Triggered by @${{ github.actor }}. Pre-release: **${{ inputs.version }}**." \
+              "" \
+              "## Checklist" \
+              "" \
+              "- [ ] \`[Unreleased]\` section cleaned up (delete the auto-draft block, organize into \`### Added\` / \`### Changed\` / \`### Fixed\`)" \
+              "- [ ] \`README.md\` updated where needed (Launch block banner shows new version, any docs referencing the old version)" \
+              "- [ ] Ready to publish — after merge, run **Publish Release**" \
+              > /tmp/pr-body.md
           else
-            body="Triggered by @${{ github.actor }}. Release: **${{ inputs.version }}**.
-
-## Checklist
-
-- [ ] \`## [${{ inputs.version }}]\` section in \`CHANGELOG.md\` reviewed and cleaned
-- [ ] \`README.md\` updated where needed (Launch block banner shows new version, any docs referencing the old version)
-- [ ] Ready to publish — after merge, run **Publish Release**"
+            printf '%s\n' \
+              "Triggered by @${{ github.actor }}. Release: **${{ inputs.version }}**." \
+              "" \
+              "## Checklist" \
+              "" \
+              "- [ ] \`## [${{ inputs.version }}]\` section in \`CHANGELOG.md\` reviewed and cleaned" \
+              "- [ ] \`README.md\` updated where needed (Launch block banner shows new version, any docs referencing the old version)" \
+              "- [ ] Ready to publish — after merge, run **Publish Release**" \
+              > /tmp/pr-body.md
           fi
 
-          gh pr create --title "publish ${{ inputs.version }}" --body "$body"
+          gh pr create --title "publish ${{ inputs.version }}" --body-file /tmp/pr-body.md
