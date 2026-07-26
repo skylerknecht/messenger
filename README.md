@@ -29,7 +29,7 @@ operator~# messenger-cli
 | |\/| |/ _ \/ __/ __|/ _ \ '_ \ / _` |/ _ \ '__|
 | |  | |  __/\__ \__ \  __/ | | | (_| |  __/ |   
 |_|  |_|\___||___/___/\___|_| |_|\__, |\___|_|   
-by Skyler Knecht and Kevin Clark |___/ v0.4.0
+by Skyler Knecht and Kevin Clark |___/ v0.4.1
 [*] The AES encryption key is XhoInhAKWX
 [*] Waiting for messengers on http+ws://0.0.0.0:8080/
 (messenger)~#
