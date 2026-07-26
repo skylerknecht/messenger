@@ -23,15 +23,9986 @@ Luanching Messenger will output several details that will be leveraged in later 
 an AES encryption key and server URL. 
 ```
 operator~# messenger-cli
- __  __
-|  \/  | ___  ___ ___  ___ _ __   __ _  ___ _ __
-| |\/| |/ _ \/ __/ __|/ _ \ '_ \ / _` |/ _ \ '__|
-| |  | |  __/\__ \__ \  __/ | | | (_| |  __/ |
-|_|  |_|\___||___/___/\___|_| |_|\__, |\___|_|
-by Skyler Knecht and Kevin Clark |___/ v0.3.6
+Warning: Input is not a terminal (fd=0).
+(messenger)~#
 
-[*] The AES encryption key is ZDXgoqyVXqDpJyBMJt
-[*] Waiting for messengers on ws+http://0.0.0.0:8080/
+
+
+
+
+
+               
+ __  __                                    
+|  \/  | ___  ___ ___  ___ _ __   __ _  ___ _ __ 
+| |\/| |/ _ \/ __/ __|/ _ \ '_ \ / _` |/ _ \ '__|
+| |  | |  __/\__ \__ \  __/ | | | (_| |  __/ |   
+|_|  |_|\___||___/___/\___|_| |_|\__, |\___|_|   
+by Skyler Knecht and Kevin Clark |___/ v0.4.0
+
+
+[*] The AES encryption key is XhoInhAKWX
+
+[*] Waiting for messengers on http+ws://0.0.0.0:8080/
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
+(messenger)~#
+(messenger)~#
+
+
+
+
+
+
+               
+[-] Captured unexpected error and wrote to /home/runner/.messenger/exceptions.log
+
+[*] Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new
 ```
 
 ### Build
