@@ -10,8 +10,16 @@ varying languages. Their details and major feature support can be
 
 To set up Messenger and establish a client connection, execute the following commands. 
 
-### Installation
-Messenger has a setup.py file that can be run directly or installed with pipx. 
+### Installation 
+
+#### From PyPi (recommended)
+
+```
+operator~# pip install messenger-proxy
+```
+
+#### From Source
+
 ```
 operator~# git clone https://github.com/skylerknecht/messenger.git --recurse-submodules
 operator~# cd messenger
@@ -22,7 +30,7 @@ operator~/messenger# pipx install .
 Launching Messenger will output several details that will be leveraged in later commands, including
 an AES encryption key and server URL. 
 ```
-operator~# messenger-cli
+operator~# messenger-cli -e readme
 (messenger)~#         
  __  __                                    
 |  \/  | ___  ___ ___  ___ _ __   __ _  ___ _ __ 
@@ -40,7 +48,7 @@ Messenger comes with a builder utility to create clients. Leverage the help menu
 [client support matrix](https://github.com/skylerknecht/messenger?tab=readme-ov-file#client-support-matrix)
 to see builder-supported clients.
 ```
-operator~# messenger-builder python --encryption-key ZDXgoqyVXqDpJyBMJt
+operator~# messenger-builder python --encryption-key readme
 Wrote Python client to 'client.py'
 ```
 
@@ -49,7 +57,7 @@ Once a client is built, execute it to connect to the server. Options can typical
 with command line arguments. 
 ```
 operator~# ./client.py
-[+] Connected to http://localhost:8080/socketio/?EIO=4&transport=websocket
+[+] Connected to http://localhost:8080/
 ```
 
 ## Detailed Guides
