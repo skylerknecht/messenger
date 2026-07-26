@@ -128,54 +128,6 @@ jobs:
           open(path, 'w').write(new_content)
           EOF
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-
-      - name: Install messenger and capture CLI banner
-        continue-on-error: true
-        run: |
-          set +e
-          pip install . 2>&1 | tail -5
-          if ! command -v messenger-cli >/dev/null 2>&1; then
-            echo "::warning::messenger-cli not on PATH after install; README will not be refreshed"
-            exit 0
-          fi
-          # messenger-cli blocks waiting for messengers; give it ~3s to print banner then kill
-          timeout 3 messenger-cli 2>&1 | sed -r 's/\x1b\[[0-9;]*[a-zA-Z]//g' > /tmp/cli-output.txt
-          echo "----- captured messenger-cli output -----"
-          cat /tmp/cli-output.txt
-          echo "-----------------------------------------"
-
-      - name: Refresh Launch block in README.md
-        continue-on-error: true
-        run: |
-          python3 <<'EOF'
-          import os, re, sys
-
-          if not os.path.exists('/tmp/cli-output.txt'):
-              print('::warning::No CLI output captured; skipping README update')
-              sys.exit(0)
-
-          output = open('/tmp/cli-output.txt').read().rstrip()
-          if 'Waiting for messengers' not in output:
-              print('::warning::CLI output missing expected line; skipping README update')
-              sys.exit(0)
-
-          readme = open('README.md').read()
-          pattern = r'```\noperator~# messenger-cli\n.*?\n```'
-          match = re.search(pattern, readme, flags=re.DOTALL)
-          if not match:
-              print('::warning::Could not find messenger-cli fenced block in README.md')
-              sys.exit(0)
-
-          new_block = f'```\noperator~# messenger-cli\n{output}\n```'
-          readme = readme[:match.start()] + new_block + readme[match.end():]
-          open('README.md', 'w').write(readme)
-          print('README.md Launch block refreshed')
-          EOF
-
       - name: Commit and open PR
         env:
           GH_TOKEN: ${{ github.token }}
@@ -183,14 +135,26 @@ jobs:
           git config user.name  "${{ github.actor }}"
           git config user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
           git checkout -b release/${{ inputs.version }}
-          git add messenger/__init__.py CHANGELOG.md README.md
+          git add messenger/__init__.py CHANGELOG.md
           git commit -m "publish ${{ inputs.version }}"
           git push -u origin release/${{ inputs.version }}
 
           if [[ "${{ inputs.version }}" == *-* ]]; then
-            body="Triggered by @${{ github.actor }}. Pre-release: **${{ inputs.version }}**. Edit the \`[Unreleased]\` section to clean up notes. After merging, run **Publish Release**."
+            body="Triggered by @${{ github.actor }}. Pre-release: **${{ inputs.version }}**.
+
+## Checklist
+
+- [ ] \`[Unreleased]\` section cleaned up (delete the auto-draft block, organize into \`### Added\` / \`### Changed\` / \`### Fixed\`)
+- [ ] \`README.md\` updated where needed (Launch block banner shows new version, any docs referencing the old version)
+- [ ] Ready to publish — after merge, run **Publish Release**"
           else
-            body="Triggered by @${{ github.actor }}. Release: **${{ inputs.version }}**. Review the \`[${{ inputs.version }}]\` section (edit if needed). After merging, run **Publish Release**."
+            body="Triggered by @${{ github.actor }}. Release: **${{ inputs.version }}**.
+
+## Checklist
+
+- [ ] \`## [${{ inputs.version }}]\` section in \`CHANGELOG.md\` reviewed and cleaned
+- [ ] \`README.md\` updated where needed (Launch block banner shows new version, any docs referencing the old version)
+- [ ] Ready to publish — after merge, run **Publish Release**"
           fi
 
           gh pr create --title "publish ${{ inputs.version }}" --body "$body"

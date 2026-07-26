@@ -24,7 +24,7 @@ Pre-release identifiers **must be dot-separated** (`-rc.1`, not `-rc1`). Without
 
 Two GitHub Actions, both manual:
 
-- **Draft Release** — opens a PR that bumps `messenger/__init__.py`, updates `CHANGELOG.md`, and refreshes the `README.md` Launch block by installing the package and capturing `messenger-cli`'s banner (which reflects the new version because it runs *after* the `__init__.py` bump). The README refresh is best-effort — if it fails for any reason (missing dependency, README structure changed) the release proceeds without it.
+- **Draft Release** — opens a PR that bumps `messenger/__init__.py` and updates `CHANGELOG.md`. The PR body includes a checklist that reminds you to clean up the changelog section and update `README.md` (banner version, any references to the old version) before merging.
 - **Publish Release** — after the PR is merged, tags the commit, creates a GitHub Release, and (optionally) publishes to PyPI.
 
 Both are triggered from the repo's Actions tab → "Run workflow."
