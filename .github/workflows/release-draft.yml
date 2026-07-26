@@ -1,0 +1,147 @@
+name: Draft Release
+
+# Opens a PR that bumps __version__ and updates CHANGELOG.md.
+# See docs/releasing.md for the full process.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g. 0.4.1, 0.5.0, 0.6.0-rc.1)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  open-release-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate version
+        run: |
+          if [[ ! "${{ inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$ ]]; then
+            echo "::error::Version '${{ inputs.version }}' is not valid SemVer (e.g. 0.4.0 or 0.4.0-rc.1)"
+            exit 1
+          fi
+
+      - name: Bump __version__
+        run: |
+          sed -i "s/^__version__ = .*/__version__ = '${{ inputs.version }}'/" messenger/__init__.py
+
+      - name: Update CHANGELOG.md
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          python3 <<'EOF'
+          import os, re, subprocess, sys
+          from datetime import datetime, timezone
+
+          version = os.environ['VERSION']
+          is_prerelease = '-' in version
+          date = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+
+          AUTO_START = '<!-- AUTO-DRAFT START (from git log; refreshed each Draft; delete before final): -->'
+          AUTO_END   = '<!-- AUTO-DRAFT END -->'
+
+          HEADER = (
+              "# Changelog\n"
+              "All notable changes to this project will be documented in this file.\n\n"
+              "The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),\n"
+              "and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).\n\n"
+          )
+
+          def last_final_tag():
+              """Most recent tag matching vX.Y.Z (no prerelease suffix)."""
+              try:
+                  tags = subprocess.check_output(
+                      ['git', 'tag', '--sort=-v:refname'], text=True).strip().splitlines()
+                  for t in tags:
+                      if re.match(r'^v\d+\.\d+\.\d+$', t):
+                          return t
+              except subprocess.CalledProcessError:
+                  pass
+              return None
+
+          def git_log_since(tag):
+              rng = f'{tag}..HEAD' if tag else 'HEAD'
+              try:
+                  return subprocess.check_output(
+                      ['git', 'log', rng, '--pretty=- %s'], text=True).strip()
+              except subprocess.CalledProcessError:
+                  return ''
+
+          def strip_auto_draft(text):
+              pattern = r'<!-- AUTO-DRAFT START.*?<!-- AUTO-DRAFT END -->\n?'
+              return re.sub(pattern, '', text, flags=re.DOTALL)
+
+          def build_auto_draft(log):
+              if not log:
+                  return ''
+              return f'{AUTO_START}\n{log}\n{AUTO_END}\n'
+
+          path = 'CHANGELOG.md'
+          content = open(path).read() if os.path.exists(path) else HEADER + "## [Unreleased]\n\n"
+          if '## [Unreleased]' not in content:
+              content = HEADER + "## [Unreleased]\n\n" + content
+
+          m = re.search(r'(## \[Unreleased\]\s*\n)', content)
+          before, rest = content[:m.end()], content[m.end():]
+          n = re.search(r'\n(## \[)', rest)
+          if n:
+              unreleased_body = rest[:n.start() + 1]
+              tail = rest[n.start() + 1:]
+          else:
+              unreleased_body = rest
+              tail = ''
+
+          unreleased_body = strip_auto_draft(unreleased_body).strip()
+
+          last = last_final_tag()
+          log = git_log_since(last)
+
+          if is_prerelease:
+              # RC: preserve [Unreleased] user bullets, refresh auto-draft, DO NOT create a version section
+              parts = []
+              if unreleased_body:
+                  parts.append(unreleased_body)
+              auto = build_auto_draft(log).rstrip()
+              if auto:
+                  parts.append(auto)
+              new_unreleased = '\n\n'.join(parts)
+              new_unreleased = ('\n' + new_unreleased + '\n\n') if new_unreleased else '\n'
+              new_content = before + new_unreleased + tail
+          else:
+              # FINAL/PATCH/MINOR: promote [Unreleased] into new version section, reset [Unreleased] empty
+              promoted = unreleased_body or log or '- No notable changes'
+              if not (unreleased_body or log):
+                  print(f'::warning::[Unreleased] and git log both empty — {version} will have placeholder notes', file=sys.stderr)
+              new_section = f'## [{version}] - {date}\n\n{promoted}\n\n'
+              new_content = before + '\n' + new_section + tail
+
+          new_content = re.sub(r'\n{3,}', '\n\n', new_content).rstrip() + '\n'
+          open(path, 'w').write(new_content)
+          EOF
+
+      - name: Commit and open PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name  "${{ github.actor }}"
+          git config user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
+          git checkout -b release/${{ inputs.version }}
+          git commit -am "publish ${{ inputs.version }}"
+          git push -u origin release/${{ inputs.version }}
+
+          if [[ "${{ inputs.version }}" == *-* ]]; then
+            body="Triggered by @${{ github.actor }}. Pre-release: **${{ inputs.version }}**. Edit the \`[Unreleased]\` section to clean up notes. After merging, run **Publish Release**."
+          else
+            body="Triggered by @${{ github.actor }}. Release: **${{ inputs.version }}**. Review the \`[${{ inputs.version }}]\` section (edit if needed). After merging, run **Publish Release**."
+          fi
+
+          gh pr create --title "publish ${{ inputs.version }}" --body "$body"

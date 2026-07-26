@@ -1,0 +1,132 @@
+name: Publish Release
+
+# Run this AFTER merging a release PR opened by "Draft Release".
+# Reads the version from messenger/__init__.py on the current branch (main),
+# extracts release notes from CHANGELOG.md, tags, creates a GitHub Release,
+# builds, and publishes to PyPI.
+#
+# Release notes source depends on the version:
+#   - Final (0.4.1, 0.5.0, etc.):  reads from `## [X.Y.Z]` section
+#   - Pre-release (0.6.0-rc.1):    reads from `## [Unreleased]` section
+#
+# See docs/releasing.md for the full process.
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_to_pypi:
+        description: 'Publish to PyPI (uncheck to only tag + GitHub Release)'
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: write   # tag push + release creation
+  id-token: write   # PyPI trusted publishing (OIDC)
+
+concurrency:
+  group: publish-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive   # bundled clients under builder/clients/* are needed for the wheel
+
+      - name: Read version from messenger/__init__.py
+        id: version
+        run: |
+          version=$(sed -n "s/^__version__ = ['\"]\([^'\"]*\)['\"].*/\1/p" messenger/__init__.py)
+          if [ -z "$version" ]; then
+            echo "::error::Could not read __version__ from messenger/__init__.py"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          echo "Publishing v$version"
+
+      - name: Refuse if tag already exists
+        run: |
+          if git rev-parse "refs/tags/${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
+            echo "::error::Tag ${{ steps.version.outputs.tag }} already exists. Bump the version and re-run Draft Release."
+            exit 1
+          fi
+
+      - name: Extract release notes from CHANGELOG.md
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          python3 <<'EOF'
+          import os, re, sys
+
+          version = os.environ['VERSION']
+          is_prerelease = '-' in version
+          content = open('CHANGELOG.md').read()
+
+          def strip_auto_draft(text):
+              pattern = r'<!-- AUTO-DRAFT START.*?<!-- AUTO-DRAFT END -->\n?'
+              return re.sub(pattern, '', text, flags=re.DOTALL)
+
+          if is_prerelease:
+              m = re.search(r'## \[Unreleased\][^\n]*\n(.*?)(?=\n## \[|\Z)', content, re.DOTALL)
+              section_name = '[Unreleased]'
+          else:
+              pattern = rf'## \[{re.escape(version)}\][^\n]*\n(.*?)(?=\n## \[|\Z)'
+              m = re.search(pattern, content, re.DOTALL)
+              section_name = f'[{version}]'
+
+          if not m:
+              print(f'::error::No section {section_name} found in CHANGELOG.md', file=sys.stderr)
+              sys.exit(1)
+
+          notes = strip_auto_draft(m.group(1)).strip()
+          if not notes:
+              print(f'::error::Section {section_name} in CHANGELOG.md is empty (auto-draft comments do not count)', file=sys.stderr)
+              sys.exit(1)
+
+          open('release-notes.md', 'w').write(notes + '\n')
+          EOF
+
+      - name: Create and push tag
+        run: |
+          git config user.name  "${{ github.actor }}"
+          git config user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
+          git tag -a "${{ steps.version.outputs.tag }}" -m "${{ steps.version.outputs.tag }}"
+          git push origin "${{ steps.version.outputs.tag }}"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          prerelease_flag=""
+          if [[ "$VERSION" == *-* ]]; then
+            prerelease_flag="--prerelease"
+          fi
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes-file release-notes.md \
+            $prerelease_flag
+
+      - name: Set up Python
+        if: inputs.publish_to_pypi
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Build sdist and wheel
+        if: inputs.publish_to_pypi
+        run: |
+          pip install --upgrade build
+          python -m build
+
+      - name: Publish to PyPI
+        if: inputs.publish_to_pypi
+        uses: pypa/gh-action-pypi-publish@release/v1
+        # Requires PyPI Trusted Publishing configured for this repo:
+        #   https://docs.pypi.org/trusted-publishers/

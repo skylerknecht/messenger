@@ -19,7 +19,7 @@ except OSError:
     long_description = None
 
 with open(os.path.join(base_directory, 'messenger', '__init__.py'), encoding='utf-8') as file_h:
-    match = re.search(r'^__version__\s*=\s*([\'"])(?P<version>\d+(\.\d)*)\1$', file_h.read(), flags=re.MULTILINE)
+    match = re.search(r'^__version__\s*=\s*([\'"])(?P<version>[^\'"]+)\1$', file_h.read(), flags=re.MULTILINE)
 if match is None:
     raise RuntimeError('Unable to find the version information')
 version = match.group('version')
