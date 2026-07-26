@@ -183,7 +183,8 @@ jobs:
           git config user.name  "${{ github.actor }}"
           git config user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
           git checkout -b release/${{ inputs.version }}
-          git commit -am "publish ${{ inputs.version }}"
+          git add messenger/__init__.py CHANGELOG.md README.md
+          git commit -m "publish ${{ inputs.version }}"
           git push -u origin release/${{ inputs.version }}
 
           if [[ "${{ inputs.version }}" == *-* ]]; then
