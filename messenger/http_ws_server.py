@@ -44,27 +44,26 @@ class HTTPWSServer:
             del response.headers['Server']
 
     async def redirect_handler(self, request):
-        transport = request.query.get('transport', None)
         ip = request.remote
-        data = await request.read()
+        upgrade = request.headers.get('Upgrade', '').lower()
+        is_websocket = upgrade == 'websocket'
+
         self.update_cli.display(
-            f'The handler received a request from {ip} to with a transport {transport}.',
-            'debug',
-            debug_level = 1
+            f'The handler received a {request.method} from {ip} '
+            f'(upgrade={upgrade or "-"}).',
+            'debug', debug_level=1,
         )
-        self.update_cli.display(
-            f'The handler received the following data\n{data}.',
-            'debug',
-            debug_level = 4
-        )
-        if not transport:
-            return web.Response(status=404, text='Not Found')
-        elif transport == 'websocket':
+
+        if is_websocket:
             return await self.websocket_handler(request)
-        elif transport == 'polling' and request.method == 'POST':
+        if request.method == 'POST':
+            data = await request.read()
+            self.update_cli.display(
+                f'The handler received the following data\n{data}.',
+                'debug', debug_level=4,
+            )
             return await self.http_post_handler(request)
-        else:
-            return web.Response(status=404, text='Not Found')
+        return web.Response(status=404, text='Not Found')
 
     async def http_post_handler(self, request):
         ip = request.remote

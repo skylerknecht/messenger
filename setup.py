@@ -30,7 +30,7 @@ server will create a local SOCKS5 tunnel that can be used to interact with the l
 """
 
 setup(
-    name='messenger',
+    name='messenger-proxy',
     version=version,
     packages=find_packages(include=['messenger', 'messenger.*', 'builder', 'builder.*']),
     install_requires=[
