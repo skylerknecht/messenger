@@ -1,0 +1,97 @@
+name: Open Release PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 0.3.7)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  open-release-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate version
+        run: |
+          if [[ ! "${{ inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]]; then
+            echo "::error::Version '${{ inputs.version }}' is not valid SemVer (e.g. 0.3.7 or 0.4.0-rc1)"
+            exit 1
+          fi
+
+      - name: Bump __version__
+        run: |
+          sed -i "s/^__version__ = .*/__version__ = '${{ inputs.version }}'/" messenger/__init__.py
+
+      - name: Update CHANGELOG.md
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          python3 <<'EOF'
+          import os, re, subprocess
+          from datetime import datetime, timezone
+
+          version = os.environ['VERSION']
+          date = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+
+          try:
+              prev = subprocess.check_output(
+                  ['git', 'describe', '--tags', '--abbrev=0'],
+                  stderr=subprocess.DEVNULL, text=True).strip()
+              log_range = f'{prev}..HEAD'
+          except subprocess.CalledProcessError:
+              prev = None
+              log_range = 'HEAD'
+
+          log = subprocess.check_output(
+              ['git', 'log', log_range, '--pretty=- %s'], text=True).strip()
+
+          header = (
+              "# Changelog\n"
+              "All notable changes to this project will be documented in this file.\n\n"
+              "The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),\n"
+              "and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).\n\n"
+          )
+
+          path = 'CHANGELOG.md'
+          content = open(path).read() if os.path.exists(path) else header + "## [Unreleased]\n\n"
+          if '## [Unreleased]' not in content:
+              content = header + "## [Unreleased]\n\n" + content
+
+          m = re.search(r'(## \[Unreleased\]\s*\n)', content)
+          before, rest = content[:m.end()], content[m.end():]
+          n = re.search(r'\n(## \[)', rest)
+          unreleased_body = rest[:n.start() + 1] if n else rest
+          tail = rest[n.start() + 1:] if n else ''
+
+          section = f'## [{version}] - {date}\n\n'
+          if unreleased_body.strip():
+              section += unreleased_body.strip() + '\n\n'
+          section += f'<!-- Auto-drafted from git log since {prev or "the beginning"} (delete before merging): -->\n'
+          section += (log + '\n\n') if log else '- (no commits found)\n\n'
+
+          new_content = before + '\n' + section + tail
+          new_content = re.sub(r'\n{3,}', '\n\n', new_content).rstrip() + '\n'
+          open(path, 'w').write(new_content)
+          EOF
+
+      - name: Commit and open PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name  "${{ github.actor }}"
+          git config user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
+          git checkout -b release/${{ inputs.version }}
+          git commit -am "publish ${{ inputs.version }}"
+          git push -u origin release/${{ inputs.version }}
+          gh pr create \
+            --title "publish ${{ inputs.version }}" \
+            --body  "Triggered by @${{ github.actor }}. Edit CHANGELOG.md before merging — delete the auto-draft section at the bottom of the new version section."
