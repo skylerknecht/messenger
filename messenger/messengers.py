@@ -28,12 +28,12 @@ class Messenger:
         self.received_bytes = 0
 
     async def get_upstream_messages(self):
-        self.last_check_in = time.time()
         if time.time() - self.last_check_in > 60:
             self.update_cli.display(
                 f'{self.transport_type} Messenger `{self.identifier}` has reconnected.',
                 'success'
             )
+        self.last_check_in = time.time()
         upstream_messages = b''
         while not self.upstream_messages.empty():
             upstream_messages += await self.upstream_messages.get()
