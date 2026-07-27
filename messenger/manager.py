@@ -685,8 +685,7 @@ class Manager:
             for forwarder in messenger.forwarders:
                 if forwarder.identifier != id:
                     continue
-                if isinstance(forwarder, LocalPortForwarder):
-                    await forwarder.stop()
+                await forwarder.stop()
                 messenger.forwarders.remove(forwarder)
                 self.update_cli.display(f'Removed `{id}` from forwarders.', 'information', reprompt=False)
                 return
