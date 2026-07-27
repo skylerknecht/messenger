@@ -51,22 +51,34 @@ class Scanner:
 
     def _parse_ip_ranges(self, raw):
         hosts = set()
-        parts = raw.split(',')
-        for part in parts:
+        for part in raw.split(','):
             part = part.strip()
+            if not part:
+                continue
+
+            # CIDR, e.g. 10.0.0.0/24
             if '/' in part:
                 try:
                     net = ipaddress.ip_network(part, strict=False)
                     hosts.update(str(ip) for ip in net.hosts())
                 except ValueError:
-                    continue
-            elif '-' in part:
-                base, end = part.rsplit('.', 1)
-                start, stop = map(int, end.split('-'))
-                for i in range(start, stop + 1):
-                    hosts.add(f"{base}.{i}")
-            else:
-                hosts.add(part)
+                    self.update_cli.display(f'Skipping invalid CIDR `{part}`.', 'warning', reprompt=False)
+                continue
+
+            # Last-octet range, e.g. 10.0.0.1-50
+            base, _, end = part.rpartition('.')
+            lo, dash, hi = end.partition('-')
+            if base and dash and lo.isdigit() and hi.isdigit():
+                start, stop = int(lo), int(hi)
+                if 0 <= start <= stop <= 255:
+                    hosts.update(f'{base}.{i}' for i in range(start, stop + 1))
+                else:
+                    self.update_cli.display(f'Skipping invalid range `{part}`.', 'warning', reprompt=False)
+                continue
+
+            # Single IP or hostname (may contain hyphens)
+            hosts.add(part)
+
         return sorted(hosts)
 
     def _parse_port_ranges(self, raw):
