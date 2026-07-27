@@ -5,7 +5,7 @@ import os
 from collections import namedtuple
 
 from messenger.generator import alphanumeric_identifier
-from messenger.message import InitiateForwarderClientReq
+from messenger.message import InitiateForwarderClientReq, SendDataMessage
 
 ScanResult = namedtuple("ScanResult", ["identifier", "address", "port", "result"])
 
@@ -119,12 +119,22 @@ class Scanner:
         progress = self.open_count + self.closed_count
         return progress == self.total_scans
 
-    def handle_initiate_forwarder_client_rep(self, message):
+    async def handle_initiate_forwarder_client_rep(self, message):
         identifier = message.forwarder_client_id
         result = message.reason
         if identifier in self.scans:
             current = self.scans[identifier]
+            if current.result is not None and current.result != result:
+                self.update_cli.display(
+                    f'FLIP {current.address}:{current.port} {current.result} -> {result}, \
+                    Please report this to https://github.com/skylerknecht/messenger/issues/31.',
+                    'warning'
+                )
             self.scans[identifier] = ScanResult(identifier, current.address, current.port, result)
+            if result == 0:
+                await self.messenger.send_message_upstream(
+                    SendDataMessage(forwarder_client_id=identifier, data=b'')
+                )
         self.semaphore.release()
 
         if not self.end_time and self.completed:

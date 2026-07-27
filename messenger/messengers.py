@@ -88,7 +88,7 @@ class Messenger:
             # 2) Initiate Forwarder Client Response (0x02)
             elif isinstance(message, InitiateForwarderClientRep):
                 for scanner in self.scanners:
-                    scanner.handle_initiate_forwarder_client_rep(message)
+                    await scanner.handle_initiate_forwarder_client_rep(message)
                 for forwarder in self.forwarders:
                     await forwarder.handle_initiate_forwarder_client_rep(message)
 
