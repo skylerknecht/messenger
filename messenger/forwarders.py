@@ -93,16 +93,16 @@ class LocalPortForwarder(Forwarder):
             if forwarder_client.identifier != forwarder_client_id:
                 continue
             if message.reason != 0:
-                forwarder_client.writer.close()
-                await forwarder_client.writer.wait_closed()
+                forwarder_client.writer.transport.abort()
+                self.on_close(forwarder_client)
                 break
             await forwarder_client.handle_initiate_forwarder_client_rep(message.bind_address, message.bind_port, message.address_type, message.reason)
             break
 
     async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         client = LocalForwarderClient(self.destination_host, self.destination_port, reader, writer, self.messenger, self.on_close)
-        await client.initiate_forwarder_client()
         self.clients.append(client)
+        await client.initiate_forwarder_client()
 
     def parse_config(self, config):
         parts = config.split(':')
@@ -324,6 +324,21 @@ class RemotePortForwarder(Forwarder):
 
     async def start(self):
         self.update_cli.display(f'Messenger `{self.messenger.identifier}` now forwarding (*:*) -> ({self.destination_host}:{self.destination_port}).', 'success', reprompt=False)
+
+    async def stop(self):
+        for client in self.clients:
+            try:
+                transport = client.writer.transport
+                if transport:
+                    transport.abort()
+            except Exception:
+                pass
+
+        self.update_cli.display(
+            f'Messenger `{self.messenger.identifier}` has stopped forwarding (*:*) -> ({self.destination_host}:{self.destination_port}).',
+            'success',
+            reprompt=False
+        )
 
 
 class InvalidConfigError(Exception):
