@@ -19,6 +19,10 @@ class ForwarderClient(ABC):
         self.messenger = messenger
         self.on_close = on_close
 
+    def _cleanup(self):
+        self.writer.close()
+        self.on_close(self)
+
     @abstractmethod
     async def initiate_forwarder_client(self):
         pass
@@ -46,9 +50,9 @@ class ForwarderClient(ABC):
                         data=upstream_message
                     )
                 )
-            except (EOFError, ConnectionResetError):
+            except Exception:
                 break
-        self.on_close(self)
+        self._cleanup()
         await self.messenger.send_message_upstream(
             SendDataMessage(
                 forwarder_client_id=self.identifier,
@@ -97,14 +101,16 @@ class SocksForwarderClient(LocalForwarderClient):
         super().__init__('*', '*', reader, writer, messenger, on_close)
 
     async def initiate_forwarder_client(self):
-        if not await self.negotiate_authentication_method():
-            return
-        if not await self.negotiate_transport():
-            return
-        if not await self.negotiate_address():
-            return
-
-        await self.send_initiate_forwarder_client_req()
+        try:
+            if not await self.negotiate_authentication_method():
+                return self._cleanup()
+            if not await self.negotiate_transport():
+                return self._cleanup()
+            if not await self.negotiate_address():
+                return self._cleanup()
+            await self.send_initiate_forwarder_client_req()
+        except Exception:
+            self._cleanup()
 
     async def handle_initiate_forwarder_client_rep(self, bind_addr, bind_port, atype, rep):
         socks_connect_results = self.create_socks_reply(rep, bind_addr, bind_port, atype)
