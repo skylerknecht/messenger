@@ -19,12 +19,9 @@ class Scanner:
         self.concurrency = concurrency
         self.targets = self._parse_ip_ranges(ip_ranges)
         self.ports = self._parse_port_ranges(port_ranges) if port_ranges else self._get_top_ports(top_ports)
-        self.update_cli = update_cli
-        self.messenger = messenger
         self.scans = {}
         self.start_time = None
         self.end_time = None
-        self.concurrency = concurrency
         self.semaphore = asyncio.Semaphore(concurrency)
         self._gen_lock = asyncio.Lock()
         self._scan_gen = self._generate_scans()
