@@ -196,6 +196,7 @@ class Scanner:
             self.update_cli.display(f"Scanner `{self.identifier}` already stopped sending scan attempts.", 'information', reprompt=False)
             return
 
+        self.end_time = time.time()
         self.update_cli.display(f"Scanner `{self.identifier}` has stopped and no further scans attempts will be made. Existing attempts will still update as they arrive.", 'success', reprompt=False)
         for w in self._workers:
             w.cancel()
