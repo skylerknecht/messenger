@@ -69,6 +69,7 @@ class ForwarderClient(ABC):
             return
         self.messenger.received_bytes += len(data)
         self.writer.write(data)
+        await self.writer.drain()
 
 class LocalForwarderClient(ForwarderClient):
     def __init__(self, destination_host, destination_port, reader, writer, messenger, on_close):
@@ -125,6 +126,7 @@ class SocksForwarderClient(LocalForwarderClient):
         socks_connect_results = self.create_socks_reply(rep, bind_addr, bind_port, atype)
         self.messenger.received_bytes += len(socks_connect_results)
         self.writer.write(socks_connect_results)
+        await self.writer.drain()
         if rep != 0:
             self._cleanup()
             return
@@ -170,12 +172,14 @@ class SocksForwarderClient(LocalForwarderClient):
                 int('FF', 16)
             ])
             self.writer.write(disconnect_reply)
+            await self.writer.drain()
             return False
         connect_reply = bytes([
             5,
             0
         ])
         self.writer.write(connect_reply)
+        await self.writer.drain()
         return True
 
     async def negotiate_transport(self) -> bool:
