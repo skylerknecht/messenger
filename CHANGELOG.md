@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Simplify changelog auto-update to append-only on non-changelog commits
+
 <!-- POST-BRANCH START (commits added after the release branch was cut): -->
 - Update CHANGELOG.md
 - Update changelog with post-branch commits
