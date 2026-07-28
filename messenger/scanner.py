@@ -82,11 +82,18 @@ class Scanner:
         ports = set()
         for entry in raw.split(','):
             entry = entry.strip()
+            if not entry:
+                continue
             if '-' in entry:
-                start, stop = map(int, entry.split('-'))
-                ports.update(range(start, stop + 1))
+                lo, _, hi = entry.partition('-')
+                if lo.isdigit() and hi.isdigit() and int(lo) <= int(hi):
+                    ports.update(range(int(lo), int(hi) + 1))
+                else:
+                    self.update_cli.display(f'Skipping invalid port range `{entry}`.', 'warning', reprompt=False)
             elif entry.isdigit():
                 ports.add(int(entry))
+            else:
+                self.update_cli.display(f'Skipping invalid port `{entry}`.', 'warning', reprompt=False)
         return sorted(ports)
 
     def _generate_scans(self):
