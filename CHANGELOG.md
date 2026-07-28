@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Bump version to 0.5.0
+
 - Log commands and protocol messages to per-day JSONL files
 
 ## [0.4.5] - 2026-08-04
