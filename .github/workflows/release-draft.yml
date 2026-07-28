@@ -179,84 +179,58 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Extract version from branch name
-        id: meta
-        run: |
-          branch="${GITHUB_REF#refs/heads/release/}"
-          echo "version=$branch" >> "$GITHUB_OUTPUT"
-
-      - name: Refresh changelog with post-branch commits
+      - name: Append new non-changelog commits to Unreleased
         env:
-          VERSION: ${{ steps.meta.outputs.version }}
+          BEFORE_SHA: ${{ github.event.before }}
         run: |
           python3 <<'PYEOF'
           import os, re, subprocess, sys
 
-          version = os.environ['VERSION']
+          before = os.environ.get('BEFORE_SHA', '')
+          if not before or before == '0' * 40:
+              print('No previous SHA (new branch push), skipping')
+              sys.exit(0)
 
-          AUTO_START = '<!-- AUTO-DRAFT START (from git log; refreshed each Draft; delete before final): -->'
-          AUTO_END   = '<!-- AUTO-DRAFT END -->'
-          POST_START = '<!-- POST-BRANCH START (commits added after the release branch was cut): -->'
-          POST_END   = '<!-- POST-BRANCH END -->'
+          commits = subprocess.check_output(
+              ['git', 'log', f'{before}..HEAD', '--pretty=%H %s'], text=True
+          ).strip().splitlines()
 
-          def strip_block(text, start_marker, end_marker):
-              pattern = re.escape(start_marker) + r'.*?' + re.escape(end_marker) + r'\n?'
-              return re.sub(pattern, '', text, flags=re.DOTALL)
+          if not commits:
+              print('No new commits')
+              sys.exit(0)
 
-          def git_log(range_spec):
-              try:
-                  return subprocess.check_output(
-                      ['git', 'log', range_spec, '--pretty=- %s'], text=True).strip()
-              except subprocess.CalledProcessError:
-                  return ''
+          new_bullets = []
+          for line in commits:
+              sha, _, msg = line.partition(' ')
+              files = subprocess.check_output(
+                  ['git', 'diff-tree', '--no-commit-id', '--name-only', '-r', sha], text=True
+              ).strip().splitlines()
+              if files == ['CHANGELOG.md']:
+                  continue
+              new_bullets.append(f'- {msg}')
 
-          def find_branch_base():
-              """Find the initial 'publish X.Y.Z' commit that created this branch."""
-              try:
-                  out = subprocess.check_output(
-                      ['git', 'log', '--format=%H %s', '--reverse'], text=True).strip()
-                  for line in out.splitlines():
-                      sha, _, subject = line.partition(' ')
-                      if subject.strip() == f'publish {version}':
-                          return sha
-              except subprocess.CalledProcessError:
-                  pass
-              return None
+          if not new_bullets:
+              print('Push only touched CHANGELOG.md, skipping')
+              sys.exit(0)
 
           path = 'CHANGELOG.md'
-          if not os.path.exists(path):
-              print('::warning::No CHANGELOG.md found, skipping update')
-              sys.exit(0)
-
           content = open(path).read()
 
-          base_sha = find_branch_base()
-          if not base_sha:
-              print(f'::warning::Could not find "publish {version}" commit, skipping post-branch update')
-              sys.exit(0)
-
-          post_log = git_log(f'{base_sha}..HEAD')
-          if not post_log:
-              print('No new commits since branch was cut, nothing to update')
-              sys.exit(0)
-
-          content = strip_block(content, POST_START, POST_END)
-
-          post_block = f'{POST_START}\n{post_log}\n{POST_END}\n'
-
-          is_prerelease = '-' in version
-          if is_prerelease:
-              anchor = '## [Unreleased]'
-          else:
-              anchor = f'## [{version}]'
-
-          m = re.search(re.escape(anchor) + r'[^\n]*\n', content)
+          m = re.search(r'(## \[Unreleased\][^\n]*\n)', content)
           if not m:
-              print(f'::warning::Could not find "{anchor}" section in CHANGELOG.md')
+              print('::warning::No [Unreleased] section found')
+              sys.exit(0)
+
+          existing = content[m.end():]
+          new_bullets = [b for b in new_bullets if b not in existing]
+
+          if not new_bullets:
+              print('All commits already in changelog')
               sys.exit(0)
 
           insert_pos = m.end()
-          new_content = content[:insert_pos] + '\n' + post_block + '\n' + content[insert_pos:]
+          insert_text = '\n'.join(new_bullets) + '\n'
+          new_content = content[:insert_pos] + '\n' + insert_text + content[insert_pos:]
           new_content = re.sub(r'\n{3,}', '\n\n', new_content).rstrip() + '\n'
 
           open(path, 'w').write(new_content)
@@ -270,6 +244,6 @@ jobs:
             echo "No changelog changes to commit"
           else
             git add CHANGELOG.md
-            git commit -m "Update changelog with post-branch commits"
+            git commit -m "Update changelog with new commits"
             git push
           fi
