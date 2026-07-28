@@ -19,8 +19,11 @@ class ForwarderClient(ABC):
         self.messenger = messenger
         self.on_close = on_close
 
-    def _cleanup(self):
-        self.writer.close()
+    def _cleanup(self, abort=False):
+        if abort:
+            self.writer.transport.abort()
+        else:
+            self.writer.close()
         self.on_close(self)
 
     @abstractmethod
@@ -89,6 +92,9 @@ class LocalForwarderClient(ForwarderClient):
         await self.messenger.send_message_upstream(upstream_message)
 
     async def handle_initiate_forwarder_client_rep(self, bind_addr, bind_port, atype, rep):
+        if rep != 0:
+            self._cleanup(abort=True)
+            return
         asyncio.create_task(self.stream())
 
 class RemoteForwarderClient(ForwarderClient):
@@ -119,6 +125,9 @@ class SocksForwarderClient(LocalForwarderClient):
         socks_connect_results = self.create_socks_reply(rep, bind_addr, bind_port, atype)
         self.messenger.received_bytes += len(socks_connect_results)
         self.writer.write(socks_connect_results)
+        if rep != 0:
+            self._cleanup()
+            return
         asyncio.create_task(self.stream())
 
     @staticmethod
