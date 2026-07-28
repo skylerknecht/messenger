@@ -7,20 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!-- POST-BRANCH START (commits added after the release branch was cut): -->
-- Move connection-denied handling into forwarder clients
-- updated cliented
-- Fix identifier digits, port-range parsing, and interact false error
-- Route send_data close signal and failed init through _cleanup
-- Clean up forwarder client writer teardown
-- moved last_check_in set so that the reconnection message will actually fire
-- stopping a scanner now sets the end time so it does not indefintely count
-- cleaned up redundant assignments
-- cleanup lingering writers
-- rewritten _parse_ip_ranges to handle hyphenated hostnames using rpartition
-- updated handle_initiate_forwarder_client_rep in scanners to properly release semaphores only if the rep if for us not on every rep
-- added warning if someone detects a scanner updated a result already captured
-<!-- POST-BRANCH END -->
+### Fixed
+
+- Forwarder client writers are now properly cleaned up on all close paths — `send_data(b'')`, failed SOCKS negotiation, denied connection replies, and `LocalForwarderClient.initiate_forwarder_client` exceptions all route through `_cleanup()`
+- `RemotePortForwarder` now has a `stop()` method — previously stopping a remote forwarder only removed it from the list, leaking open connections and stream tasks
+- Manager `stop` dispatcher now calls `stop()` on all forwarder types, not just `LocalPortForwarder`
+- Connection-denied handling moved into forwarder clients — `SocksForwarderClient` now sends the proper SOCKS5 error reply before closing instead of aborting the transport with no reply
+- `alphanumeric_identifier` now correctly indexes the full alphanumeric list — digits 0-9 were never selected due to using `len(alphabet)` instead of `len(alphanumeric)`
+- `_parse_port_ranges` validates input instead of crashing on malformed entries like `80-http` or `1-2-3`
+- `_parse_ip_ranges` rewritten to handle hyphenated hostnames using `rpartition`
+- `interact` no longer prints a false "Could not find Messenger" error on a successful match
+- Scanner `handle_initiate_forwarder_client_rep` only releases the semaphore and updates results for its own scan identifiers, not every reply
+- Scanner `stop()` now sets `end_time` so runtime doesn't count indefinitely
+- Reconnect detection in `messengers.py` now fires correctly — `last_check_in` is checked before being updated
+
+### Changed
+
+- `_cleanup()` accepts an `abort` parameter for forced teardown vs graceful close
+- Cleaned up redundant `__init__` assignments in `Scanner`
 
 ## [0.4.1] - 2026-07-26
 
