@@ -208,9 +208,16 @@ class Manager:
         keyword_args = {}
         consumed_flags = set()
 
+        output_path = None
         tokens_iter = iter(tokens)
         for token in tokens_iter:
-            if token.startswith('--') or token.startswith('-'):
+            if token in ('-o', '--output'):
+                try:
+                    output_path = next(tokens_iter)
+                except StopIteration:
+                    self.update_cli.display(f'Flag `{token}` requires a file path.', 'error', reprompt=False)
+                    return
+            elif token.startswith('--') or token.startswith('-'):
                 name = token.lstrip('-').replace('-', '_')
                 param = params.get(name)
                 if param is None or param.kind not in (Parameter.POSITIONAL_OR_KEYWORD, Parameter.KEYWORD_ONLY):
@@ -257,6 +264,7 @@ class Manager:
 
         # DEBUG: print("DEBUG:", final_args, keyword_args)
         await func(*final_args, **keyword_args)
+        return output_path
 
     def require_messenger(func):
         """Decorator to ensure a messenger is selected before executing the command."""
@@ -561,6 +569,7 @@ class Manager:
                 continue
 
             timestamp = self.logger.now()
+            output_path = None
             with self.logger.capture() as output:
                 try:
                     parts = user_input.split(' ')
@@ -570,7 +579,7 @@ class Manager:
                             await self.interact(messenger)
                             break
                     else:
-                        await self.execute_command(command, parts[1:])
+                        output_path = await self.execute_command(command, parts[1:])
                 except InvalidConfigError as e:
                     self.update_cli.display(str(e), 'error', reprompt=False)
                 except KeyboardInterrupt:
@@ -579,12 +588,21 @@ class Manager:
                 except Exception as e:
                     self._log_unexpected_error(e)
 
-            self.logger.record_command(
-                timestamp,
-                user_input.strip(),
-                strip_ansi(output.getvalue()).strip(),
-            )
+            captured = strip_ansi(output.getvalue()).strip()
+            self.logger.record_command(timestamp, user_input.strip(), captured)
+
+            if output_path:
+                self._write_output_file(output_path, captured)
         await self.exit()
+
+    def _write_output_file(self, path, contents):
+        try:
+            path = os.path.expanduser(path)
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(contents + '\n')
+            self.update_cli.display(f'Output written to {path}.', 'success', reprompt=False)
+        except OSError as e:
+            self.update_cli.display(f'Could not write output to {path}: {e}', 'error', reprompt=False)
 
     def _log_unexpected_error(self, e):
         log_dir = os.path.join(os.path.expanduser("~"), ".messenger")
