@@ -20,6 +20,7 @@ from messenger.forwarders import LocalPortForwarder, SocksProxy, RemotePortForwa
 from messenger.generator import generate_encryption_key, generate_hash
 from messenger.scanner import Scanner
 from messenger.text import color_text, bold_text
+from messenger.logger import Logger
 
 class UpdateCLI:
     """
@@ -64,7 +65,8 @@ class UpdateCLI:
         else:
             icon = color_text(status_info.icon, status_info.color)
 
-        print(f'\r{icon} {stdout}')
+        timestamp = color_text(f'[{datetime.now().strftime("%H:%M:%S")}]', 'white')
+        print(f'\r{timestamp} {icon} {stdout}')
 
         if reprompt:
             print(f'({self.prompt})~# ' + self.session.app.current_buffer.text, end='')
@@ -116,6 +118,7 @@ class Manager:
         self.commands = {**self.server_commands, **self.messenger_commands}
         self.messengers = []
         self.current_messenger = None
+        self.logger = Logger()
         self.session = PromptSession(completer=DynamicCompleter(self), reserve_space_for_menu=0)
         self.update_cli = UpdateCLI(self.PROMPT, self.session)
         self.encryption_key = encryption_key if encryption_key is not None else generate_encryption_key()
