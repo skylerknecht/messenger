@@ -62,7 +62,7 @@ class ForwarderClient(ABC):
 
     async def send_data(self, data):
         if len(data) == 0:
-            self.writer.close()
+            self._cleanup()
             return
         self.messenger.received_bytes += len(data)
         self.writer.write(data)
@@ -74,7 +74,10 @@ class LocalForwarderClient(ForwarderClient):
         self.destination_port = destination_port
 
     async def initiate_forwarder_client(self):
-        await self.send_initiate_forwarder_client_req()
+        try:
+            await self.send_initiate_forwarder_client_req()
+        except Exception:
+            self._cleanup()
 
     async def send_initiate_forwarder_client_req(self):
         upstream_message = InitiateForwarderClientReq(
