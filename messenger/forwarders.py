@@ -92,10 +92,6 @@ class LocalPortForwarder(Forwarder):
         for forwarder_client in self.clients:
             if forwarder_client.identifier != forwarder_client_id:
                 continue
-            if message.reason != 0:
-                forwarder_client.writer.transport.abort()
-                self.on_close(forwarder_client)
-                break
             await forwarder_client.handle_initiate_forwarder_client_rep(message.bind_address, message.bind_port, message.address_type, message.reason)
             break
 
