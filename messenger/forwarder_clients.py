@@ -159,11 +159,11 @@ class SocksForwarderClient(LocalForwarderClient):
         ])
 
     async def negotiate_authentication_method(self) -> bool:
-        version, number_of_methods = await self.reader.read(2)
+        version, number_of_methods = await self.reader.readexactly(2)
         if version != 5:
             self.messenger.update_cli.display(f'SOCKSv{version} is not supported, please use SOCKSv5.', 'error')
             return False
-        methods = [ord(await self.reader.read(1)) for _ in range(number_of_methods)]
+        methods = [ord(await self.reader.readexactly(1)) for _ in range(number_of_methods)]
         if 0 not in methods:
             disconnect_reply = bytes([
                 5,
@@ -179,26 +179,26 @@ class SocksForwarderClient(LocalForwarderClient):
         return True
 
     async def negotiate_transport(self) -> bool:
-        version, cmd, reserved_bit = await self.reader.read(3)
+        version, cmd, reserved_bit = await self.reader.readexactly(3)
         return cmd == 1
 
     async def negotiate_address(self) -> bool:
-        self.address_type = int.from_bytes(await self.reader.read(1), byteorder='big')
+        self.address_type = int.from_bytes(await self.reader.readexactly(1), byteorder='big')
         if self.address_type == 1:  # IPv4
-            self.destination_host = socket.inet_ntoa(await self.reader.read(4))
-            self.destination_port = int.from_bytes(await self.reader.read(2), byteorder='big')
+            self.destination_host = socket.inet_ntoa(await self.reader.readexactly(4))
+            self.destination_port = int.from_bytes(await self.reader.readexactly(2), byteorder='big')
             return True
 
         elif self.address_type == 3:  # FQDN
-            fqdn_length = int.from_bytes(await self.reader.read(1), byteorder='big')
-            fqdn = await self.reader.read(fqdn_length)
+            fqdn_length = int.from_bytes(await self.reader.readexactly(1), byteorder='big')
+            fqdn = await self.reader.readexactly(fqdn_length)
             self.destination_host = fqdn.decode('utf-8')
-            self.destination_port = int.from_bytes(await self.reader.read(2), byteorder='big')
+            self.destination_port = int.from_bytes(await self.reader.readexactly(2), byteorder='big')
             return True
 
         elif self.address_type == 4:  # IPv6
-            self.destination_host = socket.inet_ntop(socket.AF_INET6, await self.reader.read(16))
-            self.destination_port = int.from_bytes(await self.reader.read(2), byteorder='big')
+            self.destination_host = socket.inet_ntop(socket.AF_INET6, await self.reader.readexactly(16))
+            self.destination_port = int.from_bytes(await self.reader.readexactly(2), byteorder='big')
             return True
 
         return False
