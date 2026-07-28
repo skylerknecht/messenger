@@ -32,12 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - HTTP and WebSocket-based clients no longer require using `/socketio/?EIO=4&transport=websocket`
 
-<!-- AUTO-DRAFT START (from git log; refreshed each Draft; delete before final): -->
-- Add push trigger to release-draft for post-branch changelog updates
-- updated README
-- updated README
-<!-- AUTO-DRAFT END -->
-
 ## [0.4.0] - 2026-07-26
 
 ### Added
