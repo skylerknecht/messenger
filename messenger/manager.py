@@ -326,7 +326,7 @@ class Manager:
                 if messenger == _messenger.identifier:
                     self.current_messenger = _messenger
                     self.update_cli.prompt = self.current_messenger.identifier
-                    break
+                    return
             self.update_cli.display(f'Could not find Messenger with ID `{messenger}`', 'error',
                                     reprompt=False)
             return

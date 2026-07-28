@@ -42,7 +42,7 @@ def alphanumeric_identifier(length: int = 10) -> str:
     :return: The generated string identifier.
     :rtype: str
     """
-    _identifier = [alphanumeric[random.randint(0, len(alphabet) - 1)] for _ in range(0, length)]
+    _identifier = [alphanumeric[random.randint(0, len(alphanumeric) - 1)] for _ in range(0, length)]
     _identifier = ''.join(_identifier)
     return _identifier
 
