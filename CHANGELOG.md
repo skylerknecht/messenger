@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+<!-- POST-BRANCH START (commits added after the release branch was cut): -->
+- Update CHANGELOG.md
+- Update changelog with post-branch commits
+- Move connection-denied handling into forwarder clients
+- updated cliented
+- Fix identifier digits, port-range parsing, and interact false error
+- Route send_data close signal and failed init through _cleanup
+- Clean up forwarder client writer teardown
+- moved last_check_in set so that the reconnection message will actually fire
+- stopping a scanner now sets the end time so it does not indefintely count
+- cleaned up redundant assignments
+- cleanup lingering writers
+- rewritten _parse_ip_ranges to handle hyphenated hostnames using rpartition
+- updated handle_initiate_forwarder_client_rep in scanners to properly release semaphores only if the rep if for us not on every rep
+- added warning if someone detects a scanner updated a result already captured
+<!-- POST-BRANCH END -->
+
 ### Fixed
 
 - Forwarder client writers are now properly cleaned up on all close paths — `send_data(b'')`, failed SOCKS negotiation, denied connection replies, and `LocalForwarderClient.initiate_forwarder_client` exceptions all route through `_cleanup()`
