@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add reserved -o/--output flag and fix banner SyntaxWarning
+
 - Bump version to 0.5.0
 
 - Log commands and protocol messages to per-day JSONL files
