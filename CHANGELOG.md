@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Remove redundant request.read() from redirect_handler
+- Use cross-platform errno constants for bind errors
+- Catch send_bytes failure and fall back to queue
+- Guard stop() against None server when start() failed
+- Use secrets module for encryption key generation
+- Guard SOCKS reply write against disconnected client
+- Append SocksProxy client before initiation to prevent resource leak
+- Reject WS reconnection to non-WebSocket messengers
+- Guard WS first-receive against non-BINARY message types
+- Add error handling to prevent single failure from killing sessions
+- Fix MAINFEST.in typo
+
 ### Fixed
 
 - Forwarder client writers are now properly cleaned up on all close paths — `send_data(b'')`, failed SOCKS negotiation, denied connection replies, and `LocalForwarderClient.initiate_forwarder_client` exceptions all route through `_cleanup()`
