@@ -223,4 +223,11 @@ class WebSocketMessenger(Messenger):
             'debug',
             debug_level = 5
         )
-        await self.websocket.send_bytes(self.serialize_messages([message]))
+        try:
+            await self.websocket.send_bytes(self.serialize_messages([message]))
+        except Exception:
+            self.update_cli.display(
+                f'Messenger `{self.identifier}` queued a upstream message.',
+                'warning'
+            )
+            await self.upstream_messages.put(self.serialize_messages([message]))
