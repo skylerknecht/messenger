@@ -158,6 +158,8 @@ class LocalPortForwarder(Forwarder):
         return False
 
     async def stop(self):
+        if not self.server:
+            return
         self.server.close()
 
         for client in self.clients:
