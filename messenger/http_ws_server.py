@@ -118,6 +118,13 @@ class HTTPWSServer:
             return ws
         messenger = self.messenger_engine.get_messenger(messenger_id)
         if messenger:
+            if not isinstance(messenger, WebSocketMessenger):
+                self.update_cli.display(
+                    f'Messenger `{messenger_id}` is not a WebSocket Messenger, closing connection.',
+                    'warning'
+                )
+                await ws.close()
+                return ws
             await messenger.set_websocket(ws)
         else:
             ws_messenger = WebSocketMessenger(
