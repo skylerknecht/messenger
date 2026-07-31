@@ -7,18 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Remove redundant request.read() from redirect_handler
-- Use cross-platform errno constants for bind errors
-- Catch send_bytes failure and fall back to queue
-- Guard stop() against None server when start() failed
-- Use secrets module for encryption key generation
-- Guard SOCKS reply write against disconnected client
-- Append SocksProxy client before initiation to prevent resource leak
-- Reject WS reconnection to non-WebSocket messengers
-- Guard WS first-receive against non-BINARY message types
-- Add error handling to prevent single failure from killing sessions
-- Fix MAINFEST.in typo
-
 ### Fixed
 
 - Forwarder client writers are now properly cleaned up on all close paths — `send_data(b'')`, failed SOCKS negotiation, denied connection replies, and `LocalForwarderClient.initiate_forwarder_client` exceptions all route through `_cleanup()`
@@ -32,6 +20,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Scanner `handle_initiate_forwarder_client_rep` only releases the semaphore and updates results for its own scan identifiers, not every reply
 - Scanner `stop()` now sets `end_time` so runtime doesn't count indefinitely
 - Reconnect detection in `messengers.py` now fires correctly — `last_check_in` is checked before being updated
+- SOCKS negotiation uses `readexactly` instead of `read` to prevent partial reads
+- `writer.write()` calls are now followed by `await writer.drain()` for proper backpressure
+- WebSocket handler validates the first received message is `BINARY` before accessing `msg.data`, preventing crashes on CLOSE/ERROR frames
+- WebSocket reconnection rejects messengers that aren't `WebSocketMessenger` instead of calling `set_websocket` on an `HTTPMessenger`
+- `SocksProxy.handle_client` appends the client before calling `initiate_forwarder_client` so failed negotiations still get cleaned up
+- SOCKS reply write is wrapped in try/except to handle clients that disconnect during the handshake
+- Encryption key generation now uses the `secrets` module instead of `random`
+- `LocalPortForwarder.stop()` no longer crashes when `start()` failed and `self.server` is `None`
+- `WebSocketMessenger.send_message_upstream` catches `send_bytes` failures and falls back to queuing the message
+- Bind error handling now uses `errno.EADDRINUSE` and `errno.EADDRNOTAVAIL` instead of hardcoded Linux values 98/99
+- Redundant `request.read()` in `redirect_handler` removed — body was read for debug logging then re-read in `http_post_handler`
+- Engine, forwarder clients, and WebSocket server wrap critical paths in try/except so a single malformed message doesn't kill the session
+- Fixed `MANIFEST.in` typo
 
 ### Changed
 
