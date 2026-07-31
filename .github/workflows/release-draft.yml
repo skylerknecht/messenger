@@ -1,105 +1,77 @@
 name: Draft Release
 
-# Two triggers:
-#   1. workflow_dispatch — creates the release branch + PR with a changelog.
-#   2. push to release/* — refreshes the changelog, appending new commits
-#      under an "Unreleased (post-branch)" section so you can keep pushing
-#      to the release branch without losing visibility.
+# Manually dispatched. Branches from main, bumps __version__, promotes the
+# [Unreleased] changelog section into ## [version] - date, and opens a PR.
+# After merging that PR to main, run "Publish Release".
+#
+# Version must be major.minor.patch (no -rc / pre-release) and strictly
+# greater than the latest published release.
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (e.g. 0.4.1, 0.5.0, 0.6.0-rc.1)'
+        description: 'Version to release (e.g. 0.4.2, 0.5.0)'
         required: true
         type: string
-
-  push:
-    branches:
-      - 'release/**'
 
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
-  open-release-pr:
-    if: github.event_name == 'workflow_dispatch'
+  draft:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Validate version
+      - name: Validate version format
         run: |
-          if [[ ! "${{ inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$ ]]; then
-            echo "::error::Version '${{ inputs.version }}' is not valid SemVer (e.g. 0.4.0 or 0.4.0-rc.1)"
+          if [[ ! "${{ inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version must be major.minor.patch (e.g. 0.4.2), no pre-release suffix"
             exit 1
           fi
 
-      - name: Bump __version__
+      - name: Ensure version is greater than latest release
+        run: |
+          latest=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1 | sed 's/^v//')
+          if [ -n "$latest" ]; then
+            higher=$(printf '%s\n%s' "$latest" "${{ inputs.version }}" | sort -V | tail -1)
+            if [ "$higher" = "$latest" ]; then
+              echo "::error::Version ${{ inputs.version }} must be greater than latest release v$latest"
+              exit 1
+            fi
+          fi
+
+      - name: Update __version__
         run: |
           sed -i "s/^__version__ = .*/__version__ = '${{ inputs.version }}'/" messenger/__init__.py
 
-      - name: Update CHANGELOG.md
+      - name: Promote Unreleased to version section
         env:
           VERSION: ${{ inputs.version }}
         run: |
           python3 <<'EOF'
-          import os, re, subprocess, sys
+          import os, re, sys
           from datetime import datetime, timezone
 
           version = os.environ['VERSION']
-          is_prerelease = '-' in version
           date = datetime.now(timezone.utc).strftime('%Y-%m-%d')
-
-          AUTO_START = '<!-- AUTO-DRAFT START (from git log; refreshed each Draft; delete before final): -->'
-          AUTO_END   = '<!-- AUTO-DRAFT END -->'
-
-          HEADER = (
-              "# Changelog\n"
-              "All notable changes to this project will be documented in this file.\n\n"
-              "The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),\n"
-              "and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).\n\n"
-          )
-
-          def last_final_tag():
-              """Most recent tag matching vX.Y.Z (no prerelease suffix)."""
-              try:
-                  tags = subprocess.check_output(
-                      ['git', 'tag', '--sort=-v:refname'], text=True).strip().splitlines()
-                  for t in tags:
-                      if re.match(r'^v\d+\.\d+\.\d+$', t):
-                          return t
-              except subprocess.CalledProcessError:
-                  pass
-              return None
-
-          def git_log_since(tag):
-              rng = f'{tag}..HEAD' if tag else 'HEAD'
-              try:
-                  return subprocess.check_output(
-                      ['git', 'log', rng, '--pretty=- %s'], text=True).strip()
-              except subprocess.CalledProcessError:
-                  return ''
-
-          def strip_auto_draft(text):
-              pattern = r'<!-- AUTO-DRAFT START.*?<!-- AUTO-DRAFT END -->\n?'
-              return re.sub(pattern, '', text, flags=re.DOTALL)
-
-          def build_auto_draft(log):
-              if not log:
-                  return ''
-              return f'{AUTO_START}\n{log}\n{AUTO_END}\n'
-
           path = 'CHANGELOG.md'
-          content = open(path).read() if os.path.exists(path) else HEADER + "## [Unreleased]\n\n"
-          if '## [Unreleased]' not in content:
-              content = HEADER + "## [Unreleased]\n\n" + content
+          content = open(path).read()
 
           m = re.search(r'(## \[Unreleased\]\s*\n)', content)
-          before, rest = content[:m.end()], content[m.end():]
+          if not m:
+              print('::error::No [Unreleased] section found in CHANGELOG.md', file=sys.stderr)
+              sys.exit(1)
+
+          if f'## [{version}]' in content:
+              print(f'::error::Section [{version}] already exists in CHANGELOG.md', file=sys.stderr)
+              sys.exit(1)
+
+          rest = content[m.end():]
           n = re.search(r'\n(## \[)', rest)
           if n:
               unreleased_body = rest[:n.start() + 1]
@@ -108,30 +80,18 @@ jobs:
               unreleased_body = rest
               tail = ''
 
-          unreleased_body = strip_auto_draft(unreleased_body).strip()
+          body = unreleased_body.strip()
+          if not body:
+              print('::warning::[Unreleased] section is empty', file=sys.stderr)
+              body = '- No notable changes'
 
-          last = last_final_tag()
-          log = git_log_since(last)
-
-          if is_prerelease:
-              # RC: preserve [Unreleased] user bullets, refresh auto-draft, DO NOT create a version section
-              parts = []
-              if unreleased_body:
-                  parts.append(unreleased_body)
-              auto = build_auto_draft(log).rstrip()
-              if auto:
-                  parts.append(auto)
-              new_unreleased = '\n\n'.join(parts)
-              new_unreleased = ('\n' + new_unreleased + '\n\n') if new_unreleased else '\n'
-              new_content = before + new_unreleased + tail
-          else:
-              # FINAL/PATCH/MINOR: promote [Unreleased] into new version section, reset [Unreleased] empty
-              promoted = unreleased_body or log or '- No notable changes'
-              if not (unreleased_body or log):
-                  print(f'::warning::[Unreleased] and git log both empty — {version} will have placeholder notes', file=sys.stderr)
-              new_section = f'## [{version}] - {date}\n\n{promoted}\n\n'
-              new_content = before + '\n' + new_section + tail
-
+          new_content = (
+              content[:m.start()]
+              + '## [Unreleased]\n\n'
+              + f'## [{version}] - {date}\n\n'
+              + body + '\n\n'
+              + tail
+          )
           new_content = re.sub(r'\n{3,}', '\n\n', new_content).rstrip() + '\n'
           open(path, 'w').write(new_content)
           EOF
@@ -144,106 +104,17 @@ jobs:
           git config user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
           git checkout -b release/${{ inputs.version }}
           git add messenger/__init__.py CHANGELOG.md
-          git commit -m "publish ${{ inputs.version }}"
+          git commit -m "release ${{ inputs.version }}"
           git push -u origin release/${{ inputs.version }}
 
-          if [[ "${{ inputs.version }}" == *-* ]]; then
-            printf '%s\n' \
-              "Triggered by @${{ github.actor }}. Pre-release: **${{ inputs.version }}**." \
-              "" \
-              "## Checklist" \
-              "" \
-              "- [ ] \`[Unreleased]\` section cleaned up (delete the auto-draft block, organize into \`### Added\` / \`### Changed\` / \`### Fixed\`)" \
-              "- [ ] \`README.md\` updated where needed (Launch block banner shows new version, any docs referencing the old version)" \
-              "- [ ] Ready to publish — after merge, run **Publish Release**" \
-              > /tmp/pr-body.md
-          else
-            printf '%s\n' \
-              "Triggered by @${{ github.actor }}. Release: **${{ inputs.version }}**." \
-              "" \
-              "## Checklist" \
-              "" \
-              "- [ ] \`## [${{ inputs.version }}]\` section in \`CHANGELOG.md\` reviewed and cleaned" \
-              "- [ ] \`README.md\` updated where needed (Launch block banner shows new version, any docs referencing the old version)" \
-              "- [ ] Ready to publish — after merge, run **Publish Release**" \
-              > /tmp/pr-body.md
-          fi
+          printf '%s\n' \
+            "Release: **${{ inputs.version }}** (triggered by @${{ github.actor }})." \
+            "" \
+            "## Checklist" \
+            "" \
+            "- [ ] \`## [${{ inputs.version }}]\` section in CHANGELOG.md reviewed and cleaned" \
+            "- [ ] README.md updated where needed" \
+            "- [ ] Ready to publish — after merge to main, run **Publish Release**" \
+            > /tmp/pr-body.md
 
-          gh pr create --title "publish ${{ inputs.version }}" --body-file /tmp/pr-body.md
-
-  update-changelog:
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Append new non-changelog commits to Unreleased
-        env:
-          BEFORE_SHA: ${{ github.event.before }}
-        run: |
-          python3 <<'PYEOF'
-          import os, re, subprocess, sys
-
-          before = os.environ.get('BEFORE_SHA', '')
-          if not before or before == '0' * 40:
-              print('No previous SHA (new branch push), skipping')
-              sys.exit(0)
-
-          commits = subprocess.check_output(
-              ['git', 'log', f'{before}..HEAD', '--pretty=%H %s'], text=True
-          ).strip().splitlines()
-
-          if not commits:
-              print('No new commits')
-              sys.exit(0)
-
-          new_bullets = []
-          for line in commits:
-              sha, _, msg = line.partition(' ')
-              files = subprocess.check_output(
-                  ['git', 'diff-tree', '--no-commit-id', '--name-only', '-r', sha], text=True
-              ).strip().splitlines()
-              if files == ['CHANGELOG.md']:
-                  continue
-              new_bullets.append(f'- {msg}')
-
-          if not new_bullets:
-              print('Push only touched CHANGELOG.md, skipping')
-              sys.exit(0)
-
-          path = 'CHANGELOG.md'
-          content = open(path).read()
-
-          m = re.search(r'(## \[Unreleased\][^\n]*\n)', content)
-          if not m:
-              print('::warning::No [Unreleased] section found')
-              sys.exit(0)
-
-          existing = content[m.end():]
-          new_bullets = [b for b in new_bullets if b not in existing]
-
-          if not new_bullets:
-              print('All commits already in changelog')
-              sys.exit(0)
-
-          insert_pos = m.end()
-          insert_text = '\n'.join(new_bullets) + '\n'
-          new_content = content[:insert_pos] + '\n' + insert_text + content[insert_pos:]
-          new_content = re.sub(r'\n{3,}', '\n\n', new_content).rstrip() + '\n'
-
-          open(path, 'w').write(new_content)
-          PYEOF
-
-      - name: Commit and push if changed
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet CHANGELOG.md; then
-            echo "No changelog changes to commit"
-          else
-            git add CHANGELOG.md
-            git commit -m "Update changelog with new commits"
-            git push
-          fi
+          gh pr create --title "release ${{ inputs.version }}" --body-file /tmp/pr-body.md

@@ -1,15 +1,10 @@
 name: Publish Release
 
-# Run this AFTER merging a release PR opened by "Draft Release".
-# Reads the version from messenger/__init__.py on the current branch (main),
-# extracts release notes from CHANGELOG.md, tags, creates a GitHub Release,
-# builds, and publishes to PyPI.
+# Run this AFTER merging a release PR to main. Reads the version from
+# messenger/__init__.py, extracts the matching ## [X.Y.Z] section from
+# CHANGELOG.md, tags, creates a GitHub Release, and publishes to PyPI.
 #
-# Release notes source depends on the version:
-#   - Final (0.4.1, 0.5.0, etc.):  reads from `## [X.Y.Z]` section
-#   - Pre-release (0.6.0-rc.1):    reads from `## [Unreleased]` section
-#
-# See docs/releasing.md for the full process.
+# Must be dispatched on main. Refuses if the tag already exists.
 
 on:
   workflow_dispatch:
@@ -36,6 +31,13 @@ jobs:
         with:
           fetch-depth: 0
           submodules: recursive   # bundled clients under builder/clients/* are needed for the wheel
+
+      - name: Refuse to publish outside main
+        run: |
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "::error::Publish must run on main (got ${{ github.ref }}). Merge the release PR first."
+            exit 1
+          fi
 
       - name: Read version from messenger/__init__.py
         id: version
@@ -64,28 +66,17 @@ jobs:
           import os, re, sys
 
           version = os.environ['VERSION']
-          is_prerelease = '-' in version
           content = open('CHANGELOG.md').read()
-
-          def strip_auto_draft(text):
-              pattern = r'<!-- AUTO-DRAFT START.*?<!-- AUTO-DRAFT END -->\n?'
-              return re.sub(pattern, '', text, flags=re.DOTALL)
-
-          if is_prerelease:
-              m = re.search(r'## \[Unreleased\][^\n]*\n(.*?)(?=\n## \[|\Z)', content, re.DOTALL)
-              section_name = '[Unreleased]'
-          else:
-              pattern = rf'## \[{re.escape(version)}\][^\n]*\n(.*?)(?=\n## \[|\Z)'
-              m = re.search(pattern, content, re.DOTALL)
-              section_name = f'[{version}]'
+          pattern = rf'## \[{re.escape(version)}\][^\n]*\n(.*?)(?=\n## \[|\Z)'
+          m = re.search(pattern, content, re.DOTALL)
 
           if not m:
-              print(f'::error::No section {section_name} found in CHANGELOG.md', file=sys.stderr)
+              print(f'::error::No section [{version}] found in CHANGELOG.md', file=sys.stderr)
               sys.exit(1)
 
-          notes = strip_auto_draft(m.group(1)).strip()
+          notes = m.group(1).strip()
           if not notes:
-              print(f'::error::Section {section_name} in CHANGELOG.md is empty (auto-draft comments do not count)', file=sys.stderr)
+              print(f'::error::Section [{version}] in CHANGELOG.md is empty', file=sys.stderr)
               sys.exit(1)
 
           open('release-notes.md', 'w').write(notes + '\n')
@@ -102,16 +93,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
-          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          prerelease_flag=""
-          if [[ "$VERSION" == *-* ]]; then
-            prerelease_flag="--prerelease"
-          fi
           gh release create "$TAG" \
             --title "$TAG" \
-            --notes-file release-notes.md \
-            $prerelease_flag
+            --notes-file release-notes.md
 
       - name: Set up Python
         if: inputs.publish_to_pypi
