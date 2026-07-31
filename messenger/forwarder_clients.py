@@ -128,8 +128,12 @@ class SocksForwarderClient(LocalForwarderClient):
     async def handle_initiate_forwarder_client_rep(self, bind_addr, bind_port, atype, rep):
         socks_connect_results = self.create_socks_reply(rep, bind_addr, bind_port, atype)
         self.messenger.received_bytes += len(socks_connect_results)
-        self.writer.write(socks_connect_results)
-        await self.writer.drain()
+        try:
+            self.writer.write(socks_connect_results)
+            await self.writer.drain()
+        except Exception:
+            self._cleanup()
+            return
         if rep != 0:
             self._cleanup()
             return
