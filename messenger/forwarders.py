@@ -191,8 +191,8 @@ class SocksProxy(LocalPortForwarder):
 
     async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         client = SocksForwarderClient(reader, writer, self.messenger, self.on_close)
-        await client.initiate_forwarder_client()
         self.clients.append(client)
+        await client.initiate_forwarder_client()
 
     def parse_config(self, config):
         parts = config.split(':')
