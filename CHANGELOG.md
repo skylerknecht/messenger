@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## Unreleased
 
 ### Fixed
 
@@ -18,12 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `_parse_ip_ranges` rewritten to handle hyphenated hostnames using `rpartition`
 - `interact` no longer prints a false "Could not find Messenger" error on a successful match
 - Scanner `handle_initiate_forwarder_client_rep` only releases the semaphore and updates results for its own scan identifiers, not every reply
+- Scanner now sends a close signal for successful scan connections so remote forwarder clients get cleaned up
 - Scanner `stop()` now sets `end_time` so runtime doesn't count indefinitely
 - Reconnect detection in `messengers.py` now fires correctly — `last_check_in` is checked before being updated
-- SOCKS negotiation uses `readexactly` instead of `read` to prevent partial reads
+- SOCKS negotiation uses `readexactly` instead of `read` to prevent partial reads on slow or fragmented connections
 - `writer.write()` calls are now followed by `await writer.drain()` for proper backpressure
 - WebSocket handler validates the first received message is `BINARY` before accessing `msg.data`, preventing crashes on CLOSE/ERROR frames
-- WebSocket reconnection rejects messengers that aren't `WebSocketMessenger` instead of calling `set_websocket` on an `HTTPMessenger`
+- WebSocket reconnection rejects messengers that aren't `WebSocketMessenger` instead of crashing with `AttributeError`
 - `SocksProxy.handle_client` appends the client before calling `initiate_forwarder_client` so failed negotiations still get cleaned up
 - SOCKS reply write is wrapped in try/except to handle clients that disconnect during the handshake
 - Encryption key generation now uses the `secrets` module instead of `random`
@@ -32,12 +33,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bind error handling now uses `errno.EADDRINUSE` and `errno.EADDRNOTAVAIL` instead of hardcoded Linux values 98/99
 - Redundant `request.read()` in `redirect_handler` removed — body was read for debug logging then re-read in `http_post_handler`
 - Engine, forwarder clients, and WebSocket server wrap critical paths in try/except so a single malformed message doesn't kill the session
+- Malformed or undecryptable message frames now stop parsing instead of propagating an exception
+- `get_messenger_id` returns `None` instead of asserting on non-CheckIn messages
+- HTTP and WebSocket handlers guard against empty or unidentifiable check-ins instead of crashing
 - Fixed `MANIFEST.in` typo
 
 ### Changed
 
 - `_cleanup()` accepts an `abort` parameter for forced teardown vs graceful close
+- `scanner.handle_initiate_forwarder_client_rep` is now async
 - Cleaned up redundant `__init__` assignments in `Scanner`
+- Python client submodule bumped
 
 ## [0.4.1] - 2026-07-26
 
