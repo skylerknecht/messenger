@@ -107,6 +107,9 @@ class HTTPWSServer:
         ip = request.remote
         user_agent = request.headers.get('User-Agent', 'Unknown')
         msg = await ws.receive()
+        if msg.type != web.WSMsgType.BINARY:
+            await ws.close()
+            return ws
         messages = self.messenger_engine.deserialize_messages(msg.data) if msg.data else []
         messenger_id = self.messenger_engine.get_messenger_id(messages[0]) if messages else None
         if messenger_id is None:
