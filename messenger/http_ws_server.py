@@ -57,11 +57,6 @@ class HTTPWSServer:
         if is_websocket:
             return await self.websocket_handler(request)
         if request.method == 'POST':
-            data = await request.read()
-            self.update_cli.display(
-                f'The handler received the following data\n{data}.',
-                'debug', debug_level=4,
-            )
             return await self.http_post_handler(request)
         return web.Response(status=404, text='Not Found')
 
