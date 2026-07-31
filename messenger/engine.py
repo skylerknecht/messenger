@@ -41,16 +41,21 @@ class Engine:
             if len(data) < potential_length:
                 break  # or raise an error if you want strictness
 
-            # Now parse one message
-            remaining_data, message = MessageParser.deserialize_message(self.encryption_key, data)
+            # Now parse one message. A malformed / undecryptable frame stops
+            # parsing here rather than propagating up and killing the session.
+            try:
+                remaining_data, message = MessageParser.deserialize_message(self.encryption_key, data)
+            except Exception:
+                break
             messages.append(message)
             data = remaining_data
 
         return messages
 
     @staticmethod
-    def get_messenger_id(message) -> str:
-        assert isinstance(message, CheckInMessage)
+    def get_messenger_id(message):
+        if not isinstance(message, CheckInMessage):
+            return None
         return message.messenger_id
 
     def add_messenger(self, messenger: Messenger):

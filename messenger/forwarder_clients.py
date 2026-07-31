@@ -68,8 +68,11 @@ class ForwarderClient(ABC):
             self._cleanup()
             return
         self.messenger.received_bytes += len(data)
-        self.writer.write(data)
-        await self.writer.drain()
+        try:
+            self.writer.write(data)
+            await self.writer.drain()
+        except Exception:
+            self._cleanup()
 
 class LocalForwarderClient(ForwarderClient):
     def __init__(self, destination_host, destination_port, reader, writer, messenger, on_close):

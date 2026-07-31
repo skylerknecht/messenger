@@ -71,25 +71,32 @@ class HTTPWSServer:
 
         upstream_message_data = b''
         data = await request.read()
-        messages = self.messenger_engine.deserialize_messages(data)
-        messenger_id = self.messenger_engine.get_messenger_id(messages[0])
-        messenger = self.messenger_engine.get_messenger(messenger_id)
-        if messenger:
-            upstream_message_data += await self.messenger_engine.send_messages(messenger_id, messages[1:])
-        else:
-            http_messenger = HTTPMessenger(
-                ip,
-                user_agent,
-                self.update_cli,
-                self.messenger_engine.serialize_messages
-            )
-            if messenger_id:
-                http_messenger.identifier = messenger_id
+        messages = self.messenger_engine.deserialize_messages(data) if data else []
+        messenger_id = self.messenger_engine.get_messenger_id(messages[0]) if messages else None
+        if messenger_id is None:
+            self.update_cli.display('Unable to identify Messenger, the CheckIn message was not present', 'warning')
+            return web.Response(status=200, body=b'')
+        try:
+            messenger = self.messenger_engine.get_messenger(messenger_id)
+            if messenger:
+                upstream_message_data += await self.messenger_engine.send_messages(messenger_id, messages[1:])
+            else:
+                http_messenger = HTTPMessenger(
+                    ip,
+                    user_agent,
+                    self.update_cli,
+                    self.messenger_engine.serialize_messages
+                )
+                if messenger_id:
+                    http_messenger.identifier = messenger_id
 
-            check_in_message = self.messenger_engine.add_messenger(http_messenger)
+                check_in_message = self.messenger_engine.add_messenger(http_messenger)
 
-            if not messenger_id:
-                upstream_message_data += check_in_message
+                if not messenger_id:
+                    upstream_message_data += check_in_message
+        except Exception as e:
+            self.update_cli.display(f'Unknown error while processing check in: {e}', 'warning')
+            return web.Response(status=200, body=b'')
 
         return web.Response(status=200, body=upstream_message_data)
 
@@ -100,8 +107,12 @@ class HTTPWSServer:
         ip = request.remote
         user_agent = request.headers.get('User-Agent', 'Unknown')
         msg = await ws.receive()
-        messages = self.messenger_engine.deserialize_messages(msg.data)
-        messenger_id = self.messenger_engine.get_messenger_id(messages[0])
+        messages = self.messenger_engine.deserialize_messages(msg.data) if msg.data else []
+        messenger_id = self.messenger_engine.get_messenger_id(messages[0]) if messages else None
+        if messenger_id is None:
+            self.update_cli.display('Unable to identify Messenger, the CheckIn message was not present', 'warning')
+            await ws.close()
+            return ws
         messenger = self.messenger_engine.get_messenger(messenger_id)
         if messenger:
             await messenger.set_websocket(ws)
@@ -124,11 +135,19 @@ class HTTPWSServer:
 
 
         async for msg in ws:
-            messages = self.messenger_engine.deserialize_messages(msg.data)
-            messenger_id = self.messenger_engine.get_messenger_id(messages[0])
-            await self.messenger_engine.send_messages(
-                messenger_id,
-                messages[1:]
-            )
+            try:
+                messages = self.messenger_engine.deserialize_messages(msg.data) if msg.data else []
+                if not messages:
+                    continue
+                messenger_id = self.messenger_engine.get_messenger_id(messages[0])
+                if messenger_id is None:
+                    continue
+                await self.messenger_engine.send_messages(
+                    messenger_id,
+                    messages[1:]
+                )
+            except Exception as e:
+                self.update_cli.display(f'Unknown error while processing check in: {e}', 'warning')
+                continue
 
         return ws
