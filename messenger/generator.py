@@ -1,4 +1,5 @@
 import random
+import secrets
 import string
 import hashlib
 
@@ -48,9 +49,9 @@ def alphanumeric_identifier(length: int = 10) -> str:
 
 
 def generate_encryption_key(min_len=10, max_len=20):
-    length = random.randint(min_len, max_len)  # Random length between min_length and max_length
-    letters = string.ascii_letters   # Contains both uppercase and lowercase letters
-    return ''.join(random.choice(letters) for _ in range(length))
+    length = secrets.randbelow(max_len - min_len + 1) + min_len
+    letters = string.ascii_letters
+    return ''.join(secrets.choice(letters) for _ in range(length))
 
 
 def generate_hash(hash_input: str) -> bytes:
