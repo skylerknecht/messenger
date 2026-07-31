@@ -136,13 +136,13 @@ class LocalPortForwarder(Forwarder):
                 'success', reprompt=False)
             return True
         except OSError as e:
-            if e.errno == 98:  # Typically "Address already in use" on Linux
+            if e.errno == errno.EADDRINUSE:
                 self.update_cli.display(
                     f"Port {self.listening_port} is already in use on {self.listening_host}.",
                     'error',
                     reprompt=False
                 )
-            elif e.errno == 99:  # "Cannot assign requested address"
+            elif e.errno == errno.EADDRNOTAVAIL:
                 self.update_cli.display(
                     f"Cannot bind to host '{self.listening_host}'—it may be invalid or unreachable.",
                     'error',
