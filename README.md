@@ -78,8 +78,8 @@ operator~# ./client.py
 | Clients                                                            | Messenger Builder | Protocols         | Local/Remote Port Forwarding | SOCKS5 TCP | SOCKS5 UDP    |
 |--------------------------------------------------------------------|-------------------|-------------------|------------------------------|------------|---------------|
 | [Python](https://github.com/skylerknecht/messenger-client-python)  | Supported         | HTTP & WebSockets | Supported                    | Supported  | Not Supported |
-| [C#](https://github.com/skylerknecht/messenger-client-python)      | Not Supported     | HTTP & WebSockets | Supported                    | Supported  | Not Supported |
-| [Node JS](https://github.com/skylerknecht/messenger-client-nodejs) | Not Supported     |        WebSockets | Supported                    | Supported  | Not Supported |
+| [C#](https://github.com/skylerknecht/messenger-client-csharp)      | Supported         | HTTP & WebSockets | Supported                    | Supported  | Not Supported |
+| [Node JS](https://github.com/skylerknecht/messenger-client-nodejs) | Supported         | HTTP & WebSockets | Supported                    | Supported  | Not Supported |
 
 ## Credits 
 
