@@ -65,6 +65,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **C#**
 - `builder.py` with Jinja2 template rendering matching the Python and Node.js builder pattern — `messenger-builder csharp` auto-discovers the new builder with `--server-url`, `--encryption-key`, `--user-agent`, `--proxy`, `--remote-port-forwards`, and retry options
 - Source files converted to Jinja2 templates under `templates/MessengerClient/`; builder outputs a complete .NET Framework 4.7.2 project directory ready for `msbuild`
+- README rewritten to match the Python and Node.js client documentation format — Overview, Primary Capabilities, Client-Specific Capabilities, Quick Start with compilation steps, Usage, and Client Options with detailed subsections
+
+**Node.js**
+- README updated to document `--electron` and `--messenger-id` builder options, add Client-Specific Capabilities section, and correct HTTP transport support
+
+#### Fixed
+
+**All clients**
+- README Quick Start examples no longer reference the removed `/socketio/?EIO=4&transport=` route
+- README Client Options tables now show `localhost:8080` as the default server URL, matching the actual builder default
+
+**Node.js**
+- README no longer says "Python Messenger Client" in the Usage section
+- README `--name` default and example corrected from `.py` to `.js`
+
+### Server
+
+#### Fixed
+
+- Client Support Matrix: C# row linked to `messenger-client-python` instead of `messenger-client-csharp`
+- Client Support Matrix: C# and Node.js builders now marked as Supported
+- Client Support Matrix: Node.js protocols updated from WebSockets to HTTP & WebSockets
 
 ## [0.4.2] - 2026-07-31
 
