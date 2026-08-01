@@ -1,5 +1,10 @@
 # Messenger
 
+![Version](https://img.shields.io/github/v/release/skylerknecht/messenger?label=version)
+![PyPI](https://img.shields.io/pypi/v/messenger-proxy)
+![Python](https://img.shields.io/badge/python->3.8-blue)
+![License](https://img.shields.io/github/license/skylerknecht/messenger)
+
 Messenger is a tunneling toolkit that leverages a client-server infrastructure
 to establish SOCKS5 proxies, local port forwards, and remote port forwards. While 
 the server is primarily written in Python, there are several clients written in
@@ -68,9 +73,11 @@ operator~# ./client.py
 - [Chain Messenger Clients](docs/chaining-messengers.md)
 - [Perform NTLMRelay2Self with Messenger](docs/ntlmrelay2self-with-messenger.md)
 
-
-### Developers 
+### Developers
 - [Communication Overview](docs/communication.md)
+- [Client Specification (Pseudo-Code)](docs/client.pseudo)
+- [Testing Checklist](docs/testing.md)
+- [Releasing](docs/releasing.md)
 
 
 ## Client Support Matrix
