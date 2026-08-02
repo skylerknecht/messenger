@@ -1,13 +1,9 @@
-<p align="center">
-  <img src="docs/images/messenger-logo.png" alt="Messenger" width="600">
-</p>
+# Messenger
 
-<p align="center">
-  <img src="https://img.shields.io/github/v/release/skylerknecht/messenger?label=version" alt="Version">
-  <img src="https://img.shields.io/pypi/v/messenger-proxy" alt="PyPI">
-  <img src="https://img.shields.io/badge/python->3.8-blue" alt="Python">
-  <img src="https://img.shields.io/github/license/skylerknecht/messenger" alt="License">
-</p>
+![Version](https://img.shields.io/github/v/release/skylerknecht/messenger?label=version)
+![PyPI](https://img.shields.io/pypi/v/messenger-proxy)
+![Python](https://img.shields.io/badge/python->3.8-blue)
+![License](https://img.shields.io/github/license/skylerknecht/messenger)
 
 Messenger is a tunneling toolkit that leverages a client-server infrastructure
 to establish SOCKS5 proxies, local port forwards, and remote port forwards. While 
