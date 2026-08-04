@@ -6,6 +6,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Client
+
+#### Fixed
+
+**Node.js**
+- Added no-op error handler after successful connect — post-connect TCP errors (`ECONNRESET`) crashed the process because `removeListener` left the socket with no error handler
+
+**C#**
+- Initialized HTTP client `_messengerId` to empty string — was `null`, causing `ArgumentNullException` on first connect
+- Removed `SetRequestHeader("User-Agent")` from WebSocket client — restricted header on .NET Framework 4.7.2
+
+#### Changed
+
+**C#**
+- Reduced HTTP poll interval from 1000ms to 100ms to match Python and Node.js clients
+- Flattened builder template directory — output no longer nests `MessengerClient/MessengerClient/`
+
 ## [0.4.4] - 2026-08-01
 
 ### Client
