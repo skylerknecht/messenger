@@ -44,9 +44,17 @@ class HTTPWSServer:
             del response.headers['Server']
 
     async def redirect_handler(self, request):
+        ip = request.remote
         upgrade = request.headers.get('Upgrade', '').lower()
+        is_websocket = upgrade == 'websocket'
 
-        if upgrade == 'websocket':
+        self.update_cli.display(
+            f'The handler received a {request.method} from {ip} '
+            f'(upgrade={upgrade or "-"}).',
+            'debug', debug_level=1,
+        )
+
+        if is_websocket:
             return await self.websocket_handler(request)
         if request.method == 'POST':
             return await self.http_post_handler(request)

@@ -34,6 +34,7 @@ class UpdateCLI:
     Status = namedtuple('Status', ['icon', 'color'])
 
     STATUS_LEVELS = {
+        'debug': Status('[DBG {}]', 'white'),
         'information': Status('[*]', 'cyan'),
         'warning': Status('[!]', 'yellow'),
         'error': Status('[-]', 'red'),
@@ -53,11 +54,18 @@ class UpdateCLI:
         self.prompt = prompt
         self.session = session
         self.logger = logger
-        self.logged_message_types = {'req', 'rep'}
+        self.debug_level = 0
 
-    def display(self, stdout, status='standard', reprompt=True):
+    def display(self, stdout, status='standard', reprompt=True, debug_level=0):
         status_info = self.STATUS_LEVELS.get(status, self.STATUS_LEVELS['information'])
-        icon = color_text(status_info.icon, status_info.color)
+
+        if status == 'debug':
+            if self.debug_level < debug_level:
+                return
+            icon_label = status_info.icon.format(debug_level)
+            icon = color_text(icon_label, status_info.color)
+        else:
+            icon = color_text(status_info.icon, status_info.color)
 
         timestamp = color_text(f'[{datetime.now().strftime("%H:%M:%S")}]', 'white')
         print(f'\r{timestamp} {icon} {stdout}')
@@ -92,7 +100,7 @@ class Manager:
             ssl (bool): Indicates whether SSL is enabled.
         """
         self.server_commands = {
-            'logging': (self.logging, "Toggle message type logging."),
+            'debug': (self.debug, "Set the debug level."),
             'forwarders': (self.print_forwarders, "Display a list of forwarders in a table format."),
             'messengers': (self.print_messengers, "Display a list of messengers in a table format."),
             'scans': (self.print_scanners, "Display a list of scanners in a table format."),
@@ -285,39 +293,34 @@ class Manager:
         """
         self.current_messenger = None
 
-    async def logging(self, message_type=None):
+    async def debug(self, level: int):
         """
-        Toggle message type logging or show current status.
+        Set the debug level for CLI output.
 
-        Type | Messages logged
-        -----|------------------------------------------------------
-        req  | InitiateForwarderClientReq (0x01)
-        rep  | InitiateForwarderClientRep (0x02)
-        data | SendDataMessage (0x03)
+        Debug Level | Scope                           | Description
+        ------------|---------------------------------|---------------------------------------------------------
+        0           | None                            | No debug output
+        1           | Handler Messages                | Handler received/sent messages
+        2           | Messenger Messages              | Messenger received/sent messages
+        3           | Forwarder Clients Messages      | Forwarder clients received/sent messages
+        4           | Handler Data                    | Handler received/sent raw data
+        5           | Messenger Data                  | Messenger received/sent raw data
+        6           | Forwarder Clients Data          | Forwarder clients received/sent raw data
 
-        optional:
-          message_type   One of: req, rep, data
+        required:
+          level        The numeric debug level
 
         examples:
-          logging
-          logging req
-          logging data
+          debug 0
         """
-        valid_types = {'req', 'rep', 'data'}
-        if message_type is None:
-            for t in sorted(valid_types):
-                state = color_text('on', 'green') if t in self.update_cli.logged_message_types else color_text('off', 'red')
-                self.update_cli.display(f'{t}: {state}', 'standard', reprompt=False)
+        try:
+            level = int(level)
+        except ValueError:
+            self.update_cli.display("Debug level must be an integer.", "error", reprompt=False)
             return
-        if message_type not in valid_types:
-            self.update_cli.display(f'Unknown message type `{message_type}`. Valid types: {", ".join(sorted(valid_types))}', 'error', reprompt=False)
-            return
-        if message_type in self.update_cli.logged_message_types:
-            self.update_cli.logged_message_types.discard(message_type)
-            self.update_cli.display(f'Logging for `{message_type}` disabled.', 'information', reprompt=False)
-        else:
-            self.update_cli.logged_message_types.add(message_type)
-            self.update_cli.display(f'Logging for `{message_type}` enabled.', 'information', reprompt=False)
+
+        self.update_cli.debug_level = level
+        self.update_cli.display(f"Debug level set to {level}.", "success", reprompt=False)
 
     async def interact(self, messenger):
         """
@@ -612,6 +615,9 @@ class Manager:
             f"[{timestamp}] Unexpected {type(e).__name__}: {e}\n"
             f"{tb}\n{'-' * 80}\n"
         )
+
+        if self.update_cli.debug_level != 0:
+            self.update_cli.display(log_entry, 'error', reprompt=False)
 
         with open(log_file, "a", encoding="utf-8") as f:
             f.write(log_entry)
