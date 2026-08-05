@@ -1,26 +1,61 @@
 #!/usr/bin/env python3
 import asyncio
 import argparse
+import json
+import os
+import sys
 
 from messenger.manager import Manager
 from messenger import BANNER
 
+CONFIG_FILENAME = 'config.json'
+
+def load_config(config_dir):
+    path = os.path.join(config_dir, CONFIG_FILENAME)
+    if not os.path.isfile(path):
+        return {}
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError) as e:
+        print(f'Warning: could not load {path}: {e}', file=sys.stderr)
+        return {}
+
+def resolve_config_dir():
+    for i, arg in enumerate(sys.argv[1:], 1):
+        if arg in ('-c', '--config') and i + 1 < len(sys.argv):
+            return sys.argv[i + 1]
+        if arg.startswith('--config='):
+            return arg.split('=', 1)[1]
+    return os.path.join(os.path.expanduser('~'), '.messenger')
+
 async def main(banner, manager):
+    config_dir = resolve_config_dir()
+    cfg = load_config(config_dir)
+
     parser = argparse.ArgumentParser()
-    parser.add_argument("-a", "--address", type=str, default="0.0.0.0",
+    parser.add_argument("-a", "--address", type=str, default=cfg.get('address', '0.0.0.0'),
                         help="IP address the server should listen on. Default is '0.0.0.0'.")
-    parser.add_argument("-p", "--port", type=int, default=8080,
+    parser.add_argument("-p", "--port", type=int, default=cfg.get('port', 8080),
                         help="Port number the server should listen on. Default is 8080.")
-    parser.add_argument("-s", "--ssl", nargs=2, metavar=('CERT', 'KEY'), default=None,
+    parser.add_argument("-s", "--ssl", nargs=2, metavar=('CERT', 'KEY'), default=cfg.get('ssl'),
                         help="SSL certificate and key files. Expect two strings: path to the certificate and path to "
                              "the key.")
-    parser.add_argument("-e", "--encryption-key", type=str, default=None, help="The AES encryption key.")
-    parser.add_argument("-c", "--config", type=str, default=None, help="Messenger directory (default: ~/.messenger).")
-    parser.add_argument("-q", "--quiet", action="store_true", help="Suppress the banner.")
+    parser.add_argument("-e", "--encryption-key", type=str, default=cfg.get('encryption_key'),
+                        help="The AES encryption key.")
+    parser.add_argument("-c", "--config", type=str, default=None,
+                        help="Messenger directory (default: ~/.messenger).")
+    parser.add_argument("-q", "--quiet", action="store_true",
+                        default=cfg.get('quiet', False),
+                        help="Suppress the banner.")
     args = parser.parse_args()
+
+    logging_types = set(cfg.get('logging', []))
+
     if not args.quiet:
         print(banner)
-    messenger_manager = manager(args.address, args.port, args.ssl, args.encryption_key, args.config)
+    messenger_manager = manager(args.address, args.port, args.ssl, args.encryption_key,
+                                args.config, logging_types)
 
     await messenger_manager.start_command_line_interface()
 
