@@ -33,11 +33,12 @@ class Logger:
     """
 
     def __init__(self):
-        log_dir = os.path.join(os.path.expanduser('~'), '.messenger', 'logs')
-        os.makedirs(log_dir, exist_ok=True)
+        self.log_dir = os.path.join(os.path.expanduser('~'), '.messenger', 'logs')
+        self.created = not os.path.isdir(self.log_dir)
+        os.makedirs(self.log_dir, exist_ok=True)
         date = datetime.now(timezone.utc).strftime('%Y-%m-%d')
-        self.command_path = os.path.join(log_dir, f'{date}.commands.jsonl')
-        self.message_path = os.path.join(log_dir, f'{date}.messages.jsonl')
+        self.command_path = os.path.join(self.log_dir, f'{date}.commands.jsonl')
+        self.message_path = os.path.join(self.log_dir, f'{date}.messages.jsonl')
 
     @staticmethod
     def now():

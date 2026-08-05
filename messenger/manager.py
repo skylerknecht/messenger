@@ -126,7 +126,13 @@ class Manager:
         self.session = PromptSession(completer=DynamicCompleter(self), reserve_space_for_menu=0)
         self.update_cli = UpdateCLI(self.PROMPT, self.session, self.logger)
         self.encryption_key = encryption_key if encryption_key is not None else generate_encryption_key()
-        self.update_cli.display(f'The AES encryption key is {bold_text(self.encryption_key)}', 'Information', reprompt=False)
+        self.update_cli.display(f'The AES encryption key is {bold_text(self.encryption_key)}', 'information', reprompt=False)
+        if self.logger.created:
+            self.update_cli.display(f'Messenger directory created: {self.logger.log_dir}', 'information', reprompt=False)
+        else:
+            self.update_cli.display(f'Messenger directory in use: {self.logger.log_dir}', 'information', reprompt=False)
+        if not self.update_cli.logging_types:
+            self.update_cli.display('Logging disabled.', 'information', reprompt=False)
         self.messenger_engine = Engine(self.messengers, self.update_cli, generate_hash(self.encryption_key))
         self.messenger_server = HTTPWSServer(self.update_cli, self.messenger_engine, ip=server_ip, port=server_port, ssl=ssl)
 
