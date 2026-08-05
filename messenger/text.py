@@ -1,3 +1,21 @@
+import re
+
+_ANSI_ESCAPE = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
+
+
+def strip_ansi(text):
+    """
+    Remove ANSI escape codes from a string.
+
+    Args:
+        text (str): Text that may contain ANSI escape codes.
+
+    Returns:
+        str: Text without ANSI escape codes.
+    """
+    return _ANSI_ESCAPE.sub('', text)
+
+
 def color_text(text, color):
     """
     Apply ANSI color codes to text.
