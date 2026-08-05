@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0-rc.4] - 2026-08-05
+
+#### Added
+- `config.json` support in the messenger directory for persisting CLI defaults
+  and logging types across sessions.
+- Startup messages now show config file path and logging destination.
+
 ## [0.5.0-rc.3] - 2026-08-05
 
 #### Added
