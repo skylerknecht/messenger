@@ -51,7 +51,8 @@ jobs:
 
       - name: Update README version badge
         run: |
-          sed -i 's|https://img.shields.io/badge/version-[^"]*-blue|https://img.shields.io/badge/version-${{ inputs.version }}-blue|' README.md
+          badge_version=$(echo "${{ inputs.version }}" | sed 's/-/--/g')
+          sed -i "s|https://img.shields.io/badge/version-[^\"]*-blue|https://img.shields.io/badge/version-${badge_version}-blue|" README.md
 
       - name: Promote Unreleased to version section
         env:
