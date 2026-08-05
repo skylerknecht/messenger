@@ -55,7 +55,7 @@ class UpdateCLI:
         self.session = session
         self.logger = logger
         self.debug_types = set()
-        self.logging_types = {1, 2, 3, 4}
+        self.logging_types = set()
 
     def display(self, stdout, status='standard', reprompt=True, debug_level=0):
         status_info = self.STATUS_LEVELS.get(status, self.STATUS_LEVELS['information'])
@@ -91,7 +91,7 @@ class Manager:
 
     PROMPT = 'messenger'
 
-    def __init__(self, server_ip, server_port, ssl, encryption_key):
+    def __init__(self, server_ip, server_port, ssl, encryption_key, config_dir=None):
         """
         Initialize Manager with command definitions, messengers, and prompt session.
 
@@ -122,17 +122,17 @@ class Manager:
         self.commands = {**self.server_commands, **self.messenger_commands}
         self.messengers = []
         self.current_messenger = None
-        self.logger = Logger()
+        self.logger = Logger(config_dir)
         self.session = PromptSession(completer=DynamicCompleter(self), reserve_space_for_menu=0)
         self.update_cli = UpdateCLI(self.PROMPT, self.session, self.logger)
         self.encryption_key = encryption_key if encryption_key is not None else generate_encryption_key()
         self.update_cli.display(f'The AES encryption key is {bold_text(self.encryption_key)}', 'information', reprompt=False)
         if self.logger.created:
-            self.update_cli.display(f'Messenger directory created: {self.logger.log_dir}', 'information', reprompt=False)
+            self.update_cli.display(f'Messenger directory created: {self.logger.base_dir}', 'information', reprompt=False)
         else:
-            self.update_cli.display(f'Messenger directory in use: {self.logger.log_dir}', 'information', reprompt=False)
+            self.update_cli.display(f'Messenger directory in use: {self.logger.base_dir}', 'information', reprompt=False)
         if not self.update_cli.logging_types:
-            self.update_cli.display('Logging disabled.', 'information', reprompt=False)
+            self.update_cli.display('All logging is disabled.', 'information', reprompt=False)
         self.messenger_engine = Engine(self.messengers, self.update_cli, generate_hash(self.encryption_key))
         self.messenger_server = HTTPWSServer(self.update_cli, self.messenger_engine, ip=server_ip, port=server_port, ssl=ssl)
 
@@ -715,9 +715,7 @@ class Manager:
             self.update_cli.display(f'Could not write output to {path}: {e}', 'error', reprompt=False)
 
     def _log_unexpected_error(self, e):
-        log_dir = os.path.join(os.path.expanduser("~"), ".messenger")
-        os.makedirs(log_dir, exist_ok=True)
-        log_file = os.path.join(log_dir, "exceptions.log")
+        log_file = os.path.join(self.logger.base_dir, "exceptions.log")
 
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         tb = traceback.format_exc()
