@@ -49,6 +49,10 @@ jobs:
         run: |
           sed -i "s/^__version__ = .*/__version__ = '${{ inputs.version }}'/" messenger/__init__.py
 
+      - name: Update README version badge
+        run: |
+          sed -i 's|https://img.shields.io/badge/version-[^"]*-blue|https://img.shields.io/badge/version-${{ inputs.version }}-blue|' README.md
+
       - name: Promote Unreleased to version section
         env:
           VERSION: ${{ inputs.version }}
@@ -103,7 +107,7 @@ jobs:
           git config user.name  "${{ github.actor }}"
           git config user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
           git checkout -b release/${{ inputs.version }}
-          git add messenger/__init__.py CHANGELOG.md
+          git add messenger/__init__.py CHANGELOG.md README.md
           git commit -m "release ${{ inputs.version }}"
           git push -u origin release/${{ inputs.version }}
 
