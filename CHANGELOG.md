@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0-rc.3] - 2026-08-05
+
+#### Added
+- `logging` command to toggle which message types are recorded to disk.
+  Logging is disabled by default. `logging 1,2,3,4` enables all types.
+  `logging 0` disables all. `logging` with no args shows current status.
+- Startup status messages for messenger directory and logging state.
+- `--config` / `-c` CLI flag to set a custom messenger directory (default: `~/.messenger`).
+
 ## [0.5.0-rc.2] - 2026-08-05
 
 #### Added
