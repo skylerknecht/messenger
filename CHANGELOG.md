@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Log commands and protocol messages to per-day JSONL files
 
+- Rewrite `debug` command to toggle output by type instead of threshold level.
+  `debug 1,4` enables handler messages and handler data independently.
+  `debug 0` disables all. `debug` with no args shows current status.
+
 ## [0.4.5] - 2026-08-04
 
 ### Client
