@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   logging (`req`, `rep`, `data`). Defaults to `req` and `rep` enabled, `data`
   disabled. Removes the six-level debug system and all debug display calls from
   messengers, forwarder clients, and the HTTP/WS handler.
+
 ## [0.4.5] - 2026-08-04
 
 ### Client
