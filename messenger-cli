@@ -13,13 +13,13 @@ CONFIG_FILENAME = 'config.json'
 def load_config(config_dir):
     path = os.path.join(config_dir, CONFIG_FILENAME)
     if not os.path.isfile(path):
-        return {}
+        return {}, None
     try:
         with open(path, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            return json.load(f), path
     except (json.JSONDecodeError, OSError) as e:
         print(f'Warning: could not load {path}: {e}', file=sys.stderr)
-        return {}
+        return {}, None
 
 def resolve_config_dir():
     for i, arg in enumerate(sys.argv[1:], 1):
@@ -31,7 +31,7 @@ def resolve_config_dir():
 
 async def main(banner, manager):
     config_dir = resolve_config_dir()
-    cfg = load_config(config_dir)
+    cfg, config_path = load_config(config_dir)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-a", "--address", type=str, default=cfg.get('address', '0.0.0.0'),
@@ -55,7 +55,7 @@ async def main(banner, manager):
     if not args.quiet:
         print(banner)
     messenger_manager = manager(args.address, args.port, args.ssl, args.encryption_key,
-                                args.config, logging_types)
+                                args.config, logging_types, config_path)
 
     await messenger_manager.start_command_line_interface()
 
