@@ -44,6 +44,11 @@ class Messenger:
     def status(self):
         raise NotImplementedError
 
+    def log_message(self, direction, message):
+        logger = getattr(self.update_cli, 'logger', None)
+        if logger:
+            logger.record_message(direction, self.identifier, message)
+
     @abstractmethod
     async def send_message_upstream(self, message):
         raise NotImplementedError
@@ -61,6 +66,7 @@ class Messenger:
             debug_level = 5
         )
         for message in messages:
+            self.log_message('downstream', message)
             # 1) Initiate Forwarder Client Request (0x01)
             if isinstance(message, InitiateForwarderClientReq):
                 destination_host = message.ip_address
@@ -165,6 +171,7 @@ class HTTPMessenger(Messenger):
             return color_text(f"{elapsed / 3600:.0f}h delay", "red")
 
     async def send_message_upstream(self, message):
+        self.log_message('upstream', message)
         self.update_cli.display(
             f'Messenger {self.identifier} queued a upstream message.',
             'debug',
@@ -206,6 +213,7 @@ class WebSocketMessenger(Messenger):
         await self.websocket.send_bytes(messages)
 
     async def send_message_upstream(self, message):
+        self.log_message('upstream', message)
         if self.websocket.closed:
             self.update_cli.display(
                 f'Messenger `{self.identifier}` queued a upstream message.',

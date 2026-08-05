@@ -19,7 +19,8 @@ from messenger.engine import Engine
 from messenger.forwarders import LocalPortForwarder, SocksProxy, RemotePortForwarder, InvalidConfigError
 from messenger.generator import generate_encryption_key, generate_hash
 from messenger.scanner import Scanner
-from messenger.text import color_text, bold_text
+from messenger.text import color_text, bold_text, strip_ansi
+from messenger.logger import Logger
 
 class UpdateCLI:
     """
@@ -41,30 +42,33 @@ class UpdateCLI:
         'standard': Status('', 'reset')
     }
 
-    def __init__(self, prompt, session):
+    def __init__(self, prompt, session, logger):
         """
         Initializes an UpdateCLI instance with prompt, session, and debug state.
 
         Args:
             prompt (str): The prompt text to display in the CLI.
             session (PromptSession): The prompt session instance.
+            logger (Logger): The session logger for command and traffic records.
         """
         self.prompt = prompt
         self.session = session
-        self.debug_level = 0
+        self.logger = logger
+        self.debug_types = set()
 
     def display(self, stdout, status='standard', reprompt=True, debug_level=0):
         status_info = self.STATUS_LEVELS.get(status, self.STATUS_LEVELS['information'])
 
         if status == 'debug':
-            if self.debug_level < debug_level:
+            if debug_level not in self.debug_types:
                 return
             icon_label = status_info.icon.format(debug_level)
             icon = color_text(icon_label, status_info.color)
         else:
             icon = color_text(status_info.icon, status_info.color)
 
-        print(f'\r{icon} {stdout}')
+        timestamp = color_text(f'[{datetime.now().strftime("%H:%M:%S")}]', 'white')
+        print(f'\r{timestamp} {icon} {stdout}')
 
         if reprompt:
             print(f'({self.prompt})~# ' + self.session.app.current_buffer.text, end='')
@@ -96,7 +100,7 @@ class Manager:
             ssl (bool): Indicates whether SSL is enabled.
         """
         self.server_commands = {
-            'debug': (self.debug, "Set the debug level."),
+            'debug': (self.debug, "Toggle debug output by type."),
             'forwarders': (self.print_forwarders, "Display a list of forwarders in a table format."),
             'messengers': (self.print_messengers, "Display a list of messengers in a table format."),
             'scans': (self.print_scanners, "Display a list of scanners in a table format."),
@@ -116,8 +120,9 @@ class Manager:
         self.commands = {**self.server_commands, **self.messenger_commands}
         self.messengers = []
         self.current_messenger = None
+        self.logger = Logger()
         self.session = PromptSession(completer=DynamicCompleter(self), reserve_space_for_menu=0)
-        self.update_cli = UpdateCLI(self.PROMPT, self.session)
+        self.update_cli = UpdateCLI(self.PROMPT, self.session, self.logger)
         self.encryption_key = encryption_key if encryption_key is not None else generate_encryption_key()
         self.update_cli.display(f'The AES encryption key is {bold_text(self.encryption_key)}', 'Information', reprompt=False)
         self.messenger_engine = Engine(self.messengers, self.update_cli, generate_hash(self.encryption_key))
@@ -203,9 +208,16 @@ class Manager:
         keyword_args = {}
         consumed_flags = set()
 
+        output_path = None
         tokens_iter = iter(tokens)
         for token in tokens_iter:
-            if token.startswith('--') or token.startswith('-'):
+            if token in ('-o', '--output'):
+                try:
+                    output_path = next(tokens_iter)
+                except StopIteration:
+                    self.update_cli.display(f'Flag `{token}` requires a file path.', 'error', reprompt=False)
+                    return
+            elif token.startswith('--') or token.startswith('-'):
                 name = token.lstrip('-').replace('-', '_')
                 param = params.get(name)
                 if param is None or param.kind not in (Parameter.POSITIONAL_OR_KEYWORD, Parameter.KEYWORD_ONLY):
@@ -252,6 +264,7 @@ class Manager:
 
         # DEBUG: print("DEBUG:", final_args, keyword_args)
         await func(*final_args, **keyword_args)
+        return output_path
 
     def require_messenger(func):
         """Decorator to ensure a messenger is selected before executing the command."""
@@ -280,34 +293,72 @@ class Manager:
         """
         self.current_messenger = None
 
-    async def debug(self, level: int):
+    async def debug(self, types=None):
         """
-        Set the debug level for CLI output.
+        Enable debug output by type. With no arguments, show current status.
 
-        Debug Level | Scope                           | Description
-        ------------|---------------------------------|---------------------------------------------------------
-        0           | None                            | No debug output
-        1           | Handler Messages                | Handler received/sent messages
-        2           | Messenger Messages              | Messenger received/sent messages
-        3           | Forwarder Clients Messages      | Forwarder clients received/sent messages
-        4           | Handler Data                    | Handler received/sent raw data
-        5           | Messenger Data                  | Messenger received/sent raw data
-        6           | Forwarder Clients Data          | Forwarder clients received/sent raw data
+        Type | Scope                           | Description
+        -----|---------------------------------|---------------------------------------------------------
+        0    | None                            | Disable all debug output
+        1    | Handler Messages                | Handler received/sent messages
+        2    | Messenger Messages              | Messenger received/sent messages
+        3    | Forwarder Clients Messages      | Forwarder clients received/sent messages
+        4    | Handler Data                    | Handler received/sent raw data
+        5    | Messenger Data                  | Messenger received/sent raw data
+        6    | Forwarder Clients Data          | Forwarder clients received/sent raw data
 
-        required:
-          level        The numeric debug level
+        optional:
+          types        Comma-separated list of types to toggle (e.g. 1,4)
 
         examples:
+          debug
           debug 0
+          debug 1,4
+          debug 2,5
         """
-        try:
-            level = int(level)
-        except ValueError:
-            self.update_cli.display("Debug level must be an integer.", "error", reprompt=False)
+        VALID_TYPES = {1, 2, 3, 4, 5, 6}
+        LABELS = {
+            1: 'Handler Messages',
+            2: 'Messenger Messages',
+            3: 'Forwarder Clients Messages',
+            4: 'Handler Data',
+            5: 'Messenger Data',
+            6: 'Forwarder Clients Data',
+        }
+        if types is None:
+            if not self.update_cli.debug_types:
+                self.update_cli.display('All debug output disabled.', 'information', reprompt=False)
+            else:
+                for t in sorted(VALID_TYPES):
+                    state = color_text('on', 'green') if t in self.update_cli.debug_types else color_text('off', 'red')
+                    self.update_cli.display(f'{t} {LABELS[t]}: {state}', 'standard', reprompt=False)
             return
 
-        self.update_cli.debug_level = level
-        self.update_cli.display(f"Debug level set to {level}.", "success", reprompt=False)
+        raw = str(types).split(',')
+        parsed = set()
+        for token in raw:
+            token = token.strip()
+            try:
+                val = int(token)
+            except ValueError:
+                self.update_cli.display(f'`{token}` is not a valid debug type.', 'error', reprompt=False)
+                return
+            if val == 0:
+                self.update_cli.debug_types.clear()
+                self.update_cli.display('All debug output disabled.', 'success', reprompt=False)
+                return
+            if val not in VALID_TYPES:
+                self.update_cli.display(f'`{val}` is not a valid debug type. Valid types: 1-6.', 'error', reprompt=False)
+                return
+            parsed.add(val)
+
+        for t in parsed:
+            if t in self.update_cli.debug_types:
+                self.update_cli.debug_types.discard(t)
+                self.update_cli.display(f'{LABELS[t]} disabled.', 'information', reprompt=False)
+            else:
+                self.update_cli.debug_types.add(t)
+                self.update_cli.display(f'{LABELS[t]} enabled.', 'information', reprompt=False)
 
     async def interact(self, messenger):
         """
@@ -547,43 +598,69 @@ class Manager:
             try:
                 prompt = self.current_messenger.identifier if self.current_messenger else self.PROMPT
                 user_input = await self.session.prompt_async(f'({prompt})~# ')
-                if not user_input.strip():
-                    continue
-                user_input = user_input.split(' ')
-                command = user_input[0]
-                for messenger in self.messengers:
-                    if command == messenger.identifier:
-                        await self.interact(messenger)
-                        break
-                else:
-                    args = user_input[1:]
-                    await self.execute_command(command, args)
-            except InvalidConfigError as e:
-                self.update_cli.display(str(e), 'error',reprompt=False)
-            except Exception as e:
-                log_dir = os.path.join(os.path.expanduser("~"), ".messenger")
-                os.makedirs(log_dir, exist_ok=True)
-                log_file = os.path.join(log_dir, "exceptions.log")
-
-                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                tb = traceback.format_exc()
-                log_entry = (
-                    f"[{timestamp}] Unexpected {type(e).__name__}: {e}\n"
-                    f"{tb}\n{'-' * 80}\n"
-                )
-
-                if self.update_cli.debug_level != 0:
-                    self.update_cli.display(log_entry, 'error', reprompt=False)
-
-                with open(log_file, "a", encoding="utf-8") as f:
-                    f.write(log_entry)
-                self.update_cli.display(f'Captured unexpected error and wrote to {log_file}', 'error', reprompt=False)
-                self.update_cli.display(f'Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new', 'information', reprompt=False)
             except KeyboardInterrupt:
                 self.update_cli.display(f"CTRL+C caught, type `exit` to quit Messenger.", 'information',
                                         reprompt=False)
                 continue
+
+            if not user_input.strip():
+                continue
+
+            timestamp = self.logger.now()
+            output_path = None
+            with self.logger.capture() as output:
+                try:
+                    parts = user_input.split(' ')
+                    command = parts[0]
+                    for messenger in self.messengers:
+                        if command == messenger.identifier:
+                            await self.interact(messenger)
+                            break
+                    else:
+                        output_path = await self.execute_command(command, parts[1:])
+                except InvalidConfigError as e:
+                    self.update_cli.display(str(e), 'error', reprompt=False)
+                except KeyboardInterrupt:
+                    self.update_cli.display(f"CTRL+C caught, type `exit` to quit Messenger.", 'information',
+                                            reprompt=False)
+                except Exception as e:
+                    self._log_unexpected_error(e)
+
+            captured = strip_ansi(output.getvalue()).strip()
+            self.logger.record_command(timestamp, user_input.strip(), captured)
+
+            if output_path:
+                self._write_output_file(output_path, captured)
         await self.exit()
+
+    def _write_output_file(self, path, contents):
+        try:
+            path = os.path.expanduser(path)
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(contents + '\n')
+            self.update_cli.display(f'Output written to {path}.', 'success', reprompt=False)
+        except OSError as e:
+            self.update_cli.display(f'Could not write output to {path}: {e}', 'error', reprompt=False)
+
+    def _log_unexpected_error(self, e):
+        log_dir = os.path.join(os.path.expanduser("~"), ".messenger")
+        os.makedirs(log_dir, exist_ok=True)
+        log_file = os.path.join(log_dir, "exceptions.log")
+
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        tb = traceback.format_exc()
+        log_entry = (
+            f"[{timestamp}] Unexpected {type(e).__name__}: {e}\n"
+            f"{tb}\n{'-' * 80}\n"
+        )
+
+        if self.update_cli.debug_types:
+            self.update_cli.display(log_entry, 'error', reprompt=False)
+
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(log_entry)
+        self.update_cli.display(f'Captured unexpected error and wrote to {log_file}', 'error', reprompt=False)
+        self.update_cli.display(f'Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new', 'information', reprompt=False)
 
     @require_messenger
     async def start_local_forwarder(self, forwarder_config):
