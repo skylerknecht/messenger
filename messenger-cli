@@ -15,11 +15,12 @@ async def main(banner, manager):
                         help="SSL certificate and key files. Expect two strings: path to the certificate and path to "
                              "the key.")
     parser.add_argument("-e", "--encryption-key", type=str, default=None, help="The AES encryption key.")
+    parser.add_argument("-c", "--config", type=str, default=None, help="Messenger directory (default: ~/.messenger).")
     parser.add_argument("-q", "--quiet", action="store_true", help="Suppress the banner.")
     args = parser.parse_args()
     if not args.quiet:
         print(banner)
-    messenger_manager = manager(args.address, args.port, args.ssl, args.encryption_key)
+    messenger_manager = manager(args.address, args.port, args.ssl, args.encryption_key, args.config)
 
     await messenger_manager.start_command_line_interface()
 
