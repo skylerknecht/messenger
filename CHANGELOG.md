@@ -4,14 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.5.0] - 2026-08-05
 
+#### Added
 - Add reserved -o/--output flag and fix banner SyntaxWarning
-
-- Bump version to 0.5.0
-
 - Log commands and protocol messages to per-day JSONL files
 
+#### Changed
 - Rewrite `debug` command to toggle output by type instead of threshold level.
   `debug 1,4` enables handler messages and handler data independently.
   `debug 0` disables all. `debug` with no args shows current status.
