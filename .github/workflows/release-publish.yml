@@ -59,6 +59,42 @@ jobs:
           fi
           echo "Detected version: $version (RC: $([[ "$version" == *-rc* ]] && echo yes || echo no))"
 
+      - name: Verify version consistency
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          python3 <<'EOF'
+          import os, re, sys
+
+          version = os.environ['VERSION']
+          errors = []
+
+          readme = open('README.md').read()
+          badge_match = re.search(r'img\.shields\.io/badge/version-([^-]*)-blue', readme)
+          if not badge_match:
+              errors.append('Could not find version badge in README.md')
+          elif badge_match.group(1) != version:
+              errors.append(
+                  f'README badge says {badge_match.group(1)} but __init__.py says {version}'
+              )
+
+          changelog = open('CHANGELOG.md').read()
+          sections = re.findall(r'## \[([^\]]+)\]', changelog)
+          recent = next((s for s in sections if s.lower() != 'unreleased'), None)
+          if not recent:
+              errors.append('No versioned section found in CHANGELOG.md')
+          elif recent != version:
+              errors.append(
+                  f'Most recent changelog section is [{recent}] but __init__.py says {version}'
+              )
+
+          for e in errors:
+              print(f'::error::{e}', file=sys.stderr)
+          if errors:
+              sys.exit(1)
+          print(f'Version {version} is consistent across __init__.py, README.md, and CHANGELOG.md')
+          EOF
+
       - name: Configure git
         run: |
           git config user.name  "${{ github.actor }}"
