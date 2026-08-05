@@ -44,10 +44,23 @@ class Messenger:
     def status(self):
         raise NotImplementedError
 
+    MESSAGE_TYPE_MAP = {
+        'CheckInMessage': 1,
+        'InitiateForwarderClientReq': 2,
+        'InitiateForwarderClientRep': 3,
+        'SendDataMessage': 4,
+    }
+
     def log_message(self, direction, message):
         logger = getattr(self.update_cli, 'logger', None)
-        if logger:
-            logger.record_message(direction, self.identifier, message)
+        if not logger:
+            return
+        logging_types = getattr(self.update_cli, 'logging_types', None)
+        if logging_types is not None:
+            type_id = self.MESSAGE_TYPE_MAP.get(type(message).__name__)
+            if type_id not in logging_types:
+                return
+        logger.record_message(direction, self.identifier, message)
 
     @abstractmethod
     async def send_message_upstream(self, message):
