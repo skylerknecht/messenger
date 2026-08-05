@@ -1,0 +1,702 @@
+# Messenger Client — Golden Standard
+#
+# This pseudo-code defines the canonical behavior for all Messenger client
+# implementations. When implementing or fixing a client, compare your code
+# against this file section by section.
+#
+# Conventions:
+#   await  = asynchronous call
+#   ->     = returns
+#   //     = comment explaining WHY, not what
+
+
+# ============================================================================
+# 1. CONSTANTS & CONFIGURATION
+# ============================================================================
+
+# These are injected at build time via Jinja2 templates.
+# Implementations should define them as module-level constants.
+
+const SERVER_URL       = "{{ server_url }}"         # default: "localhost:8080"
+const ENCRYPTION_KEY   = "{{ encryption_key }}"     # default: "" (empty — will error)
+const USER_AGENT       = "{{ user_agent }}"         # default: browser-like UA string
+const PROXY            = "{{ proxy }}"              # default: "" (none)
+const RETRY_DURATION   = {{ retry_duration }}        # default: 60.0 (seconds)
+const RETRY_ATTEMPTS   = {{ retry_attempts }}        # default: 5
+const REMOTE_PORT_FORWARDS = [
+    {% for rpf in remote_port_forwards %}
+    "{{ rpf }}",
+    {% endfor %}
+]
+
+
+# ============================================================================
+# 2. CRYPTO
+# ============================================================================
+
+function hash(key_string) -> bytes:
+    return SHA256(encode_utf8(key_string))
+    // Always produces 32 bytes — AES-256 key size
+
+function encrypt(key, plaintext) -> bytes:
+    iv = random_bytes(16)
+    padded = pkcs7_pad(plaintext, block_size=16)
+    ciphertext = AES_CBC_encrypt(key, iv, padded)
+    return iv || ciphertext
+
+function decrypt(key, data) -> bytes:
+    iv = data[0:16]
+    ciphertext = data[16:]
+    padded = AES_CBC_decrypt(key, iv, ciphertext)
+    return pkcs7_unpad(padded)
+
+// When encrypting an ArraySegment or Buffer slice, respect offset and count.
+// Do NOT encrypt the entire backing array — only the active region.
+
+
+# ============================================================================
+# 3. WIRE FORMAT
+# ============================================================================
+
+# Message frame layout (big-endian):
+#
+#   +-------------------+-------------------+------------------+
+#   | message_type (4B) | message_length (4B) |   payload ...   |
+#   +-------------------+-------------------+------------------+
+#
+#   message_length includes the 8-byte header itself.
+#   payload = message_length - 8 bytes.
+#
+# String encoding within payloads:
+#
+#   +--------------------+------------------+
+#   | string_length (4B) |  UTF-8 bytes ... |
+#   +--------------------+------------------+
+#
+# Multiple messages may be concatenated in a single transport frame.
+
+function serialize_message(message, encryption_key) -> bytes:
+    payload = build_payload(message)
+
+    if message.type != CHECK_IN:
+        payload = encrypt(encryption_key, payload)
+
+    type_bytes  = uint32_to_bytes_be(message.type_id)
+    length      = 8 + length(payload)
+    length_bytes = uint32_to_bytes_be(length)
+    return type_bytes || length_bytes || payload
+
+function deserialize_messages(raw_data, encryption_key) -> list[message]:
+    messages = []
+    while length(raw_data) >= 8:
+        message_type   = bytes_to_uint32_be(raw_data[0:4])
+        message_length = bytes_to_uint32_be(raw_data[4:8])
+
+        if message_length < 8:
+            error("Invalid message: length field too small")
+            // Prevents underflow when computing payload_length
+
+        if message_length > length(raw_data):
+            break  // incomplete frame — wait for more data
+
+        payload  = raw_data[8 : message_length]
+        raw_data = raw_data[message_length :]
+
+        if message_type != CHECK_IN:
+            payload = decrypt(encryption_key, payload)
+
+        messages.append(parse_payload(message_type, payload))
+
+    return messages
+
+
+# ============================================================================
+# 4. MESSAGE TYPES
+# ============================================================================
+
+# Type IDs:
+#   0x01 = InitiateForwarderClientReq    (encrypted)
+#   0x02 = InitiateForwarderClientRep    (encrypted)
+#   0x03 = SendDataMessage               (encrypted)
+#   0x04 = CheckInMessage                (NOT encrypted)
+
+struct CheckInMessage:
+    messenger_id: string
+
+struct InitiateForwarderClientReq:
+    forwarder_client_id: string
+    ip_address: string
+    port: uint32
+
+struct InitiateForwarderClientRep:
+    forwarder_client_id: string
+    bind_address: string
+    bind_port: uint32
+    address_type: uint32    # 1 = IPv4, 4 = IPv6
+    reason: uint32          # 0 = success, see error mapping for others
+
+struct SendDataMessage:
+    forwarder_client_id: string
+    data: bytes             # empty data = close signal
+
+# SendDataMessage payload format:
+#   forwarder_client_id (length-prefixed string)
+#   data encoded as base64 string (length-prefixed)
+#
+# The base64 encoding happens INSIDE the encrypted envelope.
+
+
+# ============================================================================
+# 5. CLIENT (BASE CLASS)
+# ============================================================================
+
+class Client:
+    identifier: string = ""
+    forwarder_clients: concurrent_dict<string, socket>
+    encryption_key: bytes
+
+    function handle_message(message):
+        match message.type:
+
+            InitiateForwarderClientReq:
+                await handle_forward_connect(
+                    message.forwarder_client_id,
+                    message.ip_address,
+                    message.port
+                )
+
+            InitiateForwarderClientRep:
+                client = forwarder_clients.get(message.forwarder_client_id)
+                if client is null:
+                    return
+                    // Server replied to a forwarder we don't have — probably
+                    // cleaned up during a race. Ignore.
+
+                if message.reason != 0:
+                    close(client)
+                    forwarder_clients.remove(message.forwarder_client_id)
+                    return
+
+                resume(client)
+                // Un-pause the socket so data can flow.
+                // RPF sockets are paused on accept to prevent data arriving
+                // before the server has approved the connection.
+
+                await stream(message.forwarder_client_id)
+
+            SendDataMessage:
+                client = forwarder_clients.get(message.forwarder_client_id)
+                if client is null:
+                    return
+
+                if message.data is empty:
+                    // CLOSE SIGNAL from server.
+                    // Use safe removal — the stream() task may have already
+                    // removed this entry.
+                    if forwarder_clients.remove(message.forwarder_client_id) succeeded:
+                        close(client)
+                    return
+
+                write(client, message.data)
+                await drain(client)
+                // drain() ensures TCP backpressure is respected.
+                // Without it, fast data from the server can overwhelm a slow
+                // local socket.
+
+
+    function handle_forward_connect(forwarder_client_id, ip, port):
+        # TCP connect to the target requested by the server.
+        # Maps OS-level socket errors to SOCKS5 reason codes.
+
+        raw_socket = null
+
+        try:
+            raw_socket = new Socket(address_family_for(ip))
+            await connect(raw_socket, ip, port, timeout=5_seconds)
+
+            client = wrap_socket_in_stream(raw_socket)
+            raw_socket = null
+            // Ownership transferred to client — prevents finally from
+            // disposing a socket that is now managed by the stream wrapper.
+
+            forwarder_clients[forwarder_client_id] = client
+            // Register BEFORE sending the reply.
+            // If the server responds with data before we register, the
+            // handle_message dispatch would silently drop it.
+
+            bind_address = client.local_address
+            bind_port    = client.local_port
+            address_type = 1 if IPv4 else 4 if IPv6
+
+            reply = InitiateForwarderClientRep(
+                forwarder_client_id = forwarder_client_id,
+                bind_address        = bind_address,
+                bind_port           = bind_port,
+                address_type        = address_type,
+                reason              = 0
+            )
+            await send_downstream_message(reply)
+            await stream(forwarder_client_id)
+
+        catch error:
+            reason = map_socket_error(error)
+
+            reply = InitiateForwarderClientRep(
+                forwarder_client_id = forwarder_client_id,
+                bind_address        = "0.0.0.0",
+                bind_port           = 0,
+                address_type        = 1,
+                reason              = reason
+            )
+            await send_downstream_message(reply)
+
+        finally:
+            if raw_socket is not null:
+                dispose(raw_socket)
+                // Only reached if connect failed before ownership transfer.
+
+
+    # Error-to-SOCKS5-reason mapping:
+    #
+    #   DNS failure / resolution error  -> 0x04 (host unreachable)
+    #   Timeout                         -> 0x06 (TTL expired)
+    #   Connection refused              -> 0x05
+    #   Network unreachable             -> 0x03
+    #   Host unreachable                -> 0x04
+    #   Address family not supported    -> 0x08
+    #   Protocol not available          -> 0x07
+    #   General / unknown               -> 0x01
+
+
+    function stream(forwarder_client_id):
+        # Read loop: forwards data from a local socket to the server.
+        # The close signal ownership pattern ensures exactly one side
+        # sends the close signal, regardless of who disconnects first.
+
+        client = forwarder_clients.get(forwarder_client_id)
+        if client is null:
+            return
+
+        try:
+            while true:
+                data = await read(client, max=4096)
+                if data is empty:
+                    break   // EOF — remote closed the connection
+
+                message = SendDataMessage(
+                    forwarder_client_id = forwarder_client_id,
+                    data                = data
+                )
+                await send_downstream_message(message)
+
+        catch (EOF, ConnectionReset, ConnectionAborted):
+            pass    // Expected disconnection errors — fall through to cleanup.
+
+        catch:
+            pass    // Unexpected error — still clean up.
+
+        finally:
+            # CLOSE SIGNAL OWNERSHIP
+            #
+            # Only the side that successfully removes the entry from
+            # forwarder_clients sends the close signal. This prevents:
+            #   1. Duplicate close signals (both sides send)
+            #   2. Close signal echo (server closes -> we echo back -> loop)
+            #   3. KeyError / crash from removing an already-removed entry
+            #
+            # The remove operation is atomic (ConcurrentDictionary.TryRemove,
+            # dict.pop with default, or Map.delete with has-check).
+
+            if forwarder_clients.remove(forwarder_client_id) succeeded:
+                close(client)
+                close_signal = SendDataMessage(
+                    forwarder_client_id = forwarder_client_id,
+                    data                = empty
+                )
+                await send_downstream_message(close_signal)
+
+            // If remove returned false/null, the server-side close handler
+            // (handle_message for empty SendDataMessage) already cleaned up.
+            // Do nothing — no close signal, no double-free.
+
+
+    function send_downstream_message(message):
+        # Abstract — implemented by WSClient and HTTPClient.
+        raise NotImplemented
+
+
+# ============================================================================
+# 6. WebSocket CLIENT
+# ============================================================================
+
+class WSClient extends Client:
+    websocket: WebSocket
+    downstream_queue: concurrent_queue<message>
+
+    function connect():
+        websocket = await open_websocket(url, headers={User-Agent: user_agent}, tls_verify=false)
+
+        # Check-in: identify ourselves to the server.
+        checkin = CheckInMessage(messenger_id=self.identifier)
+        await websocket.send_binary(serialize_message(checkin, encryption_key))
+
+        if self.identifier is not empty:
+            return
+            // Reconnection — server already knows us. No need to wait
+            // for a new ID assignment.
+
+        # First connect — read the server's ID assignment.
+        response_bytes = await receive_full_message(websocket)
+        // Must handle fragmented WebSocket frames:
+        //   loop { recv; append to buffer } until EndOfMessage flag is set
+        // A single ReceiveAsync may not contain the full server response.
+
+        messages = deserialize_messages(response_bytes, encryption_key)
+        assert length(messages) > 0
+        assert messages[0] is CheckInMessage
+        self.identifier = messages[0].messenger_id
+
+    function start():
+        # Drain any messages queued while disconnected.
+        while downstream_queue is not empty:
+            msg = downstream_queue.dequeue()
+            await send_immediately(msg)
+
+        # Receive loop — blocks until the WebSocket closes.
+        await parallel(receive_loop(), send_loop())
+
+    function receive_loop():
+        while websocket.is_open:
+            frame_bytes = await receive_full_message(websocket)
+            // Again: accumulate fragments until EndOfMessage.
+
+            if received_close:
+                break
+
+            messages = deserialize_messages(frame_bytes, encryption_key)
+            for message in messages:
+                spawn handle_message(message)
+                // Each message dispatched independently so a slow
+                // handle_forward_connect doesn't block the receive loop.
+
+    function send_loop():
+        while websocket.is_open and not cancelled:
+            if downstream_queue is empty:
+                await sleep(10ms)
+                // Polling interval for the send queue.
+                // Implementations may use a semaphore/signal instead.
+                continue
+
+            if websocket is not open:
+                break
+                // Guard against sending on a closing/closed socket.
+                // Without this, a sync drain loop spins without yielding.
+
+            batch = [CheckInMessage(messenger_id=self.identifier)]
+            while downstream_queue is not empty:
+                batch.append(downstream_queue.dequeue())
+
+            payload = serialize_messages(batch, encryption_key)
+            await websocket.send_binary(payload)
+
+    function send_downstream_message(message):
+        if websocket is open:
+            # Send immediately with CheckIn prepended.
+            payload = serialize_messages(
+                [CheckInMessage(messenger_id=self.identifier), message],
+                encryption_key
+            )
+            await websocket.send_binary(payload)
+        else:
+            downstream_queue.enqueue(message)
+            // Will be drained on reconnect or by the send loop.
+
+
+# ============================================================================
+# 7. HTTP CLIENT
+# ============================================================================
+
+class HTTPClient extends Client:
+    http_client: HttpClient    # reuse a SINGLE client/agent — do not create per-request
+    downstream_queue: concurrent_queue<message>
+
+    function connect():
+        checkin = CheckInMessage(messenger_id=self.identifier)
+        payload = serialize_message(checkin, encryption_key)
+        response = await http_post(url, payload, timeout=10s)
+        assert_http_success(response)
+
+        if self.identifier is not empty:
+            return
+
+        messages = deserialize_messages(response.body, encryption_key)
+        assert length(messages) > 0
+        assert messages[0] is CheckInMessage
+        self.identifier = messages[0].messenger_id
+
+    function start():
+        # Polling loop — blocks until an error triggers reconnection.
+        while true:
+            batch = [CheckInMessage(messenger_id=self.identifier)]
+            drain up to 5 messages from downstream_queue into batch
+            // Batch size limits per-request overhead while keeping latency low.
+
+            payload = serialize_messages(batch, encryption_key)
+            response = await http_post(url, payload, timeout=15s)
+
+            if response is not success:
+                throw HttpError(response.status)
+                // MUST throw, not break.
+                // A break kills the poll loop permanently — no reconnection.
+                // A throw unwinds to the reconnection logic in main().
+
+            if response.body is not empty:
+                messages = deserialize_messages(response.body, encryption_key)
+                for message in messages:
+                    spawn handle_message(message)
+
+            await sleep(100ms)
+            // Poll interval. Implementations may vary (100ms-1000ms).
+
+    function send_downstream_message(message):
+        downstream_queue.enqueue(message)
+        // Never send immediately — the polling loop handles all sends.
+
+
+# ============================================================================
+# 8. REMOTE PORT FORWARDER
+# ============================================================================
+
+class RemotePortForwarder:
+    messenger: Client
+    listening_host: string
+    listening_port: int
+    destination_host: string
+    destination_port: int
+
+    function constructor(messenger, config_string):
+        parts = split(config_string, ":")
+        assert length(parts) == 4
+        // Format: LISTEN_HOST:LISTEN_PORT:DEST_HOST:DEST_PORT
+        listening_host   = parts[0]
+        listening_port   = parse_int(parts[1])
+        destination_host = parts[2]
+        destination_port = parse_int(parts[3])
+
+    function start():
+        try:
+            listener = bind_tcp(listening_host, listening_port)
+        catch bind_error:
+            log("{host}:{port} is already in use or encountered an error")
+            return
+            // Do NOT crash the process. Other forwarders and the main
+            // client should continue running.
+            //
+            // NOTE: The error handler MUST be reachable. If using a Promise
+            // constructor, ensure reject is defined as a parameter.
+
+        while true:
+            accepted_socket = await listener.accept()
+            spawn handle_client(accepted_socket)
+
+    function handle_client(accepted_socket):
+        forwarder_client_id = generate_unique_id()
+
+        messenger.forwarder_clients[forwarder_client_id] = accepted_socket
+        // Register BEFORE sending the request.
+        // The server may respond before the send completes — the reply
+        // handler needs the dictionary entry to exist.
+
+        pause(accepted_socket)
+        // Do NOT read data from the accepted socket yet.
+        // Wait for the server to approve the connection (reason=0 in
+        // InitiateForwarderClientRep). Data arriving before approval
+        // would be lost because no stream() task is running yet.
+
+        request = InitiateForwarderClientReq(
+            forwarder_client_id = forwarder_client_id,
+            ip_address          = destination_host,
+            port                = destination_port
+        )
+        await messenger.send_downstream_message(request)
+
+        // Stream is NOT started here. The handle_message dispatch for
+        // InitiateForwarderClientRep (reason=0) resumes the socket and
+        // starts stream(). If the server denies (reason!=0), the socket
+        // is closed and removed there.
+
+        # Close signal handling for RPF sockets:
+        on accepted_socket.close:
+            if forwarder_client_id still in messenger.forwarder_clients:
+                messenger.forwarder_clients.remove(forwarder_client_id)
+                send SendDataMessage(forwarder_client_id, data=empty)
+            // Same ownership pattern as stream() — only send close signal
+            // if WE are the first to remove the entry.
+
+        on accepted_socket.data(chunk):
+            send SendDataMessage(forwarder_client_id, data=chunk)
+
+        on accepted_socket.error:
+            pass    // Prevent unhandled error from crashing the process.
+
+
+# ============================================================================
+# 9. ARG PARSING
+# ============================================================================
+
+function parse_args(argv) -> dict:
+    # All clients support the same flags:
+    #   --server-url VALUE
+    #   --encryption-key VALUE
+    #   --user-agent VALUE
+    #   --proxy VALUE
+    #   --retry-duration VALUE
+    #   --retry-attempts VALUE
+    #   --remote-port-forwards VALUE [VALUE ...]
+    #
+    # Unknown flags print a warning but do not abort.
+
+    parsed = {}
+    i = 0
+    while i < length(argv):
+        flag = argv[i]
+        match flag:
+            "--server-url":       parsed.server_url      = argv[++i]
+            "--encryption-key":   parsed.encryption_key   = argv[++i]
+            "--user-agent":       parsed.user_agent       = argv[++i]
+            "--proxy":            parsed.proxy            = argv[++i]
+            "--retry-duration":   parsed.retry_duration   = parse_float(argv[++i])
+            "--retry-attempts":   parsed.retry_attempts   = parse_int(argv[++i])
+            "--remote-port-forwards":
+                parsed.rpf = []
+                while next arg exists and does not start with "--":
+                    parsed.rpf.append(argv[++i])
+            default:
+                log("[!] Could not find argument `{flag}`.")
+        i++
+
+    return parsed
+
+
+function apply_config(parsed) -> config:
+    # CLI args override hardcoded values. Hardcoded values override defaults.
+    #
+    # IMPORTANT: For string values, use truthiness (empty string = use default).
+    # For numeric values, use IS NOT NULL (0 is a valid override — it disables retries).
+    # For lists, use IS PROVIDED (empty list is a valid override — it means no RPFs).
+
+    config.server_url      = parsed.server_url      OR SERVER_URL
+    config.encryption_key  = parsed.encryption_key  OR ENCRYPTION_KEY
+    config.user_agent      = parsed.user_agent      OR USER_AGENT
+    config.proxy           = parsed.proxy           OR PROXY
+
+    config.retry_duration  = parsed.retry_duration  IF NOT NULL ELSE RETRY_DURATION
+    config.retry_attempts  = parsed.retry_attempts  IF NOT NULL ELSE RETRY_ATTEMPTS
+    config.rpf             = parsed.rpf             IF PROVIDED  ELSE REMOTE_PORT_FORWARDS
+
+    if config.encryption_key is empty:
+        log("[!] No encryption key provided, please specify one with --encryption-key.")
+        exit(0)
+
+    config.encryption_key = hash(config.encryption_key)
+    return config
+
+
+# ============================================================================
+# 10. MAIN
+# ============================================================================
+
+function main():
+    args = parse_args(command_line_arguments)
+    config = apply_config(args)
+
+    disable_tls_certificate_validation()
+    // All transports accept self-signed certs. This is intentional —
+    // Messenger is deployed in pentest environments where cert chains
+    // are not available.
+
+    # --- Scheme splitting ---
+    url = config.server_url.trim("/")
+    if url contains "://":
+        parts = split(url, "://", limit=2)
+        schemes = split(parts[0], "+")
+        host = parts[1]
+    else:
+        schemes = ["ws", "http", "wss", "https"]
+        host = url
+
+    # --- Transport selection ---
+    client = null
+    for scheme in schemes:
+        candidate_url = "{scheme}://{host}"
+
+        if scheme contains "ws":
+            client = new WSClient(candidate_url, config)
+        else if scheme contains "http":
+            client = new HTTPClient(candidate_url, config)
+        else:
+            log("[!] Unsupported scheme: {scheme}")
+            continue
+
+        # Start remote port forward listeners BEFORE connecting.
+        # They bind their ports immediately and accept connections
+        # as soon as the client is connected.
+        for rpf_config in config.rpf:
+            try:
+                forwarder = new RemotePortForwarder(client, rpf_config)
+                spawn forwarder.start()
+            catch:
+                log("Failed to start RPF: {rpf_config}")
+
+        try:
+            await client.connect()
+            log("[+] Connected to {candidate_url}")
+            await client.start()    # blocks until disconnect
+            break                   # disconnected — enter retry logic
+        catch error:
+            log("[{scheme}] Failed: {error}")
+            client = null
+            continue                # try next scheme
+
+    if client is null:
+        log("All connection attempts failed.")
+        exit(1)
+
+    # --- Reconnection ---
+    if config.retry_attempts <= 0:
+        exit(0)
+
+    sleep_interval = config.retry_duration / config.retry_attempts
+    consecutive_failures = 0
+
+    while consecutive_failures < config.retry_attempts:
+        await sleep(sleep_interval)
+
+        try:
+            cleanup_transport(client)
+            // Cancel send loops, dispose old WebSocket/HTTP client.
+            // Create fresh transport internals.
+            //
+            // What MUST be cleaned up:
+            //   - Cancel tokens / stop send loops
+            //   - Dispose old transport (WebSocket, HTTP client)
+            //
+            // What MUST persist across reconnect:
+            //   - client.identifier (server uses it to recognize us)
+            //   - client.forwarder_clients (tunnels may still be alive)
+            //   - RPF listeners (they keep accepting connections)
+            //   - downstream message queue (messages queued during disconnect)
+
+            await client.connect()
+            log("[+] Reconnected")
+            consecutive_failures = 0
+            // Reset on success — allows infinite reconnections as long as
+            // each connection succeeds at least once.
+
+            await client.start()    # blocks until next disconnect
+
+        catch error:
+            consecutive_failures += 1
+            log("[!] Reconnection failed: {error}")
+
+    exit(0)

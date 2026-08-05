@@ -1,4 +1,13 @@
-# Messenger
+<p align="center">
+  <img src="docs/images/messenger-logo.png" alt="Messenger" width="600">
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/github/v/release/skylerknecht/messenger?label=version" alt="Version">
+  <img src="https://img.shields.io/pypi/v/messenger-proxy" alt="PyPI">
+  <img src="https://img.shields.io/badge/python->3.8-blue" alt="Python">
+  <img src="https://img.shields.io/github/license/skylerknecht/messenger" alt="License">
+</p>
 
 Messenger is a tunneling toolkit that leverages a client-server infrastructure
 to establish SOCKS5 proxies, local port forwards, and remote port forwards. While 
@@ -37,7 +46,7 @@ operator~# messenger-cli -e readme
 | |\/| |/ _ \/ __/ __|/ _ \ '_ \ / _` |/ _ \ '__|
 | |  | |  __/\__ \__ \  __/ | | | (_| |  __/ |   
 |_|  |_|\___||___/___/\___|_| |_|\__, |\___|_|   
-by Skyler Knecht and Kevin Clark |___/ v0.4.2
+by Skyler Knecht and Kevin Clark |___/ v0.4.5
 [*] The AES encryption key is readme
 [*] Waiting for messengers on http+ws://0.0.0.0:8080/
 (messenger)~#
@@ -68,9 +77,11 @@ operator~# ./client.py
 - [Chain Messenger Clients](docs/chaining-messengers.md)
 - [Perform NTLMRelay2Self with Messenger](docs/ntlmrelay2self-with-messenger.md)
 
-
-### Developers 
+### Developers
 - [Communication Overview](docs/communication.md)
+- [Client Specification (Pseudo-Code)](docs/client.pseudo)
+- [Testing Checklist](docs/testing.md)
+- [Releasing](docs/releasing.md)
 
 
 ## Client Support Matrix
@@ -78,8 +89,8 @@ operator~# ./client.py
 | Clients                                                            | Messenger Builder | Protocols         | Local/Remote Port Forwarding | SOCKS5 TCP | SOCKS5 UDP    |
 |--------------------------------------------------------------------|-------------------|-------------------|------------------------------|------------|---------------|
 | [Python](https://github.com/skylerknecht/messenger-client-python)  | Supported         | HTTP & WebSockets | Supported                    | Supported  | Not Supported |
-| [C#](https://github.com/skylerknecht/messenger-client-python)      | Not Supported     | HTTP & WebSockets | Supported                    | Supported  | Not Supported |
-| [Node JS](https://github.com/skylerknecht/messenger-client-nodejs) | Not Supported     |        WebSockets | Supported                    | Supported  | Not Supported |
+| [C#](https://github.com/skylerknecht/messenger-client-csharp)      | Supported         | HTTP & WebSockets | Supported                    | Supported  | Not Supported |
+| [Node JS](https://github.com/skylerknecht/messenger-client-nodejs) | Supported         | HTTP & WebSockets | Supported                    | Supported  | Not Supported |
 
 ## Credits 
 
