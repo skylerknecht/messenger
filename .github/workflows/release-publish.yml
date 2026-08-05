@@ -1,16 +1,20 @@
 name: Publish Release
 
-# Run this AFTER merging a release PR to main. Reads the version from
-# messenger/__init__.py, extracts the matching ## [X.Y.Z] section from
-# CHANGELOG.md, tags, creates a GitHub Release, and publishes to PyPI.
+# Run this AFTER merging a release PR to main.
 #
-# Must be dispatched on main. Refuses if the tag already exists.
+# Non-RC versions: scans CHANGELOG.md for versioned sections (skipping
+# [Unreleased] and any -rc entries) that don't have a GitHub Release yet,
+# then tags and releases each one.
+#
+# RC versions: publishes to PyPI only — no GitHub Release or tag.
+#
+# Must be dispatched on main.
 
 on:
   workflow_dispatch:
     inputs:
       publish_to_pypi:
-        description: 'Publish to PyPI (uncheck to only tag + GitHub Release)'
+        description: 'Publish to PyPI (uncheck to only create GitHub Releases)'
         required: true
         type: boolean
         default: true
@@ -30,7 +34,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          submodules: recursive   # bundled clients under builder/clients/* are needed for the wheel
+          submodules: recursive
 
       - name: Refuse to publish outside main
         run: |
@@ -48,55 +52,67 @@ jobs:
             exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "tag=v$version" >> "$GITHUB_OUTPUT"
-          echo "Publishing v$version"
-
-      - name: Refuse if tag already exists
-        run: |
-          if git rev-parse "refs/tags/${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
-            echo "::error::Tag ${{ steps.version.outputs.tag }} already exists. Bump the version and re-run Draft Release."
-            exit 1
+          if [[ "$version" == *-rc* ]]; then
+            echo "is_rc=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_rc=false" >> "$GITHUB_OUTPUT"
           fi
+          echo "Detected version: $version (RC: $([[ "$version" == *-rc* ]] && echo yes || echo no))"
 
-      - name: Extract release notes from CHANGELOG.md
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          python3 <<'EOF'
-          import os, re, sys
-
-          version = os.environ['VERSION']
-          content = open('CHANGELOG.md').read()
-          pattern = rf'## \[{re.escape(version)}\][^\n]*\n(.*?)(?=\n## \[|\Z)'
-          m = re.search(pattern, content, re.DOTALL)
-
-          if not m:
-              print(f'::error::No section [{version}] found in CHANGELOG.md', file=sys.stderr)
-              sys.exit(1)
-
-          notes = m.group(1).strip()
-          if not notes:
-              print(f'::error::Section [{version}] in CHANGELOG.md is empty', file=sys.stderr)
-              sys.exit(1)
-
-          open('release-notes.md', 'w').write(notes + '\n')
-          EOF
-
-      - name: Create and push tag
+      - name: Configure git
         run: |
           git config user.name  "${{ github.actor }}"
           git config user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
-          git tag -a "${{ steps.version.outputs.tag }}" -m "${{ steps.version.outputs.tag }}"
-          git push origin "${{ steps.version.outputs.tag }}"
 
-      - name: Create GitHub Release
+      - name: Create GitHub releases from changelog
+        if: steps.version.outputs.is_rc == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.version.outputs.tag }}
         run: |
-          gh release create "$TAG" \
-            --title "$TAG" \
-            --notes-file release-notes.md
+          python3 <<'EOF'
+          import re, subprocess, sys
+
+          content = open('CHANGELOG.md').read()
+
+          existing_tags = set(
+              subprocess.check_output(['git', 'tag', '--list'], text=True).strip().split('\n')
+          )
+
+          created = 0
+          for m in re.finditer(
+              r'## \[([^\]]+)\][^\n]*\n(.*?)(?=\n## \[|\Z)', content, re.DOTALL
+          ):
+              ver = m.group(1)
+              notes = m.group(2).strip()
+
+              if ver.lower() == 'unreleased':
+                  continue
+              if '-rc' in ver:
+                  continue
+
+              tag = f'v{ver}'
+              if tag in existing_tags:
+                  continue
+              if not notes:
+                  print(f'::warning::Section [{ver}] is empty, skipping')
+                  continue
+
+              notes_file = f'/tmp/release-notes-{ver}.md'
+              with open(notes_file, 'w') as f:
+                  f.write(notes + '\n')
+
+              subprocess.run(['git', 'tag', '-a', tag, '-m', tag], check=True)
+              subprocess.run(['git', 'push', 'origin', tag], check=True)
+              subprocess.run([
+                  'gh', 'release', 'create', tag,
+                  '--title', tag,
+                  '--notes-file', notes_file,
+              ], check=True)
+              created += 1
+              print(f'Created release {tag}')
+
+          print(f'Done — created {created} release(s)')
+          EOF
 
       - name: Set up Python
         if: inputs.publish_to_pypi
@@ -113,5 +129,3 @@ jobs:
       - name: Publish to PyPI
         if: inputs.publish_to_pypi
         uses: pypa/gh-action-pypi-publish@release/v1
-        # Requires PyPI Trusted Publishing configured for this repo:
-        #   https://docs.pypi.org/trusted-publishers/
