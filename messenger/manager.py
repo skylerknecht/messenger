@@ -55,6 +55,7 @@ class UpdateCLI:
         self.session = session
         self.logger = logger
         self.debug_types = set()
+        self.logging_types = {1, 2, 3, 4}
 
     def display(self, stdout, status='standard', reprompt=True, debug_level=0):
         status_info = self.STATUS_LEVELS.get(status, self.STATUS_LEVELS['information'])
@@ -101,6 +102,7 @@ class Manager:
         """
         self.server_commands = {
             'debug': (self.debug, "Toggle debug output by type."),
+            'logging': (self.logging, "Toggle message logging by type."),
             'forwarders': (self.print_forwarders, "Display a list of forwarders in a table format."),
             'messengers': (self.print_messengers, "Display a list of messengers in a table format."),
             'scans': (self.print_scanners, "Display a list of scanners in a table format."),
@@ -359,6 +361,70 @@ class Manager:
             else:
                 self.update_cli.debug_types.add(t)
                 self.update_cli.display(f'{LABELS[t]} enabled.', 'information', reprompt=False)
+
+    async def logging(self, types=None):
+        """
+        Toggle which message types are logged to disk. With no arguments, show current status.
+        All types are enabled by default.
+
+        Type | Message Type
+        -----|----------------------------------
+        0    | Disable all logging
+        1    | CheckInMessage
+        2    | InitiateForwarderClientReq
+        3    | InitiateForwarderClientRep
+        4    | SendDataMessage
+
+        optional:
+          types        Comma-separated list of types to toggle (e.g. 1,4)
+
+        examples:
+          logging
+          logging 0
+          logging 1
+          logging 2,3
+        """
+        VALID_TYPES = {1, 2, 3, 4}
+        LABELS = {
+            1: 'CheckInMessage',
+            2: 'InitiateForwarderClientReq',
+            3: 'InitiateForwarderClientRep',
+            4: 'SendDataMessage',
+        }
+        if types is None:
+            if not self.update_cli.logging_types:
+                self.update_cli.display('All message logging disabled.', 'information', reprompt=False)
+            else:
+                for t in sorted(VALID_TYPES):
+                    state = color_text('on', 'green') if t in self.update_cli.logging_types else color_text('off', 'red')
+                    self.update_cli.display(f'{t} {LABELS[t]}: {state}', 'standard', reprompt=False)
+            return
+
+        raw = str(types).split(',')
+        parsed = set()
+        for token in raw:
+            token = token.strip()
+            try:
+                val = int(token)
+            except ValueError:
+                self.update_cli.display(f'`{token}` is not a valid logging type.', 'error', reprompt=False)
+                return
+            if val == 0:
+                self.update_cli.logging_types.clear()
+                self.update_cli.display('All message logging disabled.', 'success', reprompt=False)
+                return
+            if val not in VALID_TYPES:
+                self.update_cli.display(f'`{val}` is not a valid logging type. Valid types: 1-4.', 'error', reprompt=False)
+                return
+            parsed.add(val)
+
+        for t in parsed:
+            if t in self.update_cli.logging_types:
+                self.update_cli.logging_types.discard(t)
+                self.update_cli.display(f'{LABELS[t]} logging disabled.', 'information', reprompt=False)
+            else:
+                self.update_cli.logging_types.add(t)
+                self.update_cli.display(f'{LABELS[t]} logging enabled.', 'information', reprompt=False)
 
     async def interact(self, messenger):
         """
