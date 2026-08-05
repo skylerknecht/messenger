@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Log commands and protocol messages to per-day JSONL files
 
+- Replace `debug` command with `logging` command that toggles per-message-type
+  logging (`req`, `rep`, `data`). Defaults to `req` and `rep` enabled, `data`
+  disabled. Removes the six-level debug system and all debug display calls from
+  messengers, forwarder clients, and the HTTP/WS handler.
+
 ## [0.4.2] - 2026-07-31
 
 ### Fixed

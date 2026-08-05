@@ -46,7 +46,14 @@ class Messenger:
 
     def log_message(self, direction, message):
         logger = getattr(self.update_cli, 'logger', None)
-        if logger:
+        if not logger:
+            return
+        type_key = {
+            InitiateForwarderClientReq: 'req',
+            InitiateForwarderClientRep: 'rep',
+            SendDataMessage: 'data',
+        }.get(type(message))
+        if type_key and type_key in self.update_cli.logged_message_types:
             logger.record_message(direction, self.identifier, message)
 
     @abstractmethod
@@ -55,16 +62,6 @@ class Messenger:
 
     @abstractmethod
     async def send_messages_downstream(self, messages):
-        self.update_cli.display(
-            f'Messenger {self.identifier} received downstream message(s).',
-            'debug',
-            debug_level = 2
-        )
-        self.update_cli.display(
-            f'Messenger {self.identifier} received the following downstream message(s)\n{messages}.',
-            'debug',
-            debug_level = 5
-        )
         for message in messages:
             self.log_message('downstream', message)
             # 1) Initiate Forwarder Client Request (0x01)
@@ -172,16 +169,6 @@ class HTTPMessenger(Messenger):
 
     async def send_message_upstream(self, message):
         self.log_message('upstream', message)
-        self.update_cli.display(
-            f'Messenger {self.identifier} queued a upstream message.',
-            'debug',
-            debug_level = 2
-        )
-        self.update_cli.display(
-            f'Messenger {self.identifier} queued the following upstream message\n{message}.',
-            'debug',
-            debug_level = 5
-        )
         await self.upstream_messages.put(self.serialize_messages([message]))
 
 
@@ -221,16 +208,6 @@ class WebSocketMessenger(Messenger):
             )
             await self.upstream_messages.put(self.serialize_messages([message]))
             return
-        self.update_cli.display(
-            f'Messenger {self.identifier} sent a upstream message.',
-            'debug',
-            debug_level = 2
-        )
-        self.update_cli.display(
-            f'Messenger {self.identifier} sent the following upstream message\n{message}.',
-            'debug',
-            debug_level = 5
-        )
         try:
             await self.websocket.send_bytes(self.serialize_messages([message]))
         except Exception:
