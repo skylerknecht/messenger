@@ -70,13 +70,15 @@ jobs:
           errors = []
 
           readme = open('README.md').read()
-          badge_match = re.search(r'img\.shields\.io/badge/version-([^-]*)-blue', readme)
+          badge_match = re.search(r'img\.shields\.io/badge/version-(.*)-blue', readme)
           if not badge_match:
               errors.append('Could not find version badge in README.md')
-          elif badge_match.group(1) != version:
-              errors.append(
-                  f'README badge says {badge_match.group(1)} but __init__.py says {version}'
-              )
+          else:
+              badge_version = badge_match.group(1).replace('--', '-')
+              if badge_version != version:
+                  errors.append(
+                      f'README badge says {badge_version} but __init__.py says {version}'
+                  )
 
           changelog = open('CHANGELOG.md').read()
           sections = re.findall(r'## \[([^\]]+)\]', changelog)
