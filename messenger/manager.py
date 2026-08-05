@@ -83,7 +83,7 @@ class Manager:
 
     PROMPT = 'messenger'
 
-    def __init__(self, server_ip, server_port, ssl, encryption_key, config_dir=None, logging_types=None):
+    def __init__(self, server_ip, server_port, ssl, encryption_key, config_dir=None, logging_types=None, config_path=None):
         """
         Initialize Manager with command definitions, messengers, and prompt session.
 
@@ -119,12 +119,12 @@ class Manager:
         self.update_cli = UpdateCLI(self.PROMPT, self.session, self.logger, logging_types)
         self.encryption_key = encryption_key if encryption_key is not None else generate_encryption_key()
         self.update_cli.display(f'The AES encryption key is {bold_text(self.encryption_key)}', 'information', reprompt=False)
-        if self.logger.created:
-            self.update_cli.display(f'Messenger directory created: {self.logger.base_dir}', 'information', reprompt=False)
+        if config_path:
+            self.update_cli.display(f'Using config file: {config_path}', 'information', reprompt=False)
+        if self.update_cli.logging_types:
+            self.update_cli.display(f'Logging to: {self.logger.log_dir}', 'information', reprompt=False)
         else:
-            self.update_cli.display(f'Messenger directory in use: {self.logger.base_dir}', 'information', reprompt=False)
-        if not self.update_cli.logging_types:
-            self.update_cli.display('All logging is disabled.', 'information', reprompt=False)
+            self.update_cli.display('Logging is disabled.', 'information', reprompt=False)
         self.messenger_engine = Engine(self.messengers, self.update_cli, generate_hash(self.encryption_key))
         self.messenger_server = HTTPWSServer(self.update_cli, self.messenger_engine, ip=server_ip, port=server_port, ssl=ssl)
 
