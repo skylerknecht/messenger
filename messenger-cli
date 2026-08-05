@@ -8,18 +8,32 @@ import sys
 from messenger.manager import Manager
 from messenger import BANNER
 
-CONFIG_FILENAME = 'config.json'
+CONFIG_FILENAME = 'messenger.conf'
+
+DEFAULT_CONFIG = {
+    "address": "0.0.0.0",
+    "port": 8080,
+    "encryption_key": None,
+    "ssl": None,
+    "quiet": False,
+    "logging": []
+}
 
 def load_config(config_dir):
     path = os.path.join(config_dir, CONFIG_FILENAME)
-    if not os.path.isfile(path):
-        return {}, None
+    created_dir = not os.path.isdir(config_dir)
+    created_config = not os.path.isfile(path)
+    if created_config:
+        os.makedirs(config_dir, exist_ok=True)
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(DEFAULT_CONFIG, f, indent=2)
+        return dict(DEFAULT_CONFIG), path, created_dir, created_config
     try:
         with open(path, 'r', encoding='utf-8') as f:
-            return json.load(f), path
+            return json.load(f), path, created_dir, created_config
     except (json.JSONDecodeError, OSError) as e:
         print(f'Warning: could not load {path}: {e}', file=sys.stderr)
-        return {}, None
+        return {}, None, created_dir, False
 
 def resolve_config_dir():
     for i, arg in enumerate(sys.argv[1:], 1):
@@ -31,7 +45,7 @@ def resolve_config_dir():
 
 async def main(banner, manager):
     config_dir = resolve_config_dir()
-    cfg, config_path = load_config(config_dir)
+    cfg, config_path, created_dir, created_config = load_config(config_dir)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-a", "--address", type=str, default=cfg.get('address', '0.0.0.0'),
@@ -55,7 +69,8 @@ async def main(banner, manager):
     if not args.quiet:
         print(banner)
     messenger_manager = manager(args.address, args.port, args.ssl, args.encryption_key,
-                                args.config, logging_types, config_path)
+                                args.config, logging_types, config_path,
+                                created_dir, created_config, args.quiet)
 
     await messenger_manager.start_command_line_interface()
 

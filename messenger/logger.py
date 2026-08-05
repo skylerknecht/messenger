@@ -34,8 +34,8 @@ class Logger:
 
     def __init__(self, config_dir=None):
         self.base_dir = config_dir or os.path.join(os.path.expanduser('~'), '.messenger')
-        self.created = not os.path.isdir(self.base_dir)
         self.log_dir = os.path.join(self.base_dir, 'logs')
+        self.logs_created = not os.path.isdir(self.log_dir)
         os.makedirs(self.log_dir, exist_ok=True)
         date = datetime.now(timezone.utc).strftime('%Y-%m-%d')
         self.command_path = os.path.join(self.log_dir, f'{date}.commands.jsonl')

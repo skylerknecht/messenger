@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0-rc.5] - 2026-08-05
+
+#### Added
+- Config file renamed from `config.json` to `messenger.conf` and auto-created
+  with all defaults on first run.
+- Startup messages show "Created" lines for new directories/files, then always
+  display messenger directory, config file, and logging directory paths.
+- `--quiet` / `"quiet": true` now suppresses banner and all startup messages.
+
 ## [0.5.0-rc.4] - 2026-08-05
 
 #### Added
