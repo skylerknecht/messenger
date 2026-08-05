@@ -42,20 +42,12 @@ class UpdateCLI:
         'standard': Status('', 'reset')
     }
 
-    def __init__(self, prompt, session, logger):
-        """
-        Initializes an UpdateCLI instance with prompt, session, and debug state.
-
-        Args:
-            prompt (str): The prompt text to display in the CLI.
-            session (PromptSession): The prompt session instance.
-            logger (Logger): The session logger for command and traffic records.
-        """
+    def __init__(self, prompt, session, logger, logging_types=None):
         self.prompt = prompt
         self.session = session
         self.logger = logger
         self.debug_types = set()
-        self.logging_types = set()
+        self.logging_types = set(logging_types) if logging_types else set()
 
     def display(self, stdout, status='standard', reprompt=True, debug_level=0):
         status_info = self.STATUS_LEVELS.get(status, self.STATUS_LEVELS['information'])
@@ -91,7 +83,7 @@ class Manager:
 
     PROMPT = 'messenger'
 
-    def __init__(self, server_ip, server_port, ssl, encryption_key, config_dir=None):
+    def __init__(self, server_ip, server_port, ssl, encryption_key, config_dir=None, logging_types=None):
         """
         Initialize Manager with command definitions, messengers, and prompt session.
 
@@ -124,7 +116,7 @@ class Manager:
         self.current_messenger = None
         self.logger = Logger(config_dir)
         self.session = PromptSession(completer=DynamicCompleter(self), reserve_space_for_menu=0)
-        self.update_cli = UpdateCLI(self.PROMPT, self.session, self.logger)
+        self.update_cli = UpdateCLI(self.PROMPT, self.session, self.logger, logging_types)
         self.encryption_key = encryption_key if encryption_key is not None else generate_encryption_key()
         self.update_cli.display(f'The AES encryption key is {bold_text(self.encryption_key)}', 'information', reprompt=False)
         if self.logger.created:
