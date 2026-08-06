@@ -608,13 +608,13 @@ class Manager:
         print(self.create_table('Messengers', columns, items))
 
     def _print_messenger_detail(self, messenger):
-        from datetime import datetime as dt
+        from datetime import datetime as dt, timezone
         header = f"Messenger ({messenger.identifier})"
         if messenger._nickname:
             header += f" ({messenger._nickname})"
         separator = '-' * len(header)
-        first_seen = dt.fromtimestamp(messenger.first_seen).strftime('%H:%M:%S %Z').strip()
-        last_seen = dt.fromtimestamp(messenger.last_check_in).strftime('%H:%M:%S %Z').strip()
+        first_seen = dt.fromtimestamp(messenger.first_seen, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
+        last_seen = dt.fromtimestamp(messenger.last_check_in, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
         ua = messenger.user_agent if hasattr(messenger, 'user_agent') else '•••'
         ips = ', '.join(sorted(messenger.ips)) if messenger.ips else '•••'
 
