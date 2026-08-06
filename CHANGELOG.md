@@ -4,48 +4,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.5.0-rc.5] - 2026-08-05
-
-#### Added
-- Config file renamed from `config.json` to `messenger.conf` and auto-created
-  with all defaults on first run.
-- Startup messages show "Created" lines for new directories/files, then always
-  display messenger directory, config file, and logging directory paths.
-- `--quiet` / `"quiet": true` now suppresses banner and all startup messages.
-
-## [0.5.0-rc.4] - 2026-08-05
-
-#### Added
-- `config.json` support in the messenger directory for persisting CLI defaults
-  and logging types across sessions.
-- Startup messages now show config file path and logging destination.
-
-## [0.5.0-rc.3] - 2026-08-05
+## [0.5.0] - 2026-08-05
 
 #### Added
 - `logging` command to toggle which message types are recorded to disk.
   Logging is disabled by default. `logging 1,2,3,4` enables all types.
   `logging 0` disables all. `logging` with no args shows current status.
-- Startup status messages for messenger directory and logging state.
+- Log commands and protocol messages to per-day JSONL files in `~/.messenger/logs/`.
+- `messenger.conf` config file auto-created with all defaults on first run.
+  Config values serve as argparse defaults; CLI args override.
 - `--config` / `-c` CLI flag to set a custom messenger directory (default: `~/.messenger`).
-
-## [0.5.0-rc.2] - 2026-08-05
-
-#### Added
-- `logging` command to toggle which message types are recorded to disk.
-  All types enabled by default. `logging 1` disables CheckInMessage logging.
-  `logging 0` disables all. `logging` with no args shows current status.
-
-## [0.5.0-rc.1] - 2026-08-05
-
-#### Added
-- Add reserved -o/--output flag and fix banner SyntaxWarning
-- Log commands and protocol messages to per-day JSONL files
+- `--quiet` / `"quiet": true` suppresses banner and all startup messages.
+- Reserved `-o`/`--output` flag for writing command output to files.
+- Startup messages show created directories/files and always display
+  messenger directory, config file, and logging directory paths.
+- Passive bind address collector on messengers: new interface IPs discovered
+  from `InitiateForwarderClientRep` bind addresses are added to the messenger's
+  IP set and announced with a status message.
+- Verbose messenger table column renamed from "External IP" to "IPs", showing
+  all discovered addresses.
 
 #### Changed
 - Rewrite `debug` command to toggle output by type instead of threshold level.
   `debug 1,4` enables handler messages and handler data independently.
   `debug 0` disables all. `debug` with no args shows current status.
+- Fix banner `SyntaxWarning` by using raw f-string.
 
 ## [0.4.5] - 2026-08-04
 

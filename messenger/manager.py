@@ -555,7 +555,7 @@ class Manager:
         """
         columns = ["Identifier", "Transport", "Status", "Forwarders", "Sent", "Received"]
         if verbose:
-            columns.extend(["External IP", "User-Agent"])
+            columns.extend(["IPs", "User-Agent"])
         items = []
 
         for messenger in self.messengers:
@@ -581,7 +581,7 @@ class Manager:
             }
 
             if verbose:
-                item["External IP"] = messenger.ip if hasattr(messenger, 'ip') else '•••'
+                item["IPs"] = ', '.join(sorted(messenger.ips)) if messenger.ips else '•••'
                 item["User-Agent"] = messenger.user_agent if hasattr(messenger, 'user_agent') else '•••'
 
             items.append(item)
