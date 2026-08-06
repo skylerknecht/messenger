@@ -26,7 +26,8 @@ class Messenger:
         self.serialize_messages = serialize_messages
         self.ips = set()
 
-        self.last_check_in = time.time()
+        self.first_seen = time.time()
+        self.last_check_in = self.first_seen
 
         self.sent_bytes = 0
         self.received_bytes = 0

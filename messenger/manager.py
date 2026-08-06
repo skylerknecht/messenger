@@ -99,7 +99,7 @@ class Manager:
             'messengers': (self.print_messengers, "Display a list of messengers in a table format."),
             'scans': (self.print_scanners, "Display a list of scanners in a table format."),
             'interact': (self.interact, "Interact with a messenger."),
-            'nickname': (self.set_nickname, "Set a nickname for a messenger, forwarder, or scanner."),
+            'rename': (self.rename, "Rename a messenger, forwarder, or scanner."),
             'stop': (self.stop, "Stop a forwarder or a scanner."),
             'help': (self.print_help, "Display this help message."),
             '?': (self.print_help, "Display this help message but with fewer characters."),
@@ -263,9 +263,11 @@ class Manager:
         # Map ONLY provided positionals; DO NOT append defaults positionally
         final_args = []
         for i, param in enumerate(bindable_params):
+            if param.kind == Parameter.VAR_POSITIONAL:
+                final_args.extend(positional_args[i:])
+                break
             if i < len(positional_args):
                 final_args.append(positional_args[i])
-            # else: leave it out; Python will use the function's default or the keyword we set
 
         # DEBUG: print("DEBUG:", final_args, keyword_args)
         await func(*final_args, **keyword_args)
@@ -498,7 +500,7 @@ class Manager:
           forwarders
           forwarders NkMCyCrrcP
         """
-        columns = ["Type", "Identifier", "Clients", "Listening Host", "Listening Port", "Destination Host", "Destination Port"]
+        columns = ["Type", "Name", "Clients", "Listening Host", "Listening Port", "Destination Host", "Destination Port"]
         items = []
 
         if len(self.messengers) == 0:
@@ -527,7 +529,7 @@ class Manager:
 
                 items.append({
                     "Type": forwarder.NAME,
-                    "Identifier": colored_id,
+                    "Name": colored_id,
                     "Clients": len(streaming_clients),
                     "Listening Host": forwarder.listening_host,
                     "Listening Port": forwarder.listening_port,
@@ -542,20 +544,33 @@ class Manager:
             return
         print(self.create_table('Forwarders', columns, items))
 
-    async def print_messengers(self, verbose=False):
+    async def print_messengers(self, *identifiers):
         """
-        Display active messengers in a table format.
+        Display active messengers. With no arguments, show a summary table.
+        With one or more IDs or names, show detailed information.
 
         optional:
-          --verbose, -v            Show additional columns for User-Agent and IP address (default: False).
+          identifiers              IDs or names of messengers to show details for.
 
         examples:
           messengers
-          messengers --verbose
+          messengers NkMCyCrrcP
+          messengers dc01 dc02
         """
-        columns = ["Identifier", "Transport", "Status", "Forwarders", "Sent", "Received"]
-        if verbose:
-            columns.extend(["IPs", "User-Agent"])
+        if identifiers:
+            for identifier in identifiers:
+                messenger = None
+                for m in self.messengers:
+                    if identifier in (m.identifier, m.nickname):
+                        messenger = m
+                        break
+                if not messenger:
+                    self.update_cli.display(f'Messenger `{identifier}` not found.', 'error', reprompt=False)
+                    continue
+                self._print_messenger_detail(messenger)
+            return
+
+        columns = ["Name", "Transport", "Status", "IPs", "Forwarders / Scanners", "Sent", "Received"]
         items = []
 
         for messenger in self.messengers:
@@ -568,22 +583,23 @@ class Manager:
                 )
                 for forwarder in messenger.forwarders
             ]
-            current_messenger_identifier = f"{color_text('>', 'white')} {bold_text(messenger.nickname)}"
-            messenger_identifier = bold_text(messenger.nickname)
-            identifier = current_messenger_identifier if self.current_messenger == messenger else messenger_identifier
+            scanner_ids = [
+                color_text(scanner.nickname, 'yellow')
+                for scanner in messenger.scanners
+            ]
+            all_ids = forwarder_ids + scanner_ids
+            current_messenger_name = f"{color_text('>', 'white')} {bold_text(messenger.nickname)}"
+            messenger_name = bold_text(messenger.nickname)
+            name = current_messenger_name if self.current_messenger == messenger else messenger_name
             item = {
-                "Identifier": identifier,
+                "Name": name,
                 "Transport": messenger.transport_type,
                 "Status": messenger.status,
-                "Forwarders": ', '.join(forwarder_ids) if forwarder_ids else '•••',
+                "IPs": ', '.join(sorted(messenger.ips)) if messenger.ips else '•••',
+                "Forwarders / Scanners": ', '.join(all_ids) if all_ids else '•••',
                 "Sent": f"{messenger.format_sent_bytes()}",
                 "Received": f"{messenger.format_received_bytes()}"
             }
-
-            if verbose:
-                item["IPs"] = ', '.join(sorted(messenger.ips)) if messenger.ips else '•••'
-                item["User-Agent"] = messenger.user_agent if hasattr(messenger, 'user_agent') else '•••'
-
             items.append(item)
 
         if len(items) == 0:
@@ -591,18 +607,72 @@ class Manager:
             return
         print(self.create_table('Messengers', columns, items))
 
-    async def print_scanners(self, identifier=None, verbose=False):
+    def _print_messenger_detail(self, messenger):
+        from datetime import datetime as dt
+        header = f"Messenger ({messenger.identifier})"
+        if messenger._nickname:
+            header += f" ({messenger._nickname})"
+        separator = '-' * len(header)
+        first_seen = dt.fromtimestamp(messenger.first_seen).strftime('%H:%M:%S %Z').strip()
+        last_seen = dt.fromtimestamp(messenger.last_check_in).strftime('%H:%M:%S %Z').strip()
+        ua = messenger.user_agent if hasattr(messenger, 'user_agent') else '•••'
+        ips = ', '.join(sorted(messenger.ips)) if messenger.ips else '•••'
+
+        lines = [
+            header,
+            separator,
+            f"  Transport:   {messenger.transport_type}",
+            f"  Status:      {messenger.status}",
+            f"  IPs:         {ips}",
+            f"  First Seen:  {first_seen}",
+            f"  Last Seen:   {last_seen}",
+            f"  Sent:        {messenger.format_sent_bytes()}",
+            f"  Received:    {messenger.format_received_bytes()}",
+            f"  User-Agent:  {ua}",
+        ]
+
+        if messenger.forwarders:
+            lines.append(f"  Forwarders:")
+            for f in messenger.forwarders:
+                if isinstance(f, RemotePortForwarder):
+                    ftype = "Remote"
+                    cfg = f"*:* -> {f.destination_host}:{f.destination_port}"
+                elif f.destination_host == '*' and f.destination_port == '*':
+                    ftype = "Socks"
+                    cfg = f"{f.listening_host}:{f.listening_port} -> *:*"
+                else:
+                    ftype = "Local"
+                    cfg = f"{f.listening_host}:{f.listening_port} -> {f.destination_host}:{f.destination_port}"
+                lines.append(f"    {f.nickname} ({ftype}) {cfg}")
+        else:
+            lines.append(f"  Forwarders:  •••")
+
+        if messenger.scanners:
+            lines.append(f"  Scanners:")
+            for s in messenger.scanners:
+                cfg = s.ip_input
+                if s.port_input:
+                    cfg += f" {s.port_input}"
+                else:
+                    cfg += f" top {len(s.ports)}"
+                lines.append(f"    {s.nickname} ({cfg}) — {s.progress_str} {s.open_count} open {s.closed_count} closed")
+        else:
+            lines.append(f"  Scanners:    •••")
+
+        print('\n'.join(lines))
+
+    async def print_scanners(self, identifier=None, show_closed=False):
         """
         Display scan results.
 
         optional:
           identifier               Specific scanner ID to show detailed scan results.
-          --verbose, -v            Include incomplete/no-response results (default: False).
+          --show-closed            Include closed and pending results (default: False).
 
         examples:
           scans
           scans NkMCyCrrcP
-          scans --verbose
+          scans NkMCyCrrcP --show-closed
         """
         scanners = [scanner for messenger in self.messengers for scanner in messenger.scanners]
 
@@ -645,7 +715,7 @@ class Manager:
                 result = "open"
             elif isinstance(scan.result, int):
                 result = "closed"
-            if (result == "closed" or result ==  "•••") and not verbose:
+            if (result == "closed" or result == "•••") and not show_closed:
                 continue
 
             items.append({
@@ -839,20 +909,20 @@ class Manager:
                 return
         self.update_cli.display(f'`{id}` not found', 'error', reprompt=False)
 
-    async def set_nickname(self, id, name):
+    async def rename(self, id, name):
         """
-        Set a nickname for a messenger, forwarder, or scanner.
+        Rename a messenger, forwarder, or scanner.
 
         required:
-          id                       ID or current nickname of the target.
-          name                     The new nickname to assign.
+          id                       ID or current name of the target.
+          name                     The new name to assign.
 
         examples:
-          nickname NkMCyCrrcP dc01
-          nickname dc01 webserver
+          rename NkMCyCrrcP dc01
+          rename dc01 webserver
         """
-        if ' ' in name:
-            self.update_cli.display('Nicknames cannot contain spaces.', 'error', reprompt=False)
+        if not re.fullmatch(r'[A-Za-z0-9_-]+', name):
+            self.update_cli.display('Names may only contain letters, numbers, hyphens, and underscores.', 'error', reprompt=False)
             return
 
         all_objects = list(self.messengers)
@@ -872,7 +942,7 @@ class Manager:
 
         for obj in all_objects:
             if obj is not target and name in (obj.identifier, obj._nickname):
-                self.update_cli.display(f'Nickname `{name}` is already in use.', 'error', reprompt=False)
+                self.update_cli.display(f'Name `{name}` is already in use.', 'error', reprompt=False)
                 return
 
         old = target.nickname
