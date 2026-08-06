@@ -4,7 +4,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6.0] - 2026-08-06
+
+#### Added
+- `rename` command to assign friendly names to messengers, forwarders, and scanners.
+  Names are displayed everywhere in place of the random identifier, with fallback
+  to identifier when no name is set. Uniqueness enforced; only letters, numbers,
+  hyphens, and underscores allowed.
+- Messenger detail view via `messengers <id>` (supports multiple: `messengers dc01 dc02`).
+  Shows transport, status, IPs, first seen, last seen (UTC), sent/received bytes,
+  user-agent, and expanded forwarder/scanner listings with type and config.
+- `first_seen` timestamp on messengers for the detail view.
+- Tab completion resolves names for `interact`, `stop`, and direct-interact shortcuts.
+- All `interact`, `stop`, `forwarders`, `scans`, and direct-interact shortcuts accept
+  either identifier or name.
+
+#### Changed
+- Messenger table column renamed from "Identifier" to "Name".
+- Forwarder table column renamed from "Identifier" to "Name".
+- IPs column moved from verbose-only to always shown in messenger table.
+- "Forwarders" column replaced with "Forwarders / Scanners" combining both; scanners
+  shown in yellow.
+- `messengers --verbose` removed; replaced by `messengers <id>` detail view.
+- `scans --verbose` replaced with `scans --show-closed` to toggle closed/pending results.
 
 ## [0.5.0] - 2026-08-05
 
