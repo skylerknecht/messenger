@@ -25,8 +25,17 @@ class Forwarder:
         self.destination_port = destination_port
         self.update_cli = update_cli
         self.identifier = alphanumeric_identifier()
+        self._nickname = None
         self.clients = []
         self.on_close = lambda c: self.clients.remove(c) if c in self.clients else None
+
+    @property
+    def nickname(self):
+        return self._nickname or self.identifier
+
+    @nickname.setter
+    def nickname(self, value):
+        self._nickname = value
 
     @abstractmethod
     async def handle_initiate_forwarder_client_req(self, message):
@@ -132,7 +141,7 @@ class LocalPortForwarder(Forwarder):
         try:
             self.server = await asyncio.start_server(self.handle_client, self.listening_host, int(self.listening_port))
             self.update_cli.display(
-                f'Messenger `{self.messenger.identifier}` now forwarding ({self.listening_host}:{self.listening_port}) -> ({self.destination_host}:{self.destination_port}).',
+                f'Messenger `{self.messenger.nickname}` now forwarding ({self.listening_host}:{self.listening_port}) -> ({self.destination_host}:{self.destination_port}).',
                 'success', reprompt=False)
             return True
         except OSError as e:
@@ -176,7 +185,7 @@ class LocalPortForwarder(Forwarder):
             pass
 
         self.update_cli.display(
-            f'Messenger `{self.messenger.identifier}` has stopped forwarding ({self.listening_host}:{self.listening_port}) -> ({self.destination_host}:{self.destination_port}).',
+            f'Messenger `{self.messenger.nickname}` has stopped forwarding ({self.listening_host}:{self.listening_port}) -> ({self.destination_host}:{self.destination_port}).',
             'success',
             reprompt=False
         )
@@ -321,7 +330,7 @@ class RemotePortForwarder(Forwarder):
         return destination_host, int(destination_port)
 
     async def start(self):
-        self.update_cli.display(f'Messenger `{self.messenger.identifier}` now forwarding (*:*) -> ({self.destination_host}:{self.destination_port}).', 'success', reprompt=False)
+        self.update_cli.display(f'Messenger `{self.messenger.nickname}` now forwarding (*:*) -> ({self.destination_host}:{self.destination_port}).', 'success', reprompt=False)
 
     async def stop(self):
         for client in self.clients:
@@ -333,7 +342,7 @@ class RemotePortForwarder(Forwarder):
                 pass
 
         self.update_cli.display(
-            f'Messenger `{self.messenger.identifier}` has stopped forwarding (*:*) -> ({self.destination_host}:{self.destination_port}).',
+            f'Messenger `{self.messenger.nickname}` has stopped forwarding (*:*) -> ({self.destination_host}:{self.destination_port}).',
             'success',
             reprompt=False
         )

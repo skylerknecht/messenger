@@ -12,6 +12,7 @@ ScanResult = namedtuple("ScanResult", ["identifier", "address", "port", "result"
 class Scanner:
     def __init__(self, ip_ranges, port_ranges, top_ports, update_cli, messenger, concurrency):
         self.identifier = alphanumeric_identifier()
+        self._nickname = None
         self.ip_input = ip_ranges
         self.port_input = port_ranges
         self.update_cli = update_cli
@@ -26,6 +27,14 @@ class Scanner:
         self._gen_lock = asyncio.Lock()
         self._scan_gen = self._generate_scans()
         self._workers = []
+
+    @property
+    def nickname(self):
+        return self._nickname or self.identifier
+
+    @nickname.setter
+    def nickname(self, value):
+        self._nickname = value
 
     @staticmethod
     def _get_top_ports(n):
@@ -161,7 +170,7 @@ class Scanner:
             self.end_time = time.time()
             readable = time.strftime("%H:%M:%S %Z", time.localtime(self.end_time))
             self.update_cli.display(
-                f"Scan `{self.identifier}` completed at {readable}. All results received.", 'success'
+                f"Scan `{self.nickname}` completed at {readable}. All results received.", 'success'
             )
 
     async def _scan_worker(self):
@@ -188,23 +197,23 @@ class Scanner:
         self.start_time = time.time()
         readable = time.strftime("%H:%M:%S %Z", time.localtime(self.start_time))
         self.update_cli.display(
-            f"Starting scan `{self.identifier}` at {readable} with a concurrency of `{self.concurrency}`.", 'information',
+            f"Starting scan `{self.nickname}` at {readable} with a concurrency of `{self.concurrency}`.", 'information',
         )
 
         self._workers = [asyncio.create_task(self._scan_worker()) for _ in range(self.concurrency)]
         await asyncio.gather(*self._workers)
 
         self.update_cli.display(
-            f"Scanner `{self.identifier}` finished sending all scan attempts.", 'information',
+            f"Scanner `{self.nickname}` finished sending all scan attempts.", 'information',
         )
 
     async def stop(self):
         if self.end_time:
-            self.update_cli.display(f"Scanner `{self.identifier}` already stopped sending scan attempts.", 'information', reprompt=False)
+            self.update_cli.display(f"Scanner `{self.nickname}` already stopped sending scan attempts.", 'information', reprompt=False)
             return
 
         self.end_time = time.time()
-        self.update_cli.display(f"Scanner `{self.identifier}` has stopped and no further scans attempts will be made. Existing attempts will still update as they arrive.", 'success', reprompt=False)
+        self.update_cli.display(f"Scanner `{self.nickname}` has stopped and no further scans attempts will be made. Existing attempts will still update as they arrive.", 'success', reprompt=False)
         for w in self._workers:
             w.cancel()
 

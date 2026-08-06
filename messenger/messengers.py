@@ -18,6 +18,7 @@ class Messenger:
 
     def __init__(self, update_cli, serialize_messages):
         self.identifier = alphanumeric_identifier()
+        self._nickname = None
         self.update_cli = update_cli
         self.forwarders = []
         self.scanners = []
@@ -30,10 +31,18 @@ class Messenger:
         self.sent_bytes = 0
         self.received_bytes = 0
 
+    @property
+    def nickname(self):
+        return self._nickname or self.identifier
+
+    @nickname.setter
+    def nickname(self, value):
+        self._nickname = value
+
     async def get_upstream_messages(self):
         if time.time() - self.last_check_in > 60:
             self.update_cli.display(
-                f'{self.transport_type} Messenger `{self.identifier}` has reconnected.',
+                f'{self.transport_type} Messenger `{self.nickname}` has reconnected.',
                 'success'
             )
         self.last_check_in = time.time()
@@ -72,12 +81,12 @@ class Messenger:
     @abstractmethod
     async def send_messages_downstream(self, messages):
         self.update_cli.display(
-            f'Messenger {self.identifier} received downstream message(s).',
+            f'Messenger {self.nickname} received downstream message(s).',
             'debug',
             debug_level = 2
         )
         self.update_cli.display(
-            f'Messenger {self.identifier} received the following downstream message(s)\n{messages}.',
+            f'Messenger {self.nickname} received the following downstream message(s)\n{messages}.',
             'debug',
             debug_level = 5
         )
@@ -93,7 +102,7 @@ class Messenger:
                         break
                 else:
                     self.update_cli.display(
-                        f'Messenger `{self.identifier}` has no Remote Port Forwarder configured '
+                        f'Messenger `{self.nickname}` has no Remote Port Forwarder configured '
                         f'for {destination_host}:{destination_port}, denying forward!',
                         'warning'
                     )
@@ -113,7 +122,7 @@ class Messenger:
                 if addr and addr not in self.LOOPBACK_ADDRESSES and addr not in self.ips:
                     self.ips.add(addr)
                     self.update_cli.display(
-                        f'Messenger `{self.identifier}` has a new interface: {addr}',
+                        f'Messenger `{self.nickname}` has a new interface: {addr}',
                         'success'
                     )
                 for scanner in self.scanners:
@@ -197,12 +206,12 @@ class HTTPMessenger(Messenger):
     async def send_message_upstream(self, message):
         self.log_message('upstream', message)
         self.update_cli.display(
-            f'Messenger {self.identifier} queued a upstream message.',
+            f'Messenger {self.nickname} queued a upstream message.',
             'debug',
             debug_level = 2
         )
         self.update_cli.display(
-            f'Messenger {self.identifier} queued the following upstream message\n{message}.',
+            f'Messenger {self.nickname} queued the following upstream message\n{message}.',
             'debug',
             debug_level = 5
         )
@@ -229,7 +238,7 @@ class WebSocketMessenger(Messenger):
     async def set_websocket(self, ws):
         self.websocket = ws
         self.update_cli.display(
-            f'{self.transport_type} Messenger `{self.identifier}` has reconnected.',
+            f'{self.transport_type} Messenger `{self.nickname}` has reconnected.',
             'success'
         )
         messages = await self.get_upstream_messages()
@@ -241,18 +250,18 @@ class WebSocketMessenger(Messenger):
         self.log_message('upstream', message)
         if self.websocket.closed:
             self.update_cli.display(
-                f'Messenger `{self.identifier}` queued a upstream message.',
+                f'Messenger `{self.nickname}` queued a upstream message.',
                 'warning'
             )
             await self.upstream_messages.put(self.serialize_messages([message]))
             return
         self.update_cli.display(
-            f'Messenger {self.identifier} sent a upstream message.',
+            f'Messenger {self.nickname} sent a upstream message.',
             'debug',
             debug_level = 2
         )
         self.update_cli.display(
-            f'Messenger {self.identifier} sent the following upstream message\n{message}.',
+            f'Messenger {self.nickname} sent the following upstream message\n{message}.',
             'debug',
             debug_level = 5
         )
@@ -260,7 +269,7 @@ class WebSocketMessenger(Messenger):
             await self.websocket.send_bytes(self.serialize_messages([message]))
         except Exception:
             self.update_cli.display(
-                f'Messenger `{self.identifier}` queued a upstream message.',
+                f'Messenger `{self.nickname}` queued a upstream message.',
                 'warning'
             )
             await self.upstream_messages.put(self.serialize_messages([message]))

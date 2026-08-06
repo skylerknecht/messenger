@@ -99,6 +99,7 @@ class Manager:
             'messengers': (self.print_messengers, "Display a list of messengers in a table format."),
             'scans': (self.print_scanners, "Display a list of scanners in a table format."),
             'interact': (self.interact, "Interact with a messenger."),
+            'nickname': (self.set_nickname, "Set a nickname for a messenger, forwarder, or scanner."),
             'stop': (self.stop, "Stop a forwarder or a scanner."),
             'help': (self.print_help, "Display this help message."),
             '?': (self.print_help, "Display this help message but with fewer characters."),
@@ -442,18 +443,18 @@ class Manager:
 
         if isinstance(messenger, str):
             for _messenger in self.messengers:
-                if messenger == _messenger.identifier:
+                if messenger in (_messenger.identifier, _messenger.nickname):
                     self.current_messenger = _messenger
-                    self.update_cli.prompt = self.current_messenger.identifier
+                    self.update_cli.prompt = self.current_messenger.nickname
                     return
-            self.update_cli.display(f'Could not find Messenger with ID `{messenger}`', 'error',
+            self.update_cli.display(f'Could not find Messenger `{messenger}`', 'error',
                                     reprompt=False)
             return
         elif isinstance(messenger, Messenger):
             self.current_messenger = messenger
-            self.update_cli.prompt = self.current_messenger.identifier
+            self.update_cli.prompt = self.current_messenger.nickname
         else:
-            self.update_cli.display(f'Could not find Messenger with ID `{messenger.identifier}`', 'error', reprompt=False)
+            self.update_cli.display(f'Could not find Messenger `{messenger.nickname}`', 'error', reprompt=False)
             return
 
     async def print_help(self, command=None):
@@ -504,21 +505,20 @@ class Manager:
             self.update_cli.display('There are no connected Messengers, therefore, there cannot be any Forwarders. Idiot.', 'status', reprompt=False)
             return
 
-        if messenger_id and messenger_id not in [messenger.identifier for messenger in self.messengers]:
-            self.update_cli.display(f'Messenger ID `{messenger_id}` does not exist.', 'status', reprompt=False)
+        if messenger_id and not any(messenger_id in (m.identifier, m.nickname) for m in self.messengers):
+            self.update_cli.display(f'Messenger `{messenger_id}` does not exist.', 'status', reprompt=False)
             return
 
         for messenger in self.messengers:
-            if messenger_id and messenger.identifier != messenger_id:
+            if messenger_id and messenger_id not in (messenger.identifier, messenger.nickname):
                 continue
             for forwarder in messenger.forwarders:
-                # Determine color based on type and configuration
                 if isinstance(forwarder, RemotePortForwarder):
-                    colored_id = color_text(forwarder.identifier, 'cyan')
+                    colored_id = color_text(forwarder.nickname, 'cyan')
                 elif forwarder.destination_host == '*' and forwarder.destination_port == '*':
-                    colored_id = color_text(forwarder.identifier, 'blue')
+                    colored_id = color_text(forwarder.nickname, 'blue')
                 else:
-                    colored_id = color_text(forwarder.identifier, 'green')
+                    colored_id = color_text(forwarder.nickname, 'green')
 
                 streaming_clients = [
                     client
@@ -561,15 +561,15 @@ class Manager:
         for messenger in self.messengers:
             forwarder_ids = [
                 color_text(
-                    forwarder.identifier,
+                    forwarder.nickname,
                     'cyan' if isinstance(forwarder, RemotePortForwarder)
                     else 'blue' if forwarder.destination_host == '*' and forwarder.destination_port == '*'
                     else 'green'
                 )
                 for forwarder in messenger.forwarders
             ]
-            current_messenger_identifier = f"{color_text('>', 'white')} {bold_text(messenger.identifier)}"
-            messenger_identifier = bold_text(messenger.identifier)
+            current_messenger_identifier = f"{color_text('>', 'white')} {bold_text(messenger.nickname)}"
+            messenger_identifier = bold_text(messenger.nickname)
             identifier = current_messenger_identifier if self.current_messenger == messenger else messenger_identifier
             item = {
                 "Identifier": identifier,
@@ -619,8 +619,8 @@ class Manager:
                     continue
 
                 items.append({
-                    "Messenger": scanner.messenger.identifier,
-                    "Scanner": scanner.identifier,
+                    "Messenger": scanner.messenger.nickname,
+                    "Scanner": scanner.nickname,
                     "Runtime": scanner.formatted_runtime,
                     "Attempts": scanner.attempts,
                     "Progress": scanner.progress_str,
@@ -631,7 +631,7 @@ class Manager:
             print(self.create_table('Scans', columns, items))
             return
 
-        scanner = next((s for s in scanners if s and s.identifier == identifier), None)
+        scanner = next((s for s in scanners if s and identifier in (s.identifier, s.nickname)), None)
         if not scanner:
             self.update_cli.display(f"No scanner found with identifier `{identifier}`", 'warning', reprompt=False)
             return
@@ -664,7 +664,7 @@ class Manager:
 
         while True:
             try:
-                prompt = self.current_messenger.identifier if self.current_messenger else self.PROMPT
+                prompt = self.current_messenger.nickname if self.current_messenger else self.PROMPT
                 user_input = await self.session.prompt_async(f'({prompt})~# ')
             except KeyboardInterrupt:
                 self.update_cli.display(f"CTRL+C caught, type `exit` to quit Messenger.", 'information',
@@ -681,7 +681,7 @@ class Manager:
                     parts = user_input.split(' ')
                     command = parts[0]
                     for messenger in self.messengers:
-                        if command == messenger.identifier:
+                        if command in (messenger.identifier, messenger.nickname):
                             await self.interact(messenger)
                             break
                     else:
@@ -826,18 +826,60 @@ class Manager:
         """
         for messenger in self.messengers:
             for forwarder in messenger.forwarders:
-                if forwarder.identifier != id:
+                if id not in (forwarder.identifier, forwarder.nickname):
                     continue
                 await forwarder.stop()
                 messenger.forwarders.remove(forwarder)
-                self.update_cli.display(f'Removed `{id}` from forwarders.', 'information', reprompt=False)
+                self.update_cli.display(f'Removed `{forwarder.nickname}` from forwarders.', 'information', reprompt=False)
                 return
             for scanner in messenger.scanners:
-                if scanner.identifier != id:
+                if id not in (scanner.identifier, scanner.nickname):
                     continue
                 await scanner.stop()
                 return
         self.update_cli.display(f'`{id}` not found', 'error', reprompt=False)
+
+    async def set_nickname(self, id, name):
+        """
+        Set a nickname for a messenger, forwarder, or scanner.
+
+        required:
+          id                       ID or current nickname of the target.
+          name                     The new nickname to assign.
+
+        examples:
+          nickname NkMCyCrrcP dc01
+          nickname dc01 webserver
+        """
+        if ' ' in name:
+            self.update_cli.display('Nicknames cannot contain spaces.', 'error', reprompt=False)
+            return
+
+        all_objects = list(self.messengers)
+        for messenger in self.messengers:
+            all_objects.extend(messenger.forwarders)
+            all_objects.extend(messenger.scanners)
+
+        target = None
+        for obj in all_objects:
+            if id in (obj.identifier, obj.nickname):
+                target = obj
+                break
+
+        if not target:
+            self.update_cli.display(f'`{id}` not found.', 'error', reprompt=False)
+            return
+
+        for obj in all_objects:
+            if obj is not target and name in (obj.identifier, obj._nickname):
+                self.update_cli.display(f'Nickname `{name}` is already in use.', 'error', reprompt=False)
+                return
+
+        old = target.nickname
+        target.nickname = name
+        if self.current_messenger and self.current_messenger is target:
+            self.update_cli.prompt = name
+        self.update_cli.display(f'`{old}` is now known as `{name}`.', 'success', reprompt=False)
 
 
 class DynamicCompleter(Completer):
@@ -870,9 +912,12 @@ class DynamicCompleter(Completer):
         """
         word_before_cursor = document.get_word_before_cursor()
         options = list(self.manager.commands.keys())
-        options.extend(messenger.identifier for messenger in self.manager.messengers)
-        options.extend(forwarder.identifier for messenger in self.manager.messengers for forwarder in messenger.forwarders)
-        options.extend(scanner.identifier for messenger in self.manager.messengers for scanner in messenger.scanners)
+        for messenger in self.manager.messengers:
+            options.append(messenger.nickname)
+            for forwarder in messenger.forwarders:
+                options.append(forwarder.nickname)
+            for scanner in messenger.scanners:
+                options.append(scanner.nickname)
 
         for option in options:
             if option.startswith(word_before_cursor):
