@@ -14,6 +14,8 @@ class Messenger:
 
     transport_type = 'undefined'
 
+    LOOPBACK_ADDRESSES = {'127.0.0.1', '::1', '0.0.0.0'}
+
     def __init__(self, update_cli, serialize_messages):
         self.identifier = alphanumeric_identifier()
         self.update_cli = update_cli
@@ -21,6 +23,7 @@ class Messenger:
         self.scanners = []
         self.upstream_messages = asyncio.Queue()
         self.serialize_messages = serialize_messages
+        self.ips = set()
 
         self.last_check_in = time.time()
 
@@ -106,6 +109,13 @@ class Messenger:
 
             # 2) Initiate Forwarder Client Response (0x02)
             elif isinstance(message, InitiateForwarderClientRep):
+                addr = message.bind_address
+                if addr and addr not in self.LOOPBACK_ADDRESSES and addr not in self.ips:
+                    self.ips.add(addr)
+                    self.update_cli.display(
+                        f'Messenger `{self.identifier}` has a new interface: {addr}',
+                        'success'
+                    )
                 for scanner in self.scanners:
                     await scanner.handle_initiate_forwarder_client_rep(message)
                 for forwarder in self.forwarders:
@@ -168,6 +178,7 @@ class HTTPMessenger(Messenger):
     def __init__(self, ip, user_agent, update_cli, serialize_messages):
         super().__init__(update_cli, serialize_messages)
         self.ip = ip
+        self.ips.add(ip)
         self.user_agent = user_agent
         self.disconnected = False
 
@@ -205,6 +216,7 @@ class WebSocketMessenger(Messenger):
     def __init__(self, websocket, ip, user_agent, update_cli, serialize_messages):
         super().__init__(update_cli, serialize_messages)
         self.ip = ip
+        self.ips.add(ip)
         self.user_agent = user_agent
         self.websocket = websocket
 
