@@ -13,6 +13,13 @@
 #   - Clients must NEVER call exit() or terminate the process. All errors
 #     should be logged and handled gracefully. The client should always
 #     attempt to continue running.
+#     EXCEPTION — decryption failure is fatal and non-recoverable. An AES
+#     decrypt/unpad failure almost always means the encryption key is wrong,
+#     so the client can never decrypt server traffic and is useless. On a
+#     decryption failure the client logs a single distinctive error and
+#     RETURNS from main() — a graceful stop, not exit()/abort — instead of
+#     reconnecting in a loop that can never succeed. This is the ONLY
+#     condition that halts the client; every other error keeps it running.
 #   - Status messages use bracketed prefixes: [+] success, [*] info, [!] error/warning.
 #     Do not print transport names, debug details, or verbose diagnostics.
 #   - Identifiers (client_id in RPF, etc.) must be 10-character alphanumeric
@@ -55,6 +62,9 @@ function decrypt(key, data) -> bytes:
     ciphertext = data[16:]
     padded = AES_CBC_decrypt(key, iv, ciphertext)
     return pkcs7_unpad(padded)
+    // Any failure here (bad AES key, bad PKCS7 padding) must surface as a
+    // distinct DecryptionError type — NOT a generic parse/structural error —
+    // so main() can tell "wrong key" apart from a malformed frame and halt.
 
 // When encrypting an ArraySegment or Buffer slice, respect offset and count.
 // Do NOT encrypt the entire backing array — only the active region.
@@ -110,6 +120,10 @@ function deserialize_messages(raw_data, encryption_key) -> list[message]:
 
         if message_type != CHECK_IN:
             payload = decrypt(encryption_key, payload)
+            // decrypt() raises DecryptionError on a bad key — let it
+            // propagate uncaught, past the receive/poll loop, out of
+            // start(), all the way to main()'s DecryptionError handler.
+            // Do NOT catch it here or swallow it as a generic parse error.
 
         messages.append(parse_payload(message_type, payload))
 
@@ -760,6 +774,12 @@ function main():
             log("[+] Connected to {candidate_url}")
             await client.start()    # blocks until disconnect
             break                   # disconnected — enter retry logic
+        catch DecryptionError:
+            log("[!] Decryption failed — the encryption key is likely incorrect. "
+                "The messenger cannot decrypt server traffic and is stopping.")
+            return
+            // Fatal: a wrong key fails identically on every scheme and every
+            // reconnect, so do NOT try the next scheme or enter retry logic.
         catch error:
             log("[!] Connection failed: {error}")
             client = null
@@ -802,6 +822,11 @@ function main():
 
             await client.start()    # blocks until next disconnect
 
+        catch DecryptionError:
+            log("[!] Decryption failed — the encryption key is likely incorrect. "
+                "The messenger cannot decrypt server traffic and is stopping.")
+            return
+            // Fatal: reconnecting cannot fix a wrong key. Stop the loop.
         catch error:
             consecutive_failures += 1
             log("[!] Reconnection failed: {error}")

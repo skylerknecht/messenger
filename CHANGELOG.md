@@ -13,11 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Changed
 
 - Clarified that stateful (WebSocket) clients may send messages immediately instead of routing them through a send loop; only stateless (HTTP) clients must batch sends through the poll loop
+- Decryption failure is now the one sanctioned exception to "never stop": a client that cannot decrypt server traffic (almost always a wrong encryption key) logs a distinctive error and returns from `main()` instead of reconnecting in a loop that can never succeed
 
 ### Client
 
 #### Fixed
 
+- All clients: handle an `InitiateTCPClientRep` that omits the optional `remote_addr`/`remote_port` fields. The server leaves them off every remote-port-forward reply and denial, so the client's unconditional read overran the buffer (`Not enough bytes to read a 32-bit value`) and tore down the whole tunnel on any remote-forward hit
 - C# and Node.js: added a 5-second TCP connect timeout so connections to unresponsive hosts fail promptly instead of hanging on the OS default
 - C#: HTTP client now applies a 10-second connect and 15-second poll request timeout instead of the 100-second `HttpClient` default
 - C#: CLI string overrides use truthiness so an empty value falls back to the embedded default (`--server-url ""`, `--user-agent ""`, `--proxy ""`)
@@ -25,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Node.js and Python: standardized the reconnection-failure log to `[!] Reconnection failed: {error}`
 - Python: guard against `message_length < 8` during deserialization to prevent payload-length underflow on malformed frames
 - Python: HTTP poll requests now use a 15-second timeout (connect stays at 10 seconds)
+
+#### Changed
+
+- All clients: an AES decryption failure now logs `[!] Decryption failed — the encryption key is likely incorrect …` and stops the client, instead of silently retrying forever. A wrong key connects fine on the plaintext check-in and only surfaces on the first encrypted message, so the old behavior looked like a hang
 
 ## [0.7.0] - 2026-08-08
 
