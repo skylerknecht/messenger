@@ -455,6 +455,14 @@ class WSClient extends Client:
             await send_immediately(msg)
 
         # Receive loop — blocks until the WebSocket closes.
+        #
+        # STATEFUL CLIENTS: A WebSocket is a stateful, persistent connection,
+        # so send_downstream_message may send immediately (see below) rather
+        # than enqueueing for a send_loop. When immediate sending is used, the
+        # send_loop is redundant and start() may run only the receive_loop.
+        # Running receive_loop() and send_loop() in parallel is equally valid;
+        # both satisfy the spec. This differs from the HTTP client, which is
+        # stateless (poll-based) and MUST route all sends through its poll loop.
         await parallel(receive_loop(), send_loop())
 
     function receive_loop():
