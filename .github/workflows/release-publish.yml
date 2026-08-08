@@ -8,6 +8,10 @@ name: Publish Release
 # RC versions: publishes to PyPI only — no GitHub Release or tag.
 #
 # Must be dispatched on main.
+#
+# Backfill mode: iterates all existing v* tags, checks PyPI for each,
+# and publishes any that are missing. Also creates GitHub Releases for
+# tags that don't have one. Each version is built from its tag's commit.
 
 on:
   workflow_dispatch:
@@ -17,6 +21,11 @@ on:
         required: true
         type: boolean
         default: true
+      backfill:
+        description: 'Backfill all missing releases to PyPI and GitHub'
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: write   # tag push + release creation
@@ -27,7 +36,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # ── Normal single-version publish ──────────────────────────────────
   publish:
+    if: ${{ !inputs.backfill }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -163,3 +174,105 @@ jobs:
       - name: Publish to PyPI
         if: inputs.publish_to_pypi
         uses: pypa/gh-action-pypi-publish@release/v1
+
+  # ── Backfill: discover all version tags ────────────────────────────
+  discover:
+    if: ${{ inputs.backfill }}
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.tags.outputs.tags }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: List version tags
+        id: tags
+        run: |
+          tags=$(git tag -l 'v*' --sort='version:refname' | jq -R -s -c 'split("\n") | map(select(. != ""))')
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
+          echo "Found tags: $tags"
+
+  # ── Backfill: publish each missing version ─────────────────────────
+  backfill:
+    needs: discover
+    if: ${{ inputs.backfill }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        tag: ${{ fromJson(needs.discover.outputs.tags) }}
+      max-parallel: 1
+      fail-fast: false
+    steps:
+      - name: Extract version from tag
+        id: version
+        run: |
+          tag="${{ matrix.tag }}"
+          version="${tag#v}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Processing $tag (version $version)"
+
+      - name: Check if version exists on PyPI
+        id: pypi
+        run: |
+          status=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://pypi.org/pypi/messenger-proxy/${{ steps.version.outputs.version }}/json")
+          if [ "$status" = "200" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "${{ matrix.tag }} already on PyPI"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "${{ matrix.tag }} not on PyPI (status $status)"
+          fi
+
+      - name: Checkout tag
+        if: steps.pypi.outputs.exists == 'false'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.tag }}
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Set up Python
+        if: steps.pypi.outputs.exists == 'false'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Build sdist and wheel
+        if: steps.pypi.outputs.exists == 'false'
+        run: |
+          pip install --upgrade build
+          python -m build
+
+      - name: Publish to PyPI
+        if: steps.pypi.outputs.exists == 'false'
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+      - name: Create GitHub Release if missing
+        if: steps.pypi.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ matrix.tag }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists"
+            exit 0
+          fi
+
+          python3 <<'PYEOF'
+          import os, re
+
+          version = os.environ['VERSION']
+          try:
+              content = open('CHANGELOG.md').read()
+              pattern = rf'## \[{re.escape(version)}\][^\n]*\n(.*?)(?=\n## \[|\Z)'
+              m = re.search(pattern, content, re.DOTALL)
+              notes = m.group(1).strip() if m else f'Release {version}'
+          except Exception:
+              notes = f'Release {version}'
+          open('release-notes.md', 'w').write(notes + '\n')
+          PYEOF
+
+          gh release create "$TAG" --title "$TAG" --notes-file release-notes.md
