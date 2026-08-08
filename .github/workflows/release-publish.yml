@@ -16,16 +16,15 @@ name: Publish Release
 on:
   workflow_dispatch:
     inputs:
-      publish_to_pypi:
-        description: 'Publish to PyPI (uncheck to only create a GitHub Release)'
+      mode:
+        description: 'What to publish'
         required: true
-        type: boolean
-        default: true
-      backfill:
-        description: 'Backfill all missing releases to PyPI and GitHub'
-        required: true
-        type: boolean
-        default: false
+        type: choice
+        default: 'release'
+        options:
+          - release
+          - release-no-pypi
+          - backfill
 
 permissions:
   contents: write   # tag push + release creation
@@ -38,7 +37,7 @@ concurrency:
 jobs:
   # ── Normal single-version publish ──────────────────────────────────
   publish:
-    if: ${{ !inputs.backfill }}
+    if: ${{ inputs.mode != 'backfill' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -108,6 +107,43 @@ jobs:
           print(f'Version {version} is consistent across __init__.py, README.md, and CHANGELOG.md')
           EOF
 
+      - name: Check submodules for regressions
+        run: |
+          prev_tag=$(git tag -l 'v*' --sort='-version:refname' | head -1)
+          if [ -z "$prev_tag" ]; then
+            echo "No previous tag found, skipping submodule check"
+            exit 0
+          fi
+
+          echo "Comparing submodules against previous release: $prev_tag"
+          failed=false
+
+          for sm in $(git submodule foreach --quiet 'echo $sm_path'); do
+            current=$(git ls-tree HEAD "$sm" | awk '{print $3}')
+            previous=$(git ls-tree "$prev_tag" "$sm" 2>/dev/null | awk '{print $3}')
+
+            if [ -z "$previous" ]; then
+              echo "  $sm: new submodule, skipping"
+              continue
+            fi
+
+            if [ "$current" = "$previous" ]; then
+              echo "  $sm: unchanged ($current)"
+              continue
+            fi
+
+            if git -C "$sm" merge-base --is-ancestor "$previous" "$current" 2>/dev/null; then
+              echo "  $sm: advanced $previous -> $current"
+            else
+              echo "::error::Submodule $sm has REGRESSED: $previous is not an ancestor of $current"
+              failed=true
+            fi
+          done
+
+          if [ "$failed" = "true" ]; then
+            exit 1
+          fi
+
       - name: Refuse if tag already exists
         if: steps.version.outputs.is_rc == 'false'
         run: |
@@ -160,24 +196,24 @@ jobs:
             --notes-file release-notes.md
 
       - name: Set up Python
-        if: inputs.publish_to_pypi
+        if: inputs.mode == 'release'
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
 
       - name: Build sdist and wheel
-        if: inputs.publish_to_pypi
+        if: inputs.mode == 'release'
         run: |
           pip install --upgrade build
           python -m build
 
       - name: Publish to PyPI
-        if: inputs.publish_to_pypi
+        if: inputs.mode == 'release'
         uses: pypa/gh-action-pypi-publish@release/v1
 
   # ── Backfill: discover all version tags ────────────────────────────
   discover:
-    if: ${{ inputs.backfill }}
+    if: ${{ inputs.mode == 'backfill' }}
     runs-on: ubuntu-latest
     outputs:
       tags: ${{ steps.tags.outputs.tags }}
@@ -196,7 +232,7 @@ jobs:
   # ── Backfill: publish each missing version ─────────────────────────
   backfill:
     needs: discover
-    if: ${{ inputs.backfill }}
+    if: ${{ inputs.mode == 'backfill' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
