@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.7.1] - 2026-08-08
 
+### Spec
+
+#### Changed
+
+- Clarified that stateful (WebSocket) clients may send messages immediately instead of routing them through a send loop; only stateless (HTTP) clients must batch sends through the poll loop
+
+### Client
+
+#### Fixed
+
+- C# and Node.js: added a 5-second TCP connect timeout so connections to unresponsive hosts fail promptly instead of hanging on the OS default
+- C#: HTTP client now applies a 10-second connect and 15-second poll request timeout instead of the 100-second `HttpClient` default
+- C#: CLI string overrides use truthiness so an empty value falls back to the embedded default (`--server-url ""`, `--user-agent ""`, `--proxy ""`)
+- C#: removed the duplicate `[+] Connected to` log emitted from inside the HTTP/WebSocket connect (main logs it once)
+- Node.js and Python: standardized the reconnection-failure log to `[!] Reconnection failed: {error}`
+- Python: guard against `message_length < 8` during deserialization to prevent payload-length underflow on malformed frames
+- Python: HTTP poll requests now use a 15-second timeout (connect stays at 10 seconds)
+
 ## [0.7.0] - 2026-08-08
 
 ### Spec
