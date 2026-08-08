@@ -1,0 +1,273 @@
+<title>Client Spec Compliance Report</title>
+<style>
+  :root {
+    --bg: #ffffff; --bg2: #f8fafc; --bg3: #f1f5f9;
+    --border: #e2e8f0; --border2: #cbd5e1;
+    --text: #0f172a; --text2: #475569; --text3: #94a3b8;
+    --pass: #16a34a; --pass-bg: #dcfce7; --pass-border: #bbf7d0;
+    --fail: #dc2626; --fail-bg: #fef2f2; --fail-border: #fecaca;
+    --na: #64748b; --na-bg: #f1f5f9; --na-border: #e2e8f0;
+    --cs-accent: #6366f1; --js-accent: #10b981; --py-accent: #eab308;
+    --hover: #f1f5f9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f172a; --bg2: #1e293b; --bg3: #334155;
+      --border: #334155; --border2: #475569;
+      --text: #f1f5f9; --text2: #94a3b8; --text3: #64748b;
+      --pass: #4ade80; --pass-bg: #052e16; --pass-border: #14532d;
+      --fail: #f87171; --fail-bg: #450a0a; --fail-border: #7f1d1d;
+      --na: #64748b; --na-bg: #1e293b; --na-border: #334155;
+      --hover: #1e293b;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f172a; --bg2: #1e293b; --bg3: #334155;
+    --border: #334155; --border2: #475569;
+    --text: #f1f5f9; --text2: #94a3b8; --text3: #64748b;
+    --pass: #4ade80; --pass-bg: #052e16; --pass-border: #14532d;
+    --fail: #f87171; --fail-bg: #450a0a; --fail-border: #7f1d1d;
+    --na: #64748b; --na-bg: #1e293b; --na-border: #334155;
+    --hover: #1e293b;
+  }
+  :root[data-theme="light"] {
+    --bg: #ffffff; --bg2: #f8fafc; --bg3: #f1f5f9;
+    --border: #e2e8f0; --border2: #cbd5e1;
+    --text: #0f172a; --text2: #475569; --text3: #94a3b8;
+    --pass: #16a34a; --pass-bg: #dcfce7; --pass-border: #bbf7d0;
+    --fail: #dc2626; --fail-bg: #fef2f2; --fail-border: #fecaca;
+    --na: #64748b; --na-bg: #f1f5f9; --na-border: #e2e8f0;
+    --hover: #f1f5f9;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #1a1a1a; color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; }
+
+  .report { max-width: 880px; margin: 0 auto; padding: 32px 20px 60px; }
+
+  /* ── Header ── */
+  .eyebrow {
+    font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text3); margin-bottom: 6px;
+  }
+  .report h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 6px; }
+  .subtitle { font-size: 13px; color: var(--text2); line-height: 1.6; }
+  .pill {
+    font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+    font-size: 12px; background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 4px; padding: 2px 7px; white-space: nowrap;
+  }
+
+  /* ── Grade Cards ── */
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 24px 0 32px; }
+  .card {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 20px 16px; text-align: center; position: relative; overflow: hidden;
+  }
+  .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+  .card.cs::before { background: var(--cs-accent); }
+  .card.js::before { background: var(--js-accent); }
+  .card.py::before { background: var(--py-accent); }
+  .card-lang {
+    font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text3); margin-bottom: 4px;
+  }
+  .card-name { font-weight: 600; font-size: 14px; margin-bottom: 12px; }
+  .card-grade {
+    font-size: 44px; font-weight: 800; line-height: 1; margin-bottom: 6px;
+    letter-spacing: -0.03em;
+  }
+  .card.cs .card-grade { color: var(--cs-accent); }
+  .card.js .card-grade { color: var(--js-accent); }
+  .card.py .card-grade { color: var(--py-accent); }
+  .card-pct {
+    font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+    font-size: 13px; color: var(--text2); font-variant-numeric: tabular-nums; margin-bottom: 10px;
+  }
+  .card-note { font-size: 12px; color: var(--text2); line-height: 1.5; margin-bottom: 10px; }
+  .severity-dots { display: flex; justify-content: center; gap: 14px; font-size: 11px; color: var(--text3); }
+  .severity-dots span { display: inline-flex; align-items: center; gap: 4px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .dot.high { background: var(--fail); }
+  .dot.med { background: var(--py-accent); }
+  .dot.low { background: var(--text3); }
+
+  /* ── Requirement Tables ── */
+  .tables-heading {
+    font-size: 18px; font-weight: 700; margin-bottom: 20px;
+    padding-bottom: 10px; border-bottom: 1px solid var(--border);
+  }
+  .section-label {
+    font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text3);
+    margin: 28px 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border);
+  }
+  .section-label:first-of-type { margin-top: 0; }
+
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 4px; }
+  th {
+    text-align: left; padding: 8px 10px; font-size: 10px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em; color: var(--text3);
+    border-bottom: 1px solid var(--border);
+  }
+  td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+
+  .v-pass {
+    font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 700;
+    display: inline-block; line-height: 1.5; letter-spacing: 0.02em;
+    background: var(--pass-bg); color: var(--pass); border: 1px solid var(--pass-border);
+  }
+  a.v-fail {
+    font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 700;
+    display: inline-block; line-height: 1.5; letter-spacing: 0.02em;
+    background: var(--fail-bg); color: var(--fail); border: 1px solid var(--fail-border);
+    text-decoration: none; cursor: pointer;
+  }
+  a.v-fail:hover { text-decoration: underline; }
+  .v-na {
+    font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 700;
+    display: inline-block; line-height: 1.5; letter-spacing: 0.02em;
+    background: var(--na-bg); color: var(--na); border: 1px solid var(--na-border);
+  }
+
+  /* ── Findings ── */
+  .findings-heading {
+    font-size: 18px; font-weight: 700; margin: 36px 0 16px;
+    padding-bottom: 10px; border-bottom: 1px solid var(--border);
+  }
+  .finding {
+    padding: 10px 12px; border-bottom: 1px solid var(--border);
+    transition: background 0.2s, border-left 0.2s;
+    border-left: 3px solid transparent;
+  }
+  .finding:last-child { border-bottom: none; }
+  .finding:target {
+    background: var(--fail-bg); border-left: 3px solid var(--fail);
+    padding-left: 13px; border-radius: 4px;
+  }
+  @keyframes flash { 0%{opacity:1} 50%{opacity:.4} 100%{opacity:1} }
+  .finding:target .f-client { animation: flash .6s ease-in-out; }
+
+  .f-client {
+    font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.04em; margin-right: 6px;
+  }
+  .f-client.cs { color: var(--cs-accent); }
+  .f-client.js { color: var(--js-accent); }
+  .f-client.py { color: var(--py-accent); }
+  .f-text { font-size: 13px; color: var(--text); line-height: 1.5; }
+
+  /* ── Responsive ── */
+  @media (max-width: 640px) {
+    .cards { grid-template-columns: 1fr; }
+    table { font-size: 12px; }
+    td, th { padding: 6px 6px; }
+  }
+</style>
+
+<div class="report">
+  <!-- 1. HEADER -->
+  <div class="eyebrow">Spec Compliance Audit</div>
+  <h1>Messenger Client Grading Report</h1>
+  <p class="subtitle">
+    Graded against <span class="pill">docs/client.pseudo</span>
+    on <span class="pill">origin/main</span>
+  </p>
+
+  <!-- 2. GRADE CARDS (one per client, class="card {cs|js|py}") -->
+  <div class="cards">
+    <div class="card cs">
+      <div class="card-lang">C Sharp</div>
+      <div class="card-name">MessengerClient.sln</div>
+      <div class="card-grade">A+</div>
+      <div class="card-pct">44 / 44 &middot; 100%</div>
+      <div class="card-note">Full compliance. No issues found.</div>
+      <div class="severity-dots">
+        <span><span class="dot high"></span> 0 high</span>
+        <span><span class="dot med"></span> 0 med</span>
+        <span><span class="dot low"></span> 0 low</span>
+      </div>
+    </div>
+    <div class="card js">
+      <div class="card-lang">Node.js</div>
+      <div class="card-name">messenger-client.js</div>
+      <div class="card-grade">A+</div>
+      <div class="card-pct">44 / 44 &middot; 100%</div>
+      <div class="card-note">Full compliance. No issues found.</div>
+      <div class="severity-dots">
+        <span><span class="dot high"></span> 0 high</span>
+        <span><span class="dot med"></span> 0 med</span>
+        <span><span class="dot low"></span> 0 low</span>
+      </div>
+    </div>
+    <div class="card py">
+      <div class="card-lang">Python</div>
+      <div class="card-name">messenger-client.py</div>
+      <div class="card-grade">A</div>
+      <div class="card-pct">43 / 44 &middot; 97.7%</div>
+      <div class="card-note">One low-severity failure: --retry-duration uses int instead of float.</div>
+      <div class="severity-dots">
+        <span><span class="dot high"></span> 0 high</span>
+        <span><span class="dot med"></span> 0 med</span>
+        <span><span class="dot low"></span> 1 low</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. REQUIREMENT TABLES (one table per spec section, all visible) -->
+  <h2 class="tables-heading">Requirement-Level Compliance</h2>
+
+  <div class="section-label">01 &ensp; Constants &amp; Configuration</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:46%">Requirement</th>
+          <th style="width:18%">C#</th>
+          <th style="width:18%">Node.js</th>
+          <th style="width:18%">Python</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- PASS row -->
+        <tr>
+          <td>All Jinja2 constants present with correct defaults</td>
+          <td><span class="v-pass">Pass</span></td>
+          <td><span class="v-pass">Pass</span></td>
+          <td><span class="v-pass">Pass</span></td>
+        </tr>
+        <!-- FAIL row: Fail is an <a> linking to the finding -->
+        <tr>
+          <td>--retry-duration parsed as float</td>
+          <td><span class="v-pass">Pass</span></td>
+          <td><span class="v-pass">Pass</span></td>
+          <td><a class="v-fail" href="#f-py-retry-float">Fail</a></td>
+        </tr>
+        <!-- N/A cell -->
+        <tr>
+          <td>Pause accepted socket on connect</td>
+          <td><span class="v-na">N/A</span></td>
+          <td><span class="v-pass">Pass</span></td>
+          <td><span class="v-pass">Pass</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 4. FINDINGS (sentence-format, :target highlighting) -->
+  <h2 class="findings-heading">Findings</h2>
+
+  <!-- Each finding has id="f-{lang}-{slug}" matching the href in the table -->
+  <div class="finding" id="f-py-retry-float">
+    <span class="f-client py">Python</span>
+    <span class="f-text">messenger-client.py:927 declares --retry-duration with type=int instead of type=float, so fractional retry durations like 2.5 seconds are rejected.</span>
+  </div>
+
+  <!-- If no failures: -->
+  <!-- <p style="color: var(--text3); font-size: 13px;">No failures found.</p> -->
+</div>

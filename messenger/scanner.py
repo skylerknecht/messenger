@@ -5,7 +5,7 @@ import os
 from collections import namedtuple
 
 from messenger.generator import alphanumeric_identifier
-from messenger.message import InitiateForwarderClientReq, SendDataMessage
+from messenger.message import InitiateTCPClientReq, SendDataMessage
 
 ScanResult = namedtuple("ScanResult", ["identifier", "address", "port", "result"])
 
@@ -144,8 +144,8 @@ class Scanner:
         progress = self.open_count + self.closed_count
         return progress == self.total_scans
 
-    async def handle_initiate_forwarder_client_rep(self, message):
-        identifier = message.forwarder_client_id
+    async def handle_initiate_tcp_client_rep(self, message):
+        identifier = message.client_id
         current = self.scans.get(identifier)
 
         if current is None:
@@ -163,7 +163,7 @@ class Scanner:
 
         if message.reason == 0:
             await self.messenger.send_message_upstream(
-                SendDataMessage(forwarder_client_id=identifier, data=b'')
+                SendDataMessage(client_id=identifier, data=b'')
             )
 
         if not self.end_time and self.completed:
@@ -185,8 +185,8 @@ class Scanner:
             identifier = alphanumeric_identifier()
             self.scans[identifier] = ScanResult(identifier, ip, port, None)
 
-            msg = InitiateForwarderClientReq(
-                forwarder_client_id=identifier,
+            msg = InitiateTCPClientReq(
+                client_id=identifier,
                 ip_address=ip,
                 port=port
             )

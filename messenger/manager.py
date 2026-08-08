@@ -309,10 +309,10 @@ class Manager:
         0    | None                            | Disable all debug output
         1    | Handler Messages                | Handler received/sent messages
         2    | Messenger Messages              | Messenger received/sent messages
-        3    | Forwarder Clients Messages      | Forwarder clients received/sent messages
+        3    | TCP Clients Messages      | TCP clients received/sent messages
         4    | Handler Data                    | Handler received/sent raw data
         5    | Messenger Data                  | Messenger received/sent raw data
-        6    | Forwarder Clients Data          | Forwarder clients received/sent raw data
+        6    | TCP Clients Data          | TCP clients received/sent raw data
 
         optional:
           types        Comma-separated list of types to toggle (e.g. 1,4)
@@ -327,10 +327,10 @@ class Manager:
         LABELS = {
             1: 'Handler Messages',
             2: 'Messenger Messages',
-            3: 'Forwarder Clients Messages',
+            3: 'TCP Clients Messages',
             4: 'Handler Data',
             5: 'Messenger Data',
-            6: 'Forwarder Clients Data',
+            6: 'TCP Clients Data',
         }
         if types is None:
             if not self.update_cli.debug_types:
@@ -376,9 +376,11 @@ class Manager:
         -----|----------------------------------
         0    | Disable all logging
         1    | CheckInMessage
-        2    | InitiateForwarderClientReq
-        3    | InitiateForwarderClientRep
+        2    | InitiateTCPClientReq
+        3    | InitiateTCPClientRep
         4    | SendDataMessage
+        5    | InitiateBINDReq
+        6    | InitiateBINDRep
 
         optional:
           types        Comma-separated list of types to toggle (e.g. 1,4)
@@ -389,12 +391,14 @@ class Manager:
           logging 1
           logging 2,3
         """
-        VALID_TYPES = {1, 2, 3, 4}
+        VALID_TYPES = {1, 2, 3, 4, 5, 6}
         LABELS = {
             1: 'CheckInMessage',
-            2: 'InitiateForwarderClientReq',
-            3: 'InitiateForwarderClientRep',
+            2: 'InitiateTCPClientReq',
+            3: 'InitiateTCPClientRep',
             4: 'SendDataMessage',
+            5: 'InitiateBINDReq',
+            6: 'InitiateBINDRep',
         }
         if types is None:
             if not self.update_cli.logging_types:
@@ -636,7 +640,7 @@ class Manager:
             for f in messenger.forwarders:
                 if isinstance(f, RemotePortForwarder):
                     ftype = "Remote"
-                    cfg = f"*:* -> {f.destination_host}:{f.destination_port}"
+                    cfg = f"{f.listening_host}:{f.listening_port} -> {f.destination_host}:{f.destination_port}"
                 elif f.destination_host == '*' and f.destination_port == '*':
                     ftype = "Socks"
                     cfg = f"{f.listening_host}:{f.listening_port} -> *:*"
@@ -822,10 +826,10 @@ class Manager:
         Start a remote forwarder.
 
         required:
-          forwarder_config         Format: destination_host:destination_port
+          forwarder_config         Format: listening_host:listening_port:destination_host:destination_port
 
         examples:
-          remote example.com:9090
+          remote 0.0.0.0:8080:127.0.0.1:80
         """
         messenger = self.current_messenger
         forwarder = RemotePortForwarder(messenger, forwarder_config, self.update_cli)

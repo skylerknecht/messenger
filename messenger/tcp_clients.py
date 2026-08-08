@@ -4,12 +4,11 @@ import socket
 from abc import ABC, abstractmethod
 from messenger.generator import alphanumeric_identifier
 from messenger.message import (
-    InitiateForwarderClientReq,
-    InitiateForwarderClientRep,
+    InitiateTCPClientReq,
     SendDataMessage
 )
 
-class ForwarderClient(ABC):
+class TcpClient(ABC):
     CHUNK_SIZE = 4096
 
     def __init__(self, reader, writer, messenger, on_close):
@@ -27,7 +26,7 @@ class ForwarderClient(ABC):
         self.on_close(self)
 
     @abstractmethod
-    async def initiate_forwarder_client(self):
+    async def initiate_tcp_client(self):
         pass
 
     async def stream(self):
@@ -38,18 +37,18 @@ class ForwarderClient(ABC):
                     break
                 self.messenger.sent_bytes += len(upstream_message)
                 self.messenger.update_cli.display(
-                    f'Forwarder Client {self.identifier} sent {len(upstream_message)} bytes.',
+                    f'TCP Client {self.identifier} sent {len(upstream_message)} bytes.',
                     'debug',
                     debug_level=3
                 )
                 self.messenger.update_cli.display(
-                    f'Forwarder Client {self.identifier} sent\n{upstream_message}.',
+                    f'TCP Client {self.identifier} sent\n{upstream_message}.',
                     'debug',
                     debug_level=6
                 )
                 await self.messenger.send_message_upstream(
                     SendDataMessage(
-                        forwarder_client_id=self.identifier,
+                        client_id=self.identifier,
                         data=upstream_message
                     )
                 )
@@ -58,8 +57,8 @@ class ForwarderClient(ABC):
         self._cleanup()
         await self.messenger.send_message_upstream(
             SendDataMessage(
-                forwarder_client_id=self.identifier,
-                data=b''  # empty to signal close
+                client_id=self.identifier,
+                data=b''
             )
         )
 
@@ -74,46 +73,46 @@ class ForwarderClient(ABC):
         except Exception:
             self._cleanup()
 
-class LocalForwarderClient(ForwarderClient):
+class LocalTcpClient(TcpClient):
     def __init__(self, destination_host, destination_port, reader, writer, messenger, on_close):
         super().__init__(reader, writer, messenger, on_close)
         self.destination_host = destination_host
         self.destination_port = destination_port
 
-    async def initiate_forwarder_client(self):
+    async def initiate_tcp_client(self):
         try:
-            await self.send_initiate_forwarder_client_req()
+            await self.send_initiate_tcp_client_req()
         except Exception:
             self._cleanup()
 
-    async def send_initiate_forwarder_client_req(self):
-        upstream_message = InitiateForwarderClientReq(
-            forwarder_client_id=self.identifier,
+    async def send_initiate_tcp_client_req(self):
+        upstream_message = InitiateTCPClientReq(
+            client_id=self.identifier,
             ip_address=self.destination_host,
             port=int(self.destination_port)
         )
         self.messenger.sent_bytes += 20
         await self.messenger.send_message_upstream(upstream_message)
 
-    async def handle_initiate_forwarder_client_rep(self, bind_addr, bind_port, atype, rep):
+    async def handle_initiate_tcp_client_rep(self, bind_addr, bind_port, atype, rep):
         if rep != 0:
             self._cleanup(abort=True)
             return
         asyncio.create_task(self.stream())
 
-class RemoteForwarderClient(ForwarderClient):
+class RemoteTcpClient(TcpClient):
     def __init__(self, identifier, reader, writer, messenger, on_close):
         super().__init__(reader, writer, messenger, on_close)
         self.identifier = identifier
 
-    async def initiate_forwarder_client(self):
+    async def initiate_tcp_client(self):
         asyncio.create_task(self.stream())
 
-class SocksForwarderClient(LocalForwarderClient):
+class SocksTcpClient(LocalTcpClient):
     def __init__(self, reader, writer, messenger, on_close):
         super().__init__('*', '*', reader, writer, messenger, on_close)
 
-    async def initiate_forwarder_client(self):
+    async def initiate_tcp_client(self):
         try:
             if not await self.negotiate_authentication_method():
                 return self._cleanup()
@@ -121,11 +120,11 @@ class SocksForwarderClient(LocalForwarderClient):
                 return self._cleanup()
             if not await self.negotiate_address():
                 return self._cleanup()
-            await self.send_initiate_forwarder_client_req()
+            await self.send_initiate_tcp_client_req()
         except Exception:
             self._cleanup()
 
-    async def handle_initiate_forwarder_client_rep(self, bind_addr, bind_port, atype, rep):
+    async def handle_initiate_tcp_client_rep(self, bind_addr, bind_port, atype, rep):
         socks_connect_results = self.create_socks_reply(rep, bind_addr, bind_port, atype)
         self.messenger.received_bytes += len(socks_connect_results)
         try:

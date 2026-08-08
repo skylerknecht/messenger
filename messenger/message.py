@@ -10,9 +10,11 @@ from messenger.aes import decrypt, encrypt
 # ---------------------------
 
 CheckInMessage = namedtuple('CheckInMessage', ['messenger_id'])
-InitiateForwarderClientReq = namedtuple('InitiateForwarderClientReq', ['forwarder_client_id', 'ip_address', 'port'])
-InitiateForwarderClientRep = namedtuple('InitiateForwarderClientRep', ['forwarder_client_id', 'bind_address', 'bind_port', 'address_type', 'reason'])
-SendDataMessage = namedtuple('SendDataMessage', ['forwarder_client_id', 'data'])
+InitiateTCPClientReq = namedtuple('InitiateTCPClientReq', ['client_id', 'ip_address', 'port'])
+InitiateTCPClientRep = namedtuple('InitiateTCPClientRep', ['client_id', 'bind_address', 'bind_port', 'address_type', 'reason', 'remote_addr', 'remote_port'], defaults=['', 0])
+SendDataMessage = namedtuple('SendDataMessage', ['client_id', 'data'])
+InitiateBINDReq = namedtuple('InitiateBINDReq', ['bind_id', 'listening_host', 'listening_port', 'destination_host', 'destination_port'])
+InitiateBINDRep = namedtuple('InitiateBINDRep', ['bind_id', 'listening_host', 'listening_port', 'reason'])
 
 # You could also store message_type inside each namedtuple, or convert them to @dataclass if you prefer.
 
@@ -55,97 +57,119 @@ class MessageParser:
         return CheckInMessage(messenger_id=messenger_id)
 
     @staticmethod
-    def parse_initiate_forwarder_client_req(value: bytes) -> InitiateForwarderClientReq:
+    def parse_initiate_tcp_client_req(value: bytes) -> InitiateTCPClientReq:
         """
         For message type 0x01, parse out:
-          - forwarder_client_id (str)
+          - client_id (str)
           - ip_address (str)
           - port (uint32)
         """
-        forwarder_client_id, value = MessageParser.read_string(value)
+        client_id, value = MessageParser.read_string(value)
         ip_address, value = MessageParser.read_string(value)
         port, value = MessageParser.read_uint32(value)
-        return InitiateForwarderClientReq(
-            forwarder_client_id=forwarder_client_id,
+        return InitiateTCPClientReq(
+            client_id=client_id,
             ip_address=ip_address,
             port=port
         )
 
     @staticmethod
-    def parse_initiate_forwarder_client_rep(value: bytes) -> InitiateForwarderClientRep:
+    def parse_initiate_tcp_client_rep(value: bytes) -> InitiateTCPClientRep:
         """
         For message type 0x02, parse out:
-          - forwarder_client_id (str)
+          - client_id (str)
           - bind_address (str)
           - bind_port (uint32)
           - address_type (uint32)
           - reason (uint32)
         """
-        forwarder_client_id, value = MessageParser.read_string(value)
+        client_id, value = MessageParser.read_string(value)
         bind_address, value = MessageParser.read_string(value)
         bind_port, value = MessageParser.read_uint32(value)
         address_type, value = MessageParser.read_uint32(value)
         reason, value = MessageParser.read_uint32(value)
-        return InitiateForwarderClientRep(
-            forwarder_client_id=forwarder_client_id,
+        remote_addr = ''
+        remote_port = 0
+        if len(value) > 0:
+            remote_addr, value = MessageParser.read_string(value)
+            remote_port, value = MessageParser.read_uint32(value)
+        return InitiateTCPClientRep(
+            client_id=client_id,
             bind_address=bind_address,
             bind_port=bind_port,
             address_type=address_type,
-            reason=reason
+            reason=reason,
+            remote_addr=remote_addr,
+            remote_port=remote_port
         )
 
     @staticmethod
     def parse_send_data(value: bytes) -> SendDataMessage:
-        """
-        For message type 0x03, parse out:
-          - forwarder_client_id (str)
-          - data (bytes) [ base64-decoded from the stored string ]
-        """
-        forwarder_client_id, value = MessageParser.read_string(value)
+        client_id, value = MessageParser.read_string(value)
         encoded_data, value = MessageParser.read_string(value)
         raw_data = base64.b64decode(encoded_data)
         return SendDataMessage(
-            forwarder_client_id=forwarder_client_id,
+            client_id=client_id,
             data=raw_data
         )
 
     @staticmethod
-    def deserialize_message(encryption_key: bytes, raw_data: bytes):
-        """
-        High-level parse entrypoint:
-          1) read the message_type (uint32)
-          2) read the message_length (uint32)
-          3) slice out the encrypted payload
-          4) decrypt and parse into an appropriate namedtuple
-        Returns (leftover_bytes, parsed_message).
-        """
-        # 1) Read the message type
-        message_type, data = MessageParser.read_uint32(raw_data)
+    def parse_initiate_bind_req(value: bytes) -> InitiateBINDReq:
+        bind_id, value = MessageParser.read_string(value)
+        listening_host, value = MessageParser.read_string(value)
+        listening_port, value = MessageParser.read_uint32(value)
+        destination_host, value = MessageParser.read_string(value)
+        destination_port, value = MessageParser.read_uint32(value)
+        return InitiateBINDReq(
+            bind_id=bind_id,
+            listening_host=listening_host,
+            listening_port=listening_port,
+            destination_host=destination_host,
+            destination_port=destination_port
+        )
 
-        # 2) Read the message length (which includes header + payload)
+    @staticmethod
+    def parse_initiate_bind_rep(value: bytes) -> InitiateBINDRep:
+        bind_id, value = MessageParser.read_string(value)
+        listening_host, value = MessageParser.read_string(value)
+        listening_port, value = MessageParser.read_uint32(value)
+        reason, value = MessageParser.read_uint32(value)
+        return InitiateBINDRep(
+            bind_id=bind_id,
+            listening_host=listening_host,
+            listening_port=listening_port,
+            reason=reason
+        )
+
+    @staticmethod
+    def deserialize_message(encryption_key: bytes, raw_data: bytes):
+        message_type, data = MessageParser.read_uint32(raw_data)
         message_length, data = MessageParser.read_uint32(data)
 
-        # 3) The payload is (message_length - 8) bytes (subtracting the 8-byte header)
         payload_len = message_length - 8
         if len(data) < payload_len:
             raise ValueError("Not enough bytes in data for the payload")
 
-        # Extract the encrypted payload + leftover
         payload = data[:payload_len]
         leftover = data[payload_len:]
 
-        # 5) Dispatch to parse the now-decrypted payload
         if message_type == 0x01:
             decrypted = decrypt(encryption_key, payload)
-            parsed_msg = MessageParser.parse_initiate_forwarder_client_req(decrypted)
+            parsed_msg = MessageParser.parse_initiate_tcp_client_req(decrypted)
         elif message_type == 0x02:
             decrypted = decrypt(encryption_key, payload)
-            parsed_msg = MessageParser.parse_initiate_forwarder_client_rep(decrypted)
+            parsed_msg = MessageParser.parse_initiate_tcp_client_rep(decrypted)
         elif message_type == 0x03:
             decrypted = decrypt(encryption_key, payload)
             parsed_msg = MessageParser.parse_send_data(decrypted)
         elif message_type == 0x04:
             parsed_msg = MessageParser.parse_check_in(payload)
+        elif message_type == 0x05:
+            decrypted = decrypt(encryption_key, payload)
+            parsed_msg = MessageParser.parse_initiate_bind_req(decrypted)
+        elif message_type == 0x06:
+            decrypted = decrypt(encryption_key, payload)
+            parsed_msg = MessageParser.parse_initiate_bind_rep(decrypted)
         else:
             raise ValueError(f"Unknown message type: {hex(message_type)}")
 
@@ -164,26 +188,28 @@ class MessageBuilder:
         the fully built+encrypted bytes (including message type, length, etc.).
         """
         value = b''
-        if isinstance(msg, InitiateForwarderClientReq):
+        if isinstance(msg, InitiateTCPClientReq):
             message_type = 0x01
-            value = encrypt(encryption_key, MessageBuilder.build_initiate_forwarder_client_req(
-                msg.forwarder_client_id,
+            value = encrypt(encryption_key, MessageBuilder.build_initiate_tcp_client_req(
+                msg.client_id,
                 msg.ip_address,
                 msg.port
             ))
-        elif isinstance(msg, InitiateForwarderClientRep):
+        elif isinstance(msg, InitiateTCPClientRep):
             message_type = 0x02
-            value = encrypt(encryption_key, MessageBuilder.build_initiate_forwarder_client_rep(
-                msg.forwarder_client_id,
+            value = encrypt(encryption_key, MessageBuilder.build_initiate_tcp_client_rep(
+                msg.client_id,
                 msg.bind_address,
                 msg.bind_port,
                 msg.address_type,
-                msg.reason
+                msg.reason,
+                msg.remote_addr,
+                msg.remote_port
             ))
         elif isinstance(msg, SendDataMessage):
             message_type = 0x03
             value = encrypt(encryption_key, MessageBuilder.build_send_data(
-                msg.forwarder_client_id,
+                msg.client_id,
                 msg.data
             ))
         elif isinstance(msg, CheckInMessage):
@@ -191,6 +217,23 @@ class MessageBuilder:
             value = MessageBuilder.build_check_in_message(
                 msg.messenger_id
             )
+        elif isinstance(msg, InitiateBINDReq):
+            message_type = 0x05
+            value = encrypt(encryption_key, MessageBuilder.build_initiate_bind_req(
+                msg.bind_id,
+                msg.listening_host,
+                msg.listening_port,
+                msg.destination_host,
+                msg.destination_port
+            ))
+        elif isinstance(msg, InitiateBINDRep):
+            message_type = 0x06
+            value = encrypt(encryption_key, MessageBuilder.build_initiate_bind_rep(
+                msg.bind_id,
+                msg.listening_host,
+                msg.listening_port,
+                msg.reason
+            ))
         else:
             raise ValueError(f"Unknown message tuple type: {type(msg)}")
 
@@ -221,47 +264,53 @@ class MessageBuilder:
         return MessageBuilder.build_string(messenger_id)
 
     @staticmethod
-    def build_initiate_forwarder_client_req(forwarder_client_id: str,
-                                            ip_address: str, port: int) -> bytes:
-        """
-        Build a 0x01 request with:
-         - forwarder_client_id
-         - ip_address
-         - port
-        """
+    def build_initiate_tcp_client_req(client_id: str,
+                                      ip_address: str, port: int) -> bytes:
         return (
-            MessageBuilder.build_string(forwarder_client_id) +
+            MessageBuilder.build_string(client_id) +
             MessageBuilder.build_string(ip_address) +
             struct.pack('!I', port)
         )
 
     @staticmethod
-    def build_initiate_forwarder_client_rep(forwarder_client_id: str,
-                                            bind_address: str, bind_port: int,
-                                            address_type: int, reason: int) -> bytes:
-        """
-        Build a 0x02 'response' with:
-         - forwarder_client_id
-         - bind_address
-         - bind_port
-         - address_type
-         - reason
-        """
-        return (
-            MessageBuilder.build_string(forwarder_client_id) +
+    def build_initiate_tcp_client_rep(client_id: str,
+                                      bind_address: str, bind_port: int,
+                                      address_type: int, reason: int,
+                                      remote_addr: str = '', remote_port: int = 0) -> bytes:
+        result = (
+            MessageBuilder.build_string(client_id) +
             MessageBuilder.build_string(bind_address) +
             struct.pack('!III', bind_port, address_type, reason)
         )
+        if remote_addr:
+            result += MessageBuilder.build_string(remote_addr) + struct.pack('!I', remote_port)
+        return result
 
     @staticmethod
-    def build_send_data(forwarder_client_id: str, data: bytes) -> bytes:
-        """
-        Build a 0x03 'send_data' message with:
-         - forwarder_client_id
-         - data (base64-encoded)
-        """
+    def build_send_data(client_id: str, data: bytes) -> bytes:
         encoded_data = base64.b64encode(data).decode('utf-8')
         return (
-            MessageBuilder.build_string(forwarder_client_id) +
+            MessageBuilder.build_string(client_id) +
             MessageBuilder.build_string(encoded_data)
+        )
+
+    @staticmethod
+    def build_initiate_bind_req(bind_id: str, listening_host: str,
+                                listening_port: int, destination_host: str,
+                                destination_port: int) -> bytes:
+        return (
+            MessageBuilder.build_string(bind_id) +
+            MessageBuilder.build_string(listening_host) +
+            struct.pack('!I', listening_port) +
+            MessageBuilder.build_string(destination_host) +
+            struct.pack('!I', destination_port)
+        )
+
+    @staticmethod
+    def build_initiate_bind_rep(bind_id: str, listening_host: str,
+                                listening_port: int, reason: int) -> bytes:
+        return (
+            MessageBuilder.build_string(bind_id) +
+            MessageBuilder.build_string(listening_host) +
+            struct.pack('!II', listening_port, reason)
         )

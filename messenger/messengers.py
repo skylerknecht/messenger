@@ -4,9 +4,11 @@ import time
 from abc import abstractmethod
 from messenger.generator import alphanumeric_identifier
 from messenger.message import (
-    InitiateForwarderClientReq,
-    InitiateForwarderClientRep,
-    SendDataMessage
+    InitiateTCPClientReq,
+    InitiateTCPClientRep,
+    SendDataMessage,
+    InitiateBINDReq,
+    InitiateBINDRep
 )
 from messenger.text import color_text
 
@@ -59,9 +61,11 @@ class Messenger:
 
     MESSAGE_TYPE_MAP = {
         'CheckInMessage': 1,
-        'InitiateForwarderClientReq': 2,
-        'InitiateForwarderClientRep': 3,
+        'InitiateTCPClientReq': 2,
+        'InitiateTCPClientRep': 3,
         'SendDataMessage': 4,
+        'InitiateBINDReq': 5,
+        'InitiateBINDRep': 6,
     }
 
     def log_message(self, direction, message):
@@ -93,13 +97,13 @@ class Messenger:
         )
         for message in messages:
             self.log_message('downstream', message)
-            # 1) Initiate Forwarder Client Request (0x01)
-            if isinstance(message, InitiateForwarderClientReq):
+            # 1) Initiate TCP Client Request (0x01)
+            if isinstance(message, InitiateTCPClientReq):
                 destination_host = message.ip_address
                 destination_port = message.port
                 for forwarder in self.forwarders:
                     if forwarder.destination_host == destination_host and int(forwarder.destination_port) == destination_port:
-                        await forwarder.handle_initiate_forwarder_client_req(message)
+                        await forwarder.handle_initiate_tcp_client_req(message)
                         break
                 else:
                     self.update_cli.display(
@@ -108,8 +112,8 @@ class Messenger:
                         'warning'
                     )
                     await self.send_message_upstream(
-                        InitiateForwarderClientRep(
-                            forwarder_client_id=message.forwarder_client_id,
+                        InitiateTCPClientRep(
+                            client_id=message.client_id,
                             bind_address="0.0.0.0",
                             bind_port=0,
                             address_type=1,
@@ -117,8 +121,8 @@ class Messenger:
                         )
                     )
 
-            # 2) Initiate Forwarder Client Response (0x02)
-            elif isinstance(message, InitiateForwarderClientRep):
+            # 2) Initiate TCP Client Response (0x02)
+            elif isinstance(message, InitiateTCPClientRep):
                 addr = message.bind_address
                 if addr and addr not in self.LOOPBACK_ADDRESSES and addr not in self.ips:
                     self.ips.add(addr)
@@ -127,22 +131,40 @@ class Messenger:
                         'success'
                     )
                 for scanner in self.scanners:
-                    await scanner.handle_initiate_forwarder_client_rep(message)
+                    await scanner.handle_initiate_tcp_client_rep(message)
                 for forwarder in self.forwarders:
-                    await forwarder.handle_initiate_forwarder_client_rep(message)
+                    await forwarder.handle_initiate_tcp_client_rep(message)
 
             # 3) Send Data (0x03)
             elif isinstance(message, SendDataMessage):
-                forwarder_client_id = message.forwarder_client_id
+                client_id = message.client_id
                 data = message.data
 
-                forwarder_clients = [c for fw in self.forwarders for c in fw.clients]
-                for forwarder_client in forwarder_clients:
-                    if forwarder_client.identifier == forwarder_client_id:
-                        await forwarder_client.send_data(data)
+                tcp_clients = [c for fw in self.forwarders for c in fw.clients]
+                for tcp_client in tcp_clients:
+                    if tcp_client.identifier == client_id:
+                        await tcp_client.send_data(data)
                         break
 
-            # 4) Unknown / Unhandled
+            # 5) Initiate BIND Response (0x06)
+            elif isinstance(message, InitiateBINDRep):
+                if message.reason == 0 and message.listening_host == '0.0.0.0' and message.listening_port == 0:
+                    self.update_cli.display(
+                        f'Messenger `{self.nickname}` confirmed bind shutdown for `{message.bind_id}`.',
+                        'success'
+                    )
+                elif message.reason == 0:
+                    self.update_cli.display(
+                        f'Messenger `{self.nickname}` bound {message.listening_host}:{message.listening_port}.',
+                        'success'
+                    )
+                else:
+                    self.update_cli.display(
+                        f'Messenger `{self.nickname}` failed to bind {message.listening_host}:{message.listening_port} (reason={message.reason}).',
+                        'error'
+                    )
+
+            # Unknown / Unhandled
             else:
                 self.update_cli.display(
                     f"Unknown or unhandled message type: {type(message).__name__}",

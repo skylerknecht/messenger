@@ -6,12 +6,13 @@ from abc import abstractmethod
 
 from messenger.generator import alphanumeric_identifier
 from messenger.message import (
-    InitiateForwarderClientRep,
+    InitiateTCPClientRep,
+    InitiateBINDReq,
 )
-from messenger.forwarder_clients import (
-    LocalForwarderClient,
-    RemoteForwarderClient,
-    SocksForwarderClient
+from messenger.tcp_clients import (
+    LocalTcpClient,
+    RemoteTcpClient,
+    SocksTcpClient
 )
 
 class Forwarder:
@@ -38,11 +39,11 @@ class Forwarder:
         self._nickname = value
 
     @abstractmethod
-    async def handle_initiate_forwarder_client_req(self, message):
+    async def handle_initiate_tcp_client_req(self, message):
         pass
 
     @abstractmethod
-    async def handle_initiate_forwarder_client_rep(self, message):
+    async def handle_initiate_tcp_client_rep(self, message):
         pass
 
     @staticmethod
@@ -96,18 +97,18 @@ class LocalPortForwarder(Forwarder):
         listening_host, listening_port, destination_host, destination_port = self.parse_config(config)
         super().__init__(listening_host, listening_port, destination_host, destination_port, update_cli)
 
-    async def handle_initiate_forwarder_client_rep(self, message):
-        forwarder_client_id = message.forwarder_client_id
-        for forwarder_client in self.clients:
-            if forwarder_client.identifier != forwarder_client_id:
+    async def handle_initiate_tcp_client_rep(self, message):
+        client_id = message.client_id
+        for tcp_client in self.clients:
+            if tcp_client.identifier != client_id:
                 continue
-            await forwarder_client.handle_initiate_forwarder_client_rep(message.bind_address, message.bind_port, message.address_type, message.reason)
+            await tcp_client.handle_initiate_tcp_client_rep(message.bind_address, message.bind_port, message.address_type, message.reason)
             break
 
     async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-        client = LocalForwarderClient(self.destination_host, self.destination_port, reader, writer, self.messenger, self.on_close)
+        client = LocalTcpClient(self.destination_host, self.destination_port, reader, writer, self.messenger, self.on_close)
         self.clients.append(client)
-        await client.initiate_forwarder_client()
+        await client.initiate_tcp_client()
 
     def parse_config(self, config):
         parts = config.split(':')
@@ -201,9 +202,9 @@ class SocksProxy(LocalPortForwarder):
         Forwarder.__init__(self, listening_host, listening_port, '*', '*', update_cli)
 
     async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-        client = SocksForwarderClient(reader, writer, self.messenger, self.on_close)
+        client = SocksTcpClient(reader, writer, self.messenger, self.on_close)
         self.clients.append(client)
-        await client.initiate_forwarder_client()
+        await client.initiate_tcp_client()
 
     def parse_config(self, config):
         parts = config.split(':')
@@ -251,36 +252,28 @@ class RemotePortForwarder(Forwarder):
     def __init__(self, messenger, config, update_cli):
         self.messenger = messenger
         self.update_cli = update_cli
-        destination_host, destination_port = self.parse_config(config)
-        super().__init__('*', '*', destination_host, destination_port, update_cli)
+        listening_host, listening_port, destination_host, destination_port = self.parse_config(config)
+        super().__init__(listening_host, listening_port, destination_host, destination_port, update_cli)
 
-    async def handle_initiate_forwarder_client_rep(self, message):
+    async def handle_initiate_tcp_client_rep(self, message):
         pass
 
-    async def handle_initiate_forwarder_client_req(self, message):
+    async def handle_initiate_tcp_client_req(self, message):
         try:
             reader, writer = await asyncio.wait_for(
                 asyncio.open_connection(self.destination_host, self.destination_port),
                 timeout=5
             )
 
-            client = RemoteForwarderClient(message.forwarder_client_id, reader, writer, self.messenger, self.on_close)
-            await client.initiate_forwarder_client()
+            client = RemoteTcpClient(message.client_id, reader, writer, self.messenger, self.on_close)
+            await client.initiate_tcp_client()
             self.clients.append(client)
 
-            bind_info = writer.get_extra_info("sockname")
-            bind_addr = bind_info[0]
-            bind_port = bind_info[1]
-
-            sock = writer.get_extra_info("socket")
-            family = sock.family
-            atype = 1 if family == socket.AF_INET else 4
-
-            upstream_message = InitiateForwarderClientRep(
-                forwarder_client_id=message.forwarder_client_id,
-                bind_address=bind_addr,
-                bind_port=bind_port,
-                address_type=atype,
+            upstream_message = InitiateTCPClientRep(
+                client_id=message.client_id,
+                bind_address="0.0.0.0",
+                bind_port=0,
+                address_type=1,
                 reason=0
             )
         except socket.gaierror:
@@ -303,8 +296,8 @@ class RemotePortForwarder(Forwarder):
             await self.messenger.send_message_upstream(upstream_message)
             return
 
-        upstream_message = InitiateForwarderClientRep(
-            forwarder_client_id=message.forwarder_client_id,
+        upstream_message = InitiateTCPClientRep(
+            client_id=message.client_id,
             bind_address="0.0.0.0",
             bind_port=0,
             address_type=1,
@@ -312,27 +305,42 @@ class RemotePortForwarder(Forwarder):
         )
         await self.messenger.send_message_upstream(upstream_message)
 
-
     def parse_config(self, config):
         parts = config.split(':')
 
-        if len(parts) == 2:
-            destination_host, destination_port = parts
-        else:
-            raise InvalidConfigError(f'Invalid configuration `{config}`, a {self.NAME} expects a destination host and destination port.')
+        if len(parts) != 4:
+            raise InvalidConfigError(f'Invalid configuration `{config}`, a {self.NAME} expects listening_host:listening_port:destination_host:destination_port.')
 
-        # if not self.is_valid_ip(destination_host) and not self.is_valid_domain(destination_host):
-        #     raise InvalidConfigError(f'The destination host `{destination_host}` does not appear to be a valid ip or domain.')
+        listening_host, listening_port, destination_host, destination_port = parts
+
+        if not self.is_valid_port(listening_port):
+            raise InvalidConfigError(f'The listening port `{listening_port}` does not appear to be a valid port.')
 
         if not self.is_valid_port(destination_port):
-            raise InvalidConfigError(f'The destination port `{destination_port}` does not appear to be a port.')
+            raise InvalidConfigError(f'The destination port `{destination_port}` does not appear to be a valid port.')
 
-        return destination_host, int(destination_port)
+        return listening_host, int(listening_port), destination_host, int(destination_port)
 
     async def start(self):
-        self.update_cli.display(f'Messenger `{self.messenger.nickname}` now forwarding (*:*) -> ({self.destination_host}:{self.destination_port}).', 'success', reprompt=False)
+        bind_req = InitiateBINDReq(
+            bind_id=self.identifier,
+            listening_host=self.listening_host,
+            listening_port=self.listening_port,
+            destination_host=self.destination_host,
+            destination_port=self.destination_port
+        )
+        await self.messenger.send_message_upstream(bind_req)
 
     async def stop(self):
+        bind_req = InitiateBINDReq(
+            bind_id=self.identifier,
+            listening_host=self.listening_host,
+            listening_port=self.listening_port,
+            destination_host=self.destination_host,
+            destination_port=self.destination_port
+        )
+        await self.messenger.send_message_upstream(bind_req)
+
         for client in self.clients:
             try:
                 transport = client.writer.transport
@@ -342,7 +350,7 @@ class RemotePortForwarder(Forwarder):
                 pass
 
         self.update_cli.display(
-            f'Messenger `{self.messenger.nickname}` has stopped forwarding (*:*) -> ({self.destination_host}:{self.destination_port}).',
+            f'Messenger `{self.messenger.nickname}` has stopped forwarding ({self.listening_host}:{self.listening_port}) -> ({self.destination_host}:{self.destination_port}).',
             'success',
             reprompt=False
         )

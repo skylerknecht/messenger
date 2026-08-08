@@ -6,6 +6,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-08-08
+
+### Spec
+
+#### Changed
+
+- Renamed `InitiateForwarderClientReq` / `InitiateForwarderClientRep` to `InitiateTCPClientReq` / `InitiateTCPClientRep`; field `forwarder_client_id` renamed to `client_id` across all message types
+- `InitiateTCPClientRep` now carries optional `remote_addr` and `remote_port` fields
+- `REMOTE_PORT_FORWARDS` constant and `--remote-port-forwards` CLI flag removed — remote port forwards are now initiated server-side via BIND messages
+- Clients must never call `exit()` or terminate the process; all errors are logged and handled gracefully
+- Default scheme order changed from `["ws", "http", "wss", "https"]` to `["ws", "wss", "http", "https"]`
+- `active_binds` dictionary replaced with `remote_port_forwarders` list; RPF stores its own `identifier` from the server-assigned `bind_id`
+
+#### Added
+
+- `InitiateBINDReq` (0x05) and `InitiateBINDRep` (0x06) message types for server-initiated remote port forwards
+- `RemotePortForwarder.stop()`, `close_all_clients()`, and `identifier` field
+- BINDRep shutdown signal: `0.0.0.0:0` with reason=0 confirms shutdown vs actual host:port for successful bind
+- DNS resolution for RPF listening host
+- 10-character alphanumeric identifiers (not GUIDs/UUIDs)
+- Status messages with bracket prefix convention (`[+]`, `[*]`, `[!]`)
+
+### Server
+
+#### Changed
+
+- Renamed `ForwarderClient` → `TcpClient`, `LocalForwarderClient` → `LocalTcpClient`, `RemoteForwarderClient` → `RemoteTcpClient`, `SocksForwarderClient` → `SocksTcpClient`
+- Renamed `forwarder_clients.py` → `tcp_clients.py`
+- Renamed `InitiateForwarderClientReq` / `InitiateForwarderClientRep` → `InitiateTCPClientReq` / `InitiateTCPClientRep`; field `forwarder_client_id` → `client_id`
+- `RemotePortForwarder.parse_config` now expects 4-part format `listening_host:listening_port:destination_host:destination_port`
+- `RemotePortForwarder.start()` sends `InitiateBINDReq` to the client instead of binding locally
+- `RemotePortForwarder.stop()` sends `InitiateBINDReq` to tear down the client-side listener, RSTs all local TCP clients
+- Debug labels renamed from `Forwarder Clients` to `TCP Clients`
+
+#### Added
+
+- `InitiateBINDReq` (0x05) and `InitiateBINDRep` (0x06) message types with full parse/build/serialize support
+- `remote` command sends `InitiateBINDReq` to the client; `stop` sends a second to tear down
+- `InitiateBINDRep` handler distinguishes bind success (`host:port`, reason=0), shutdown confirmation (`0.0.0.0:0`, reason=0), and failure (reason!=0)
+- `logging` command updated to include types 5 (`InitiateBINDReq`) and 6 (`InitiateBINDRep`)
+- `remote_addr` and `remote_port` fields in `InitiateTCPClientRep`
+
 ## [0.6.0] - 2026-08-06
 
 #### Added
