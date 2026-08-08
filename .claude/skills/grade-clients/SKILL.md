@@ -84,31 +84,38 @@ add ring charts, or add accordions.
 - Keep every section visible on load — no accordions, no `display:none`,
   no JavaScript toggling.
 - Every requirement gets its own `<tr>`. Do not roll up or summarize.
-- File:line references in requirement tables use `<span class="file-ref">`.
-  File:line references in the **failures list** MUST be `<a>` anchor links:
-  `<a class="file-ref" href="#fail-{lang}-{slug}">filename.ext:LINE</a>`
-  that link to the corresponding fail row in the tables above.
-- Rows containing any FAIL get class `fail-row` AND a unique
-  `id="fail-{lang}-{slug}"` on the `<tr>` (e.g. `fail-py-retry-float`,
-  `fail-js-poll-sleep`). The failures list links to these IDs.
-- Use `v-pass`, `v-fail`, `v-na` classes exactly as shown in the template.
-- Fail cells include a `<div class="fail-detail">` with the note and
-  file-ref span.
+- Fail cells contain ONLY an `<a class="v-fail" href="#f-{lang}-{slug}">Fail</a>`
+  linking to the corresponding finding at the bottom. No inline code, no
+  file references, no `<div class="fail-detail">` — just the hyperlinked
+  pill. All detail lives in the finding.
+- Pass cells use `<span class="v-pass">Pass</span>`.
+- N/A cells use `<span class="v-na">N/A</span>`.
+- Each card gets a class for its language: `class="card cs"`, `card js`,
+  `card py`. The grade color is driven by the per-client accent.
 
 **Layout (matches template exactly):**
 1. **Header** — `.eyebrow` ("Spec Compliance Audit"), `<h1>` title,
    `.subtitle` with two `.pill` spans for spec file and branch.
-2. **Grade cards** — `.cards` grid, three `.card` divs. Each has:
-   `.card-lang`, `.card-name`, `.card-grade` (letter), `.card-pct`
-   (pass/total · pct%), `.card-note` (1–2 sentences), `.severity-dots`
-   with `.dot.high`, `.dot.med`, `.dot.low` + counts.
+2. **Grade cards** — `.cards` grid, three `.card.{cs|js|py}` divs. Each
+   has: `.card-lang`, `.card-name`, `.card-grade` (letter, colored by
+   accent), `.card-pct` (pass/total · pct%), `.card-note` (1–2 sentences),
+   `.severity-dots` with `.dot.high`, `.dot.med`, `.dot.low` + counts.
 3. **Requirement tables** — `.tables-heading` h2, then for each section:
    `.section-label` div ("01 &ensp; Section Name"), then `<table>` inside
    `.table-wrap`. Columns: Requirement (46%), C# (18%), Node.js (18%),
    Python (18%).
-4. **Failures list** — `.failures-heading` h2, then `.failure-item` divs
-   each with `.failure-tag`, `.failure-req`, `.failure-note` containing
-   a `.file-ref` span.
+4. **Findings** — `.findings-heading` h2 ("Findings"), then `.finding`
+   divs. Each finding has `id="f-{lang}-{slug}"` matching the `href` in
+   the table's Fail link. Structure:
+   `<div class="finding" id="f-py-retry-float">`
+     `<span class="f-client py">Python</span>`
+     `<span class="f-text">Full sentence describing the failure.</span>`
+   `</div>`
+   The `.f-client` span uses class `cs`, `js`, or `py` for per-client
+   accent color. The `.f-text` is a complete sentence that includes the
+   file:line reference inline and clearly describes what is wrong and why.
+   When the user clicks a Fail link, the browser scrolls to the finding
+   and `:target` CSS highlights it with a red left border and background.
 
 **Letter grade scale:** A+ (100), A (95–99), A- (90–94), B+ (85–89),
 B (80–84), B- (75–79), C+ (70–74), C (below 70).
