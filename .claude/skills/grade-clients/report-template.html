@@ -1,0 +1,270 @@
+<title>Client Spec Compliance Report</title>
+<style>
+  :root {
+    --bg: #fdfdfc; --surface: #f5f4f1; --surface2: #eceae5;
+    --border: #ddd9d0; --border2: #c8c3b8;
+    --text: #1a1a18; --text2: #5c5b56; --text3: #8a8880;
+    --accent: #6b7f4e; --accent2: #8a9f6e;
+    --pass: #4a7c3f; --pass-bg: #eef5eb;
+    --fail: #b83a3a; --fail-bg: #fdf0f0;
+    --na: #8a8880; --na-bg: #f5f4f1;
+    --warn: #b08a2e;
+    --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1c1e; --surface: #232628; --surface2: #2c2f32;
+      --border: #3a3d40; --border2: #4a4d50;
+      --text: #e8e6e1; --text2: #9a9890; --text3: #6a6860;
+      --accent: #8a9f6e; --accent2: #a3b88a;
+      --pass: #6b9f5e; --pass-bg: #1e2a1a;
+      --fail: #d45555; --fail-bg: #2a1a1a;
+      --na: #6a6860; --na-bg: #232628;
+      --warn: #d4a843;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1a1c1e; --surface: #232628; --surface2: #2c2f32;
+    --border: #3a3d40; --border2: #4a4d50;
+    --text: #e8e6e1; --text2: #9a9890; --text3: #6a6860;
+    --accent: #8a9f6e; --accent2: #a3b88a;
+    --pass: #6b9f5e; --pass-bg: #1e2a1a;
+    --fail: #d45555; --fail-bg: #2a1a1a;
+    --na: #6a6860; --na-bg: #232628;
+    --warn: #d4a843;
+  }
+  :root[data-theme="light"] {
+    --bg: #fdfdfc; --surface: #f5f4f1; --surface2: #eceae5;
+    --border: #ddd9d0; --border2: #c8c3b8;
+    --text: #1a1a18; --text2: #5c5b56; --text3: #8a8880;
+    --accent: #6b7f4e; --accent2: #8a9f6e;
+    --pass: #4a7c3f; --pass-bg: #eef5eb;
+    --fail: #b83a3a; --fail-bg: #fdf0f0;
+    --na: #8a8880; --na-bg: #f5f4f1;
+    --warn: #b08a2e;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); }
+
+  .report { max-width: 960px; margin: 0 auto; padding: 40px 24px 60px; }
+
+  /* ── Header ── */
+  .eyebrow {
+    font-family: var(--mono); font-size: 11px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .report h1 {
+    font-size: 26px; font-weight: 700; letter-spacing: -0.02em;
+    margin-bottom: 8px;
+  }
+  .subtitle { font-size: 13px; color: var(--text2); line-height: 1.6; }
+  .pill {
+    font-family: var(--mono); font-size: 12px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 4px;
+    padding: 2px 7px; white-space: nowrap;
+  }
+
+  /* ── Grade Cards ── */
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 28px 0 36px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 20px 16px; text-align: center;
+  }
+  .card-lang {
+    font-family: var(--mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--text3);
+    margin-bottom: 4px;
+  }
+  .card-name { font-weight: 600; font-size: 14px; margin-bottom: 12px; }
+  .card-grade {
+    font-size: 48px; font-weight: 800; color: var(--accent);
+    line-height: 1; margin-bottom: 8px; letter-spacing: -0.03em;
+  }
+  .card-pct {
+    font-family: var(--mono); font-size: 13px; color: var(--text2);
+    font-variant-numeric: tabular-nums; margin-bottom: 10px;
+  }
+  .card-note { font-size: 12px; color: var(--text2); line-height: 1.5; margin-bottom: 12px; }
+  .severity-dots { display: flex; justify-content: center; gap: 14px; font-size: 11px; color: var(--text3); }
+  .severity-dots span { display: inline-flex; align-items: center; gap: 4px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .dot.high { background: var(--fail); }
+  .dot.med { background: var(--warn); }
+  .dot.low { background: var(--text3); }
+
+  /* ── Requirement Tables ── */
+  .tables-heading {
+    font-size: 18px; font-weight: 700; margin-bottom: 24px;
+    padding-bottom: 10px; border-bottom: 1px solid var(--border);
+  }
+  .section-label {
+    font-family: var(--mono); font-size: 11px; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--text3);
+    margin: 28px 0 8px; padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-label:first-of-type { margin-top: 0; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 4px; }
+  th {
+    text-align: left; padding: 8px 10px; font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em; color: var(--text3);
+    border-bottom: 1px solid var(--border);
+  }
+  td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr.fail-row { background: var(--fail-bg); }
+
+  .v-pass { color: var(--pass); font-weight: 600; }
+  .v-fail { color: var(--fail); font-weight: 600; }
+  .v-na { color: var(--na); }
+  .fail-detail {
+    font-size: 11px; color: var(--text2); margin-top: 3px; line-height: 1.4;
+  }
+  .file-ref {
+    font-family: var(--mono); font-size: 11px; color: var(--accent);
+    text-decoration: underline; text-decoration-color: var(--border2);
+    text-underline-offset: 2px; cursor: pointer;
+  }
+  a.file-ref { color: var(--accent); }
+
+  /* ── Failures List ── */
+  .failures-heading {
+    font-size: 18px; font-weight: 700; margin: 36px 0 16px;
+    padding-bottom: 10px; border-bottom: 1px solid var(--border);
+  }
+  .failure-item { padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .failure-item:last-child { border-bottom: none; }
+  .failure-tag {
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    color: var(--fail); text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .failure-req { font-weight: 600; margin: 0 6px; }
+  .failure-note { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+  /* ── Responsive ── */
+  @media (max-width: 640px) {
+    .cards { grid-template-columns: 1fr; }
+    .card-grade { font-size: 36px; }
+    table { font-size: 12px; }
+    td, th { padding: 6px 6px; }
+  }
+
+  .table-wrap { overflow-x: auto; }
+</style>
+
+<div class="report">
+  <!-- 1. HEADER -->
+  <div class="eyebrow">Spec Compliance Audit</div>
+  <h1>Messenger Client Grading Report</h1>
+  <p class="subtitle">
+    Graded against <span class="pill">docs/client.pseudo</span>
+    on <span class="pill">origin/main</span>
+  </p>
+
+  <!-- 2. GRADE CARDS (one per client) -->
+  <div class="cards">
+    <!-- Repeat this block for each client -->
+    <div class="card">
+      <div class="card-lang">C Sharp</div>
+      <div class="card-name">MessengerClient.sln</div>
+      <div class="card-grade">A+</div>
+      <div class="card-pct">44 / 44 · 100%</div>
+      <div class="card-note">Full compliance. No issues found.</div>
+      <div class="severity-dots">
+        <span><span class="dot high"></span> 0</span>
+        <span><span class="dot med"></span> 0</span>
+        <span><span class="dot low"></span> 0</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-lang">Node.js</div>
+      <div class="card-name">messenger-client.js</div>
+      <div class="card-grade">A+</div>
+      <div class="card-pct">44 / 44 · 100%</div>
+      <div class="card-note">Full compliance. No issues found.</div>
+      <div class="severity-dots">
+        <span><span class="dot high"></span> 0</span>
+        <span><span class="dot med"></span> 0</span>
+        <span><span class="dot low"></span> 0</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-lang">Python</div>
+      <div class="card-name">messenger-client.py</div>
+      <div class="card-grade">A</div>
+      <div class="card-pct">43 / 44 · 97.7%</div>
+      <div class="card-note">One low-severity failure: --retry-duration uses int instead of float.</div>
+      <div class="severity-dots">
+        <span><span class="dot high"></span> 0</span>
+        <span><span class="dot med"></span> 0</span>
+        <span><span class="dot low"></span> 1</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. REQUIREMENT TABLES (one table per spec section, all visible) -->
+  <h2 class="tables-heading">Requirement-Level Compliance</h2>
+
+  <!-- Repeat this section-label + table pair for each rubric section -->
+  <div class="section-label">01 &ensp; Constants &amp; Configuration</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:46%">Requirement</th>
+          <th style="width:18%">C#</th>
+          <th style="width:18%">Node.js</th>
+          <th style="width:18%">Python</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- PASS row (no fail-row class) -->
+        <tr>
+          <td>All Jinja2 constants present with correct defaults</td>
+          <td><span class="v-pass">Pass</span></td>
+          <td><span class="v-pass">Pass</span></td>
+          <td><span class="v-pass">Pass</span></td>
+        </tr>
+        <!-- FAIL row (add fail-row class + id="fail-{lang}-{slug}" to tr) -->
+        <tr class="fail-row" id="fail-py-retry-float">
+          <td>--retry-duration parsed as float</td>
+          <td><span class="v-pass">Pass</span></td>
+          <td><span class="v-pass">Pass</span></td>
+          <td>
+            <span class="v-fail">Fail</span>
+            <div class="fail-detail">
+              Uses type=int instead of type=float
+              &middot; <span class="file-ref">messenger-client.py:927</span>
+            </div>
+          </td>
+        </tr>
+        <!-- N/A cell example -->
+        <tr>
+          <td>Pause accepted socket on connect</td>
+          <td><span class="v-na">—</span></td>
+          <td><span class="v-pass">Pass</span></td>
+          <td><span class="v-pass">Pass</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 4. FAILURES LIST -->
+  <h2 class="failures-heading">All Failures</h2>
+
+  <!-- Repeat this block for each failure; file-ref is an <a> linking to the fail row -->
+  <div class="failure-item">
+    <span class="failure-tag">Python</span>
+    <span class="failure-req">--retry-duration parsed as float</span>
+    <div class="failure-note">
+      Uses type=int instead of type=float
+      &middot; <a class="file-ref" href="#fail-py-retry-float">messenger-client.py:927</a>
+    </div>
+  </div>
+
+  <!-- If no failures: -->
+  <!-- <p style="color: var(--text3); font-size: 13px;">No failures found.</p> -->
+</div>
