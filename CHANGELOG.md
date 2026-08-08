@@ -6,6 +6,86 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-08-07
+
+### Protocol
+
+#### Changed
+
+- Renamed `InitiateForwarderClientReq` / `InitiateForwarderClientRep` to `InitiateTCPClientReq` / `InitiateTCPClientRep`; field `forwarder_client_id` renamed to `client_id` across all message types
+- `InitiateTCPClientRep` now carries optional `remote_addr` and `remote_port` fields (absent in older implementations)
+- `REMOTE_PORT_FORWARDS` constant and `--remote-port-forwards` CLI flag removed from the client spec — remote port forwards are now initiated server-side via BIND messages
+- Clients must never call `exit()` or terminate the process; all errors are logged and handled gracefully
+- Default scheme order changed from `["ws", "http", "wss", "https"]` to `["ws", "wss", "http", "https"]`
+
+#### Added
+
+- `InitiateBINDReq` (0x05) and `InitiateBINDRep` (0x06) message types for server-initiated remote port forwards
+- `active_binds` dictionary on the client for tracking server-initiated RPF listeners
+- `RemotePortForwarder.stop()` method and `server` field in the client spec
+
+### Client
+
+#### Changed
+
+**All clients**
+- Renamed `forwarder_client_id` → `client_id`, `ForwarderClient` / `forwarder_clients` → `TCPClient` / `tcp_clients` throughout
+- Removed `--remote-port-forwards` flag and client-side RPF initialization loop — remote port forwards are now server-initiated via BIND messages
+- Removed all `process.exit()` / `sys.exit()` calls — clients return gracefully instead of terminating
+- Message handlers are now spawned independently instead of awaited sequentially, so a slow handler doesn't block the receive loop
+
+**Node.js**
+- Added `--proxy` flag (warns that native proxy support is unavailable)
+- `REMOTE_PORT_FORWARDS` default replaced with `PROXY` default
+- `RemotePortForwarder` stores `server` reference and exposes `stop()` for teardown
+
+**Python**
+- `--retry-duration` now parsed as `float` instead of `int`
+- Uses `parse_known_args()` instead of `parse_args()` — unknown flags print a warning instead of aborting
+- `WSClient.send_downstream_message` checks `ws.closed` before sending; messages are queued to `downstream_queue` when disconnected and drained on reconnect
+
+#### Added
+
+**All clients**
+- BIND support: `handle_bind` method, `InitiateBINDReq` / `InitiateBINDRep` message parsing, building, and serialization
+- `active_binds` dictionary tracking server-initiated remote port forward listeners
+- `RemotePortForwarder.stop()` method to close the TCP listener
+- `remote_addr` and `remote_port` fields in `InitiateTCPClientRep` parsing and building
+
+#### Fixed
+
+**Node.js**
+- HTTP poll sleep is now unconditional — previously only slept when the response was empty, causing tight loops on active connections
+- Reconnect loop now sleeps BEFORE the reconnect attempt, not after — matches the spec's sleep-then-try order
+
+**Python**
+- Added `message_length < 8` guard in `deserialize_message` to prevent underflow on malformed length headers
+
+### Server
+
+#### Added
+
+- `InitiateBINDReq` (0x05) and `InitiateBINDRep` (0x06) message types in `messenger/message.py` with full parse/build/serialize support
+- `remote` command now sends `InitiateBINDReq` to the client instead of managing RPF listeners server-side; `stop` sends a second `InitiateBINDReq` to tear down
+- `InitiateBINDRep` handler on messengers displays bind success/failure status messages
+- `logging` command updated to include types 5 (`InitiateBINDReq`) and 6 (`InitiateBINDRep`)
+- `remote_addr` and `remote_port` fields in `InitiateForwarderClientRep` parsing and building
+
+#### Changed
+
+- `RemotePortForwarder.parse_config` now expects 4-part format `listening_host:listening_port:destination_host:destination_port` (was `destination_host:destination_port`)
+- `RemotePortForwarder.start()` sends `InitiateBINDReq` to the client instead of binding locally
+- `RemotePortForwarder.stop()` sends `InitiateBINDReq` to tear down the client-side listener before cleaning up local state
+- Remote forwarder display in `messengers <id>` detail view now shows `listening_host:listening_port -> destination_host:destination_port` instead of `*:*`
+- `remote` command help updated with new 4-part config format and example
+- `InitiateForwarderClientRep` for remote forwards now sends hardcoded `0.0.0.0:0` bind info instead of reading from the local socket (bind happens client-side now)
+
+### Spec
+
+#### Changed
+
+- `docs/client.pseudo` updated to reflect all protocol, naming, and behavioral changes above
+
 ## [0.6.0] - 2026-08-06
 
 #### Added

@@ -6,7 +6,9 @@ from messenger.generator import alphanumeric_identifier
 from messenger.message import (
     InitiateForwarderClientReq,
     InitiateForwarderClientRep,
-    SendDataMessage
+    SendDataMessage,
+    InitiateBINDReq,
+    InitiateBINDRep
 )
 from messenger.text import color_text
 
@@ -62,6 +64,8 @@ class Messenger:
         'InitiateForwarderClientReq': 2,
         'InitiateForwarderClientRep': 3,
         'SendDataMessage': 4,
+        'InitiateBINDReq': 5,
+        'InitiateBINDRep': 6,
     }
 
     def log_message(self, direction, message):
@@ -142,7 +146,20 @@ class Messenger:
                         await forwarder_client.send_data(data)
                         break
 
-            # 4) Unknown / Unhandled
+            # 5) Initiate BIND Response (0x06)
+            elif isinstance(message, InitiateBINDRep):
+                if message.reason == 0:
+                    self.update_cli.display(
+                        f'Messenger `{self.nickname}` bound {message.listening_host}:{message.listening_port}.',
+                        'success'
+                    )
+                else:
+                    self.update_cli.display(
+                        f'Messenger `{self.nickname}` failed to bind {message.listening_host}:{message.listening_port} (reason={message.reason}).',
+                        'error'
+                    )
+
+            # Unknown / Unhandled
             else:
                 self.update_cli.display(
                     f"Unknown or unhandled message type: {type(message).__name__}",

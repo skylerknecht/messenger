@@ -8,6 +8,11 @@
 #   await  = asynchronous call
 #   ->     = returns
 #   //     = comment explaining WHY, not what
+#
+# Rules:
+#   - Clients must NEVER call exit() or terminate the process. All errors
+#     should be logged and handled gracefully. The client should always
+#     attempt to continue running.
 
 
 # ============================================================================
@@ -23,11 +28,6 @@ const USER_AGENT       = "{{ user_agent }}"         # default: browser-like UA s
 const PROXY            = "{{ proxy }}"              # default: "" (none)
 const RETRY_DURATION   = {{ retry_duration }}        # default: 60.0 (seconds)
 const RETRY_ATTEMPTS   = {{ retry_attempts }}        # default: 5
-const REMOTE_PORT_FORWARDS = [
-    {% for rpf in remote_port_forwards %}
-    "{{ rpf }}",
-    {% endfor %}
-]
 
 
 # ============================================================================
@@ -115,32 +115,49 @@ function deserialize_messages(raw_data, encryption_key) -> list[message]:
 # ============================================================================
 
 # Type IDs:
-#   0x01 = InitiateForwarderClientReq    (encrypted)
-#   0x02 = InitiateForwarderClientRep    (encrypted)
+#   0x01 = InitiateTCPClientReq    (encrypted)
+#   0x02 = InitiateTCPClientRep    (encrypted)
 #   0x03 = SendDataMessage               (encrypted)
 #   0x04 = CheckInMessage                (NOT encrypted)
+#   0x05 = InitiateBINDReq               (encrypted)
+#   0x06 = InitiateBINDRep               (encrypted)
 
 struct CheckInMessage:
     messenger_id: string
 
-struct InitiateForwarderClientReq:
-    forwarder_client_id: string
+struct InitiateTCPClientReq:
+    client_id: string
     ip_address: string
     port: uint32
 
-struct InitiateForwarderClientRep:
-    forwarder_client_id: string
+struct InitiateTCPClientRep:
+    client_id: string
     bind_address: string
     bind_port: uint32
     address_type: uint32    # 1 = IPv4, 4 = IPv6
     reason: uint32          # 0 = success, see error mapping for others
+    remote_addr: string     # optional — absent in older implementations
+    remote_port: uint32     # optional — absent in older implementations
 
 struct SendDataMessage:
-    forwarder_client_id: string
+    client_id: string
     data: bytes             # empty data = close signal
 
+struct InitiateBINDReq:
+    bind_id: string
+    listening_host: string
+    listening_port: uint32
+    destination_host: string
+    destination_port: uint32
+
+struct InitiateBINDRep:
+    bind_id: string
+    listening_host: string
+    listening_port: uint32
+    reason: uint32          # 0 = success
+
 # SendDataMessage payload format:
-#   forwarder_client_id (length-prefixed string)
+#   client_id (length-prefixed string)
 #   data encoded as base64 string (length-prefixed)
 #
 # The base64 encoding happens INSIDE the encrypted envelope.
@@ -152,21 +169,22 @@ struct SendDataMessage:
 
 class Client:
     identifier: string = ""
-    forwarder_clients: concurrent_dict<string, socket>
+    tcp_clients: concurrent_dict<string, socket>
+    active_binds: concurrent_dict<string, RemotePortForwarder>
     encryption_key: bytes
 
     function handle_message(message):
         match message.type:
 
-            InitiateForwarderClientReq:
-                await handle_forward_connect(
-                    message.forwarder_client_id,
+            InitiateTCPClientReq:
+                await handle_tcp_connect(
+                    message.client_id,
                     message.ip_address,
                     message.port
                 )
 
-            InitiateForwarderClientRep:
-                client = forwarder_clients.get(message.forwarder_client_id)
+            InitiateTCPClientRep:
+                client = tcp_clients.get(message.client_id)
                 if client is null:
                     return
                     // Server replied to a forwarder we don't have — probably
@@ -174,7 +192,7 @@ class Client:
 
                 if message.reason != 0:
                     close(client)
-                    forwarder_clients.remove(message.forwarder_client_id)
+                    tcp_clients.remove(message.client_id)
                     return
 
                 resume(client)
@@ -182,10 +200,10 @@ class Client:
                 // RPF sockets are paused on accept to prevent data arriving
                 // before the server has approved the connection.
 
-                await stream(message.forwarder_client_id)
+                await stream(message.client_id)
 
             SendDataMessage:
-                client = forwarder_clients.get(message.forwarder_client_id)
+                client = tcp_clients.get(message.client_id)
                 if client is null:
                     return
 
@@ -193,7 +211,7 @@ class Client:
                     // CLOSE SIGNAL from server.
                     // Use safe removal — the stream() task may have already
                     // removed this entry.
-                    if forwarder_clients.remove(message.forwarder_client_id) succeeded:
+                    if tcp_clients.remove(message.client_id) succeeded:
                         close(client)
                     return
 
@@ -203,8 +221,65 @@ class Client:
                 // Without it, fast data from the server can overwhelm a slow
                 // local socket.
 
+            InitiateBINDReq:
+                await handle_bind(
+                    message.bind_id,
+                    message.listening_host,
+                    message.listening_port,
+                    message.destination_host,
+                    message.destination_port
+                )
 
-    function handle_forward_connect(forwarder_client_id, ip, port):
+
+    function handle_bind(bind_id, listening_host, listening_port, destination_host, destination_port):
+        existing = active_binds.get(bind_id)
+        if existing is not null:
+            # Same bind_id received again — shut it down.
+            await existing.stop()
+            active_binds.remove(bind_id)
+            reply = InitiateBINDRep(
+                bind_id        = bind_id,
+                listening_host = listening_host,
+                listening_port = listening_port,
+                reason         = 0
+            )
+            await send_downstream_message(reply)
+            return
+
+        config_string = "{listening_host}:{listening_port}:{destination_host}:{destination_port}"
+        try:
+            forwarder = new RemotePortForwarder(self, config_string)
+            success = await forwarder.start()
+            if not success:
+                reply = InitiateBINDRep(
+                    bind_id        = bind_id,
+                    listening_host = listening_host,
+                    listening_port = listening_port,
+                    reason         = 1
+                )
+                await send_downstream_message(reply)
+                return
+
+            active_binds[bind_id] = forwarder
+            reply = InitiateBINDRep(
+                bind_id        = bind_id,
+                listening_host = listening_host,
+                listening_port = listening_port,
+                reason         = 0
+            )
+            await send_downstream_message(reply)
+
+        catch error:
+            reply = InitiateBINDRep(
+                bind_id        = bind_id,
+                listening_host = listening_host,
+                listening_port = listening_port,
+                reason         = 1
+            )
+            await send_downstream_message(reply)
+
+
+    function handle_tcp_connect(client_id, ip, port):
         # TCP connect to the target requested by the server.
         # Maps OS-level socket errors to SOCKS5 reason codes.
 
@@ -219,34 +294,40 @@ class Client:
             // Ownership transferred to client — prevents finally from
             // disposing a socket that is now managed by the stream wrapper.
 
-            forwarder_clients[forwarder_client_id] = client
+            tcp_clients[client_id] = client
             // Register BEFORE sending the reply.
             // If the server responds with data before we register, the
             // handle_message dispatch would silently drop it.
 
             bind_address = client.local_address
             bind_port    = client.local_port
+            remote_addr  = client.remote_address
+            remote_port  = client.remote_port
             address_type = 1 if IPv4 else 4 if IPv6
 
-            reply = InitiateForwarderClientRep(
-                forwarder_client_id = forwarder_client_id,
-                bind_address        = bind_address,
-                bind_port           = bind_port,
-                address_type        = address_type,
-                reason              = 0
+            reply = InitiateTCPClientRep(
+                client_id    = client_id,
+                bind_address = bind_address,
+                bind_port    = bind_port,
+                address_type = address_type,
+                reason       = 0,
+                remote_addr  = remote_addr,
+                remote_port  = remote_port
             )
             await send_downstream_message(reply)
-            await stream(forwarder_client_id)
+            await stream(client_id)
 
         catch error:
             reason = map_socket_error(error)
 
-            reply = InitiateForwarderClientRep(
-                forwarder_client_id = forwarder_client_id,
-                bind_address        = "0.0.0.0",
-                bind_port           = 0,
-                address_type        = 1,
-                reason              = reason
+            reply = InitiateTCPClientRep(
+                client_id    = client_id,
+                bind_address = "0.0.0.0",
+                bind_port    = 0,
+                address_type = 1,
+                reason       = reason,
+                remote_addr  = "0.0.0.0",
+                remote_port  = 0
             )
             await send_downstream_message(reply)
 
@@ -268,12 +349,12 @@ class Client:
     #   General / unknown               -> 0x01
 
 
-    function stream(forwarder_client_id):
+    function stream(client_id):
         # Read loop: forwards data from a local socket to the server.
         # The close signal ownership pattern ensures exactly one side
         # sends the close signal, regardless of who disconnects first.
 
-        client = forwarder_clients.get(forwarder_client_id)
+        client = tcp_clients.get(client_id)
         if client is null:
             return
 
@@ -284,7 +365,7 @@ class Client:
                     break   // EOF — remote closed the connection
 
                 message = SendDataMessage(
-                    forwarder_client_id = forwarder_client_id,
+                    client_id = client_id,
                     data                = data
                 )
                 await send_downstream_message(message)
@@ -299,7 +380,7 @@ class Client:
             # CLOSE SIGNAL OWNERSHIP
             #
             # Only the side that successfully removes the entry from
-            # forwarder_clients sends the close signal. This prevents:
+            # tcp_clients sends the close signal. This prevents:
             #   1. Duplicate close signals (both sides send)
             #   2. Close signal echo (server closes -> we echo back -> loop)
             #   3. KeyError / crash from removing an already-removed entry
@@ -307,10 +388,10 @@ class Client:
             # The remove operation is atomic (ConcurrentDictionary.TryRemove,
             # dict.pop with default, or Map.delete with has-check).
 
-            if forwarder_clients.remove(forwarder_client_id) succeeded:
+            if tcp_clients.remove(client_id) succeeded:
                 close(client)
                 close_signal = SendDataMessage(
-                    forwarder_client_id = forwarder_client_id,
+                    client_id = client_id,
                     data                = empty
                 )
                 await send_downstream_message(close_signal)
@@ -377,7 +458,7 @@ class WSClient extends Client:
             for message in messages:
                 spawn handle_message(message)
                 // Each message dispatched independently so a slow
-                // handle_forward_connect doesn't block the receive loop.
+                // handle_tcp_connect doesn't block the receive loop.
 
     function send_loop():
         while websocket.is_open and not cancelled:
@@ -469,6 +550,7 @@ class HTTPClient extends Client:
 
 class RemotePortForwarder:
     messenger: Client
+    server: tcp_listener
     listening_host: string
     listening_port: int
     destination_host: string
@@ -485,7 +567,7 @@ class RemotePortForwarder:
 
     function start():
         try:
-            listener = bind_tcp(listening_host, listening_port)
+            server = bind_tcp(listening_host, listening_port)
         catch bind_error:
             log("{host}:{port} is already in use or encountered an error")
             return
@@ -496,13 +578,17 @@ class RemotePortForwarder:
             // constructor, ensure reject is defined as a parameter.
 
         while true:
-            accepted_socket = await listener.accept()
+            accepted_socket = await server.accept()
             spawn handle_client(accepted_socket)
 
-    function handle_client(accepted_socket):
-        forwarder_client_id = generate_unique_id()
+    function stop():
+        if server is not null:
+            server.close()
 
-        messenger.forwarder_clients[forwarder_client_id] = accepted_socket
+    function handle_client(accepted_socket):
+        client_id = generate_unique_id()
+
+        messenger.tcp_clients[client_id] = accepted_socket
         // Register BEFORE sending the request.
         // The server may respond before the send completes — the reply
         // handler needs the dictionary entry to exist.
@@ -510,31 +596,31 @@ class RemotePortForwarder:
         pause(accepted_socket)
         // Do NOT read data from the accepted socket yet.
         // Wait for the server to approve the connection (reason=0 in
-        // InitiateForwarderClientRep). Data arriving before approval
+        // InitiateTCPClientRep). Data arriving before approval
         // would be lost because no stream() task is running yet.
 
-        request = InitiateForwarderClientReq(
-            forwarder_client_id = forwarder_client_id,
+        request = InitiateTCPClientReq(
+            client_id = client_id,
             ip_address          = destination_host,
             port                = destination_port
         )
         await messenger.send_downstream_message(request)
 
         // Stream is NOT started here. The handle_message dispatch for
-        // InitiateForwarderClientRep (reason=0) resumes the socket and
+        // InitiateTCPClientRep (reason=0) resumes the socket and
         // starts stream(). If the server denies (reason!=0), the socket
         // is closed and removed there.
 
         # Close signal handling for RPF sockets:
         on accepted_socket.close:
-            if forwarder_client_id still in messenger.forwarder_clients:
-                messenger.forwarder_clients.remove(forwarder_client_id)
-                send SendDataMessage(forwarder_client_id, data=empty)
+            if client_id still in messenger.tcp_clients:
+                messenger.tcp_clients.remove(client_id)
+                send SendDataMessage(client_id, data=empty)
             // Same ownership pattern as stream() — only send close signal
             // if WE are the first to remove the entry.
 
         on accepted_socket.data(chunk):
-            send SendDataMessage(forwarder_client_id, data=chunk)
+            send SendDataMessage(client_id, data=chunk)
 
         on accepted_socket.error:
             pass    // Prevent unhandled error from crashing the process.
@@ -552,7 +638,6 @@ function parse_args(argv) -> dict:
     #   --proxy VALUE
     #   --retry-duration VALUE
     #   --retry-attempts VALUE
-    #   --remote-port-forwards VALUE [VALUE ...]
     #
     # Unknown flags print a warning but do not abort.
 
@@ -567,10 +652,6 @@ function parse_args(argv) -> dict:
             "--proxy":            parsed.proxy            = argv[++i]
             "--retry-duration":   parsed.retry_duration   = parse_float(argv[++i])
             "--retry-attempts":   parsed.retry_attempts   = parse_int(argv[++i])
-            "--remote-port-forwards":
-                parsed.rpf = []
-                while next arg exists and does not start with "--":
-                    parsed.rpf.append(argv[++i])
             default:
                 log("[!] Could not find argument `{flag}`.")
         i++
@@ -583,20 +664,24 @@ function apply_config(parsed) -> config:
     #
     # IMPORTANT: For string values, use truthiness (empty string = use default).
     # For numeric values, use IS NOT NULL (0 is a valid override — it disables retries).
-    # For lists, use IS PROVIDED (empty list is a valid override — it means no RPFs).
 
     config.server_url      = parsed.server_url      OR SERVER_URL
     config.encryption_key  = parsed.encryption_key  OR ENCRYPTION_KEY
     config.user_agent      = parsed.user_agent      OR USER_AGENT
     config.proxy           = parsed.proxy           OR PROXY
 
+    # If a proxy was requested but the platform has no native proxy support,
+    # warn and clear the value rather than silently ignoring it.
+    if config.proxy is not empty AND NOT platform_supports_proxies():
+        log("[!] No native support for proxies.")
+        config.proxy = ""
+
     config.retry_duration  = parsed.retry_duration  IF NOT NULL ELSE RETRY_DURATION
     config.retry_attempts  = parsed.retry_attempts  IF NOT NULL ELSE RETRY_ATTEMPTS
-    config.rpf             = parsed.rpf             IF PROVIDED  ELSE REMOTE_PORT_FORWARDS
 
     if config.encryption_key is empty:
         log("[!] No encryption key provided, please specify one with --encryption-key.")
-        exit(0)
+        return null
 
     config.encryption_key = hash(config.encryption_key)
     return config
@@ -622,7 +707,7 @@ function main():
         schemes = split(parts[0], "+")
         host = parts[1]
     else:
-        schemes = ["ws", "http", "wss", "https"]
+        schemes = ["ws", "wss", "http", "https"]
         host = url
 
     # --- Transport selection ---
@@ -638,16 +723,6 @@ function main():
             log("[!] Unsupported scheme: {scheme}")
             continue
 
-        # Start remote port forward listeners BEFORE connecting.
-        # They bind their ports immediately and accept connections
-        # as soon as the client is connected.
-        for rpf_config in config.rpf:
-            try:
-                forwarder = new RemotePortForwarder(client, rpf_config)
-                spawn forwarder.start()
-            catch:
-                log("Failed to start RPF: {rpf_config}")
-
         try:
             await client.connect()
             log("[+] Connected to {candidate_url}")
@@ -660,11 +735,11 @@ function main():
 
     if client is null:
         log("All connection attempts failed.")
-        exit(1)
+        return
 
     # --- Reconnection ---
     if config.retry_attempts <= 0:
-        exit(0)
+        return
 
     sleep_interval = config.retry_duration / config.retry_attempts
     consecutive_failures = 0
@@ -683,8 +758,8 @@ function main():
             //
             // What MUST persist across reconnect:
             //   - client.identifier (server uses it to recognize us)
-            //   - client.forwarder_clients (tunnels may still be alive)
-            //   - RPF listeners (they keep accepting connections)
+            //   - client.tcp_clients (tunnels may still be alive)
+            //   - active_binds (server-initiated RPF listeners)
             //   - downstream message queue (messages queued during disconnect)
 
             await client.connect()
@@ -698,5 +773,3 @@ function main():
         catch error:
             consecutive_failures += 1
             log("[!] Reconnection failed: {error}")
-
-    exit(0)

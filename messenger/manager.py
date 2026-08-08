@@ -379,6 +379,8 @@ class Manager:
         2    | InitiateForwarderClientReq
         3    | InitiateForwarderClientRep
         4    | SendDataMessage
+        5    | InitiateBINDReq
+        6    | InitiateBINDRep
 
         optional:
           types        Comma-separated list of types to toggle (e.g. 1,4)
@@ -389,12 +391,14 @@ class Manager:
           logging 1
           logging 2,3
         """
-        VALID_TYPES = {1, 2, 3, 4}
+        VALID_TYPES = {1, 2, 3, 4, 5, 6}
         LABELS = {
             1: 'CheckInMessage',
             2: 'InitiateForwarderClientReq',
             3: 'InitiateForwarderClientRep',
             4: 'SendDataMessage',
+            5: 'InitiateBINDReq',
+            6: 'InitiateBINDRep',
         }
         if types is None:
             if not self.update_cli.logging_types:
@@ -636,7 +640,7 @@ class Manager:
             for f in messenger.forwarders:
                 if isinstance(f, RemotePortForwarder):
                     ftype = "Remote"
-                    cfg = f"*:* -> {f.destination_host}:{f.destination_port}"
+                    cfg = f"{f.listening_host}:{f.listening_port} -> {f.destination_host}:{f.destination_port}"
                 elif f.destination_host == '*' and f.destination_port == '*':
                     ftype = "Socks"
                     cfg = f"{f.listening_host}:{f.listening_port} -> *:*"
@@ -822,10 +826,10 @@ class Manager:
         Start a remote forwarder.
 
         required:
-          forwarder_config         Format: destination_host:destination_port
+          forwarder_config         Format: listening_host:listening_port:destination_host:destination_port
 
         examples:
-          remote example.com:9090
+          remote 0.0.0.0:8080:127.0.0.1:80
         """
         messenger = self.current_messenger
         forwarder = RemotePortForwarder(messenger, forwarder_config, self.update_cli)
