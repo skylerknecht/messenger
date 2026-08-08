@@ -118,8 +118,9 @@ jobs:
             "## Checklist" \
             "" \
             "- [ ] \`## [${{ inputs.version }}]\` section in CHANGELOG.md reviewed and cleaned" \
-            "- [ ] README.md updated where needed" \
-            "- [ ] Ready to publish — after merge to main, run **Publish Release**" \
+            "- [ ] Client submodules updated and pointed at correct commits" \
+            "" \
+            "After merge to main, run **Publish Release**." \
             > /tmp/pr-body.md
 
           gh pr create --title "release ${{ inputs.version }}" --body-file /tmp/pr-body.md
