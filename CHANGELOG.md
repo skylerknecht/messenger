@@ -33,6 +33,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - All clients: an AES decryption failure now logs `[!] Decryption failed — the encryption key is likely incorrect …` and stops the client, instead of silently retrying forever. A wrong key connects fine on the plaintext check-in and only surfaces on the first encrypted message, so the old behavior looked like a hang
 - C# and Python WebSocket clients serialize all sends through a single signal-driven send loop (`SemaphoreSlim` in C#, `asyncio.Queue` in Python) instead of sending immediately from concurrent handler tasks. Concurrent sends were aborting the C# `ClientWebSocket` (`… has been transitioned into the 'Aborted' state`) under remote-port-forward load and risked corrupting aiohttp frames; the loop wakes on enqueue (no polling latency) and coalesces queued messages into one frame. Node.js already serializes inside `ws` and is unchanged
 
+### Server
+
+#### Added
+
+- The remote port forwarder now logs when it *sends* a bind request or teardown to a client (`Sent bind request to Messenger …` / `Sent bind shutdown request …`), matching the existing `bound` / `confirmed bind shutdown` reply messages so both sides of the exchange are visible
+
 ## [0.7.0] - 2026-08-08
 
 ### Spec
