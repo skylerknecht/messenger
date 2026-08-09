@@ -833,6 +833,29 @@ class Manager:
         """
         messenger = self.current_messenger
         forwarder = RemotePortForwarder(messenger, forwarder_config, self.update_cli)
+
+        # If the client already advertised a bind on this listening host:port
+        # (a pending bind — e.g. after a server restart), adopt it: reuse its
+        # bind_id, register the forwarder active, and DO NOT send a new
+        # InitiateBINDReq (the client is already listening). This just starts
+        # allowing TCP client requests to the configured destination again.
+        listening = (forwarder.listening_host, forwarder.listening_port)
+        adopted_id = next(
+            (bind_id for bind_id, endpoint in messenger.pending_binds.items() if endpoint == listening),
+            None
+        )
+        if adopted_id is not None:
+            forwarder.identifier = adopted_id
+            del messenger.pending_binds[adopted_id]
+            messenger.forwarders.append(forwarder)
+            self.update_cli.display(
+                f'Adopted orphaned bind `{adopted_id}` on Messenger `{messenger.nickname}` '
+                f'({forwarder.listening_host}:{forwarder.listening_port} -> '
+                f'{forwarder.destination_host}:{forwarder.destination_port}); no bind request sent.',
+                'success'
+            )
+            return
+
         await forwarder.start()
         messenger.forwarders.append(forwarder)
         return

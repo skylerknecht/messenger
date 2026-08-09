@@ -23,6 +23,11 @@ class Messenger:
         self._nickname = None
         self.update_cli = update_cli
         self.forwarders = []
+        # bind_id -> (listening_host, listening_port) for remote port forwards a
+        # client has advertised (via BINDRep) that this server has no forwarder
+        # for — e.g. after a server restart. The operator re-adopts one by
+        # re-running `remote <listening_host>:<listening_port>:<destination>`.
+        self.pending_binds = {}
         self.scanners = []
         self.upstream_messages = asyncio.Queue()
         self.serialize_messages = serialize_messages
@@ -154,10 +159,24 @@ class Messenger:
                         'success'
                     )
                 elif message.reason == 0:
-                    self.update_cli.display(
-                        f'Messenger `{self.nickname}` bound {message.listening_host}:{message.listening_port}.',
-                        'success'
-                    )
+                    known = any(f.identifier == message.bind_id for f in self.forwarders)
+                    if known:
+                        self.update_cli.display(
+                            f'Messenger `{self.nickname}` bound {message.listening_host}:{message.listening_port}.',
+                            'success'
+                        )
+                    else:
+                        # A client advertised a remote port forward this server
+                        # has no record of (it survived a server restart). Record
+                        # it as pending so the operator can re-adopt it without
+                        # a fresh bind.
+                        self.pending_binds[message.bind_id] = (message.listening_host, message.listening_port)
+                        self.update_cli.display(
+                            f'Messenger `{self.nickname}` has an orphaned remote port forward on '
+                            f'{message.listening_host}:{message.listening_port} (bind `{message.bind_id}`). '
+                            f'Re-adopt with `remote {message.listening_host}:{message.listening_port}:<destination>`.',
+                            'warning'
+                        )
                 else:
                     self.update_cli.display(
                         f'Messenger `{self.nickname}` failed to bind {message.listening_host}:{message.listening_port} (reason={message.reason}).',

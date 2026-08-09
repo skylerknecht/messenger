@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Client
 
+#### Added
+
+- All clients re-advertise their active remote port forwards (via `InitiateBINDRep`) on every (re)connect, so a server that lost its state (e.g. after a restart) can re-learn them instead of silently denying every forwarded connection
+
 #### Fixed
 
 - All clients: handle an `InitiateTCPClientRep` that omits the optional `remote_addr`/`remote_port` fields. The server leaves them off every remote-port-forward reply and denial, so the client's unconditional read overran the buffer (`Not enough bytes to read a 32-bit value`) and tore down the whole tunnel on any remote-forward hit
@@ -38,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Added
 
 - The remote port forwarder now logs when it *sends* a bind request or teardown to a client (`Sent bind request to Messenger …` / `Sent bind shutdown request …`), matching the existing `bound` / `confirmed bind shutdown` reply messages so both sides of the exchange are visible
+- A re-advertised remote port forward the server has no record of (e.g. after a restart) is now recorded as a *pending* bind with an actionable log; re-running `remote <listening_host>:<listening_port>:<destination>` adopts it — reusing the client's bind_id and skipping the `InitiateBINDReq`, since the client is already listening
 
 ## [0.7.0] - 2026-08-08
 

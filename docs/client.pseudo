@@ -431,6 +431,32 @@ class Client:
         raise NotImplemented
 
 
+    function readvertise_forwarders():
+        # RPF RE-ADVERTISEMENT
+        #
+        # Client-side RPF listeners survive a reconnect, but the SERVER's
+        # forwarder table is in-memory and is lost if the server restarts.
+        # After such a restart the server would deny every forwarded connection
+        # (it has no record of the bind), silently black-holing the RPF.
+        #
+        # To recover, the client re-announces each active RPF on every
+        # (re)connect by sending an InitiateBINDRep(reason=0) — the same reply
+        # it sent when the bind was first created. The server treats a BINDRep
+        # for a bind_id it knows as a no-op ("bound"); one it does NOT know is
+        # recorded as a PENDING bind, which the operator re-adopts by re-running
+        # `remote <listening_host>:<listening_port>:<destination>` (the server
+        # skips the BINDReq since the client is already listening).
+        #
+        # Called at the start of start() for every transport.
+        for forwarder in remote_port_forwarders:
+            await send_downstream_message(InitiateBINDRep(
+                bind_id        = forwarder.identifier,
+                listening_host = forwarder.listening_host,
+                listening_port = forwarder.listening_port,
+                reason         = 0
+            ))
+
+
 # ============================================================================
 # 6. WebSocket CLIENT
 # ============================================================================
@@ -463,6 +489,9 @@ class WSClient extends Client:
         self.identifier = messages[0].messenger_id
 
     function start():
+        # Re-announce our RPFs so a restarted server can re-learn them.
+        await readvertise_forwarders()
+
         # SINGLE-WRITER SEND RULE
         #
         # A WebSocket connection is one ordered byte stream. Sending a message is
@@ -554,6 +583,9 @@ class HTTPClient extends Client:
         self.identifier = messages[0].messenger_id
 
     function start():
+        # Re-announce our RPFs so a restarted server can re-learn them.
+        await readvertise_forwarders()
+
         # Polling loop — blocks until an error triggers reconnection.
         while true:
             batch = [CheckInMessage(messenger_id=self.identifier)]
