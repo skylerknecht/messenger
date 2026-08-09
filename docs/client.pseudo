@@ -13,6 +13,13 @@
 #   - Clients must NEVER call exit() or terminate the process. All errors
 #     should be logged and handled gracefully. The client should always
 #     attempt to continue running.
+#     EXCEPTION — decryption failure is fatal and non-recoverable. An AES
+#     decrypt/unpad failure almost always means the encryption key is wrong,
+#     so the client can never decrypt server traffic and is useless. On a
+#     decryption failure the client logs a single distinctive error and
+#     RETURNS from main() — a graceful stop, not exit()/abort — instead of
+#     reconnecting in a loop that can never succeed. This is the ONLY
+#     condition that halts the client; every other error keeps it running.
 #   - Status messages use bracketed prefixes: [+] success, [*] info, [!] error/warning.
 #     Do not print transport names, debug details, or verbose diagnostics.
 #   - Identifiers (client_id in RPF, etc.) must be 10-character alphanumeric
@@ -55,6 +62,9 @@ function decrypt(key, data) -> bytes:
     ciphertext = data[16:]
     padded = AES_CBC_decrypt(key, iv, ciphertext)
     return pkcs7_unpad(padded)
+    // Any failure here (bad AES key, bad PKCS7 padding) must surface as a
+    // distinct DecryptionError type — NOT a generic parse/structural error —
+    // so main() can tell "wrong key" apart from a malformed frame and halt.
 
 // When encrypting an ArraySegment or Buffer slice, respect offset and count.
 // Do NOT encrypt the entire backing array — only the active region.
@@ -110,6 +120,10 @@ function deserialize_messages(raw_data, encryption_key) -> list[message]:
 
         if message_type != CHECK_IN:
             payload = decrypt(encryption_key, payload)
+            // decrypt() raises DecryptionError on a bad key — let it
+            // propagate uncaught, past the receive/poll loop, out of
+            // start(), all the way to main()'s DecryptionError handler.
+            // Do NOT catch it here or swallow it as a generic parse error.
 
         messages.append(parse_payload(message_type, payload))
 
@@ -449,12 +463,24 @@ class WSClient extends Client:
         self.identifier = messages[0].messenger_id
 
     function start():
-        # Drain any messages queued while disconnected.
-        while downstream_queue is not empty:
-            msg = downstream_queue.dequeue()
-            await send_immediately(msg)
-
-        # Receive loop — blocks until the WebSocket closes.
+        # SINGLE-WRITER SEND RULE
+        #
+        # A WebSocket connection is one ordered byte stream. Sending a message is
+        # NOT atomic (it can span multiple awaits / transport writes), so two
+        # overlapping sends corrupt the frame on the wire. Therefore EXACTLY ONE
+        # task may ever write to the socket. All sends flow through a single
+        # send_loop that drains a queue; producers only enqueue (see
+        # send_downstream_message). Never call send_binary from multiple tasks.
+        #
+        # This is a correctness requirement, not an optimization:
+        #   - C# ClientWebSocket ABORTS the socket on an overlapping SendAsync.
+        #   - A raw async socket writer interleaves frame bytes silently.
+        #   - Some libraries serialize internally (e.g. Node's `ws` buffers
+        #     sends); on those, sending immediately from send_downstream_message
+        #     is equivalent and acceptable — the library IS the single writer.
+        #
+        # Messages queued while disconnected are drained by the send_loop on
+        # (re)connect, so no separate startup drain step is required.
         await parallel(receive_loop(), send_loop())
 
     function receive_loop():
@@ -471,37 +497,38 @@ class WSClient extends Client:
                 // Each message dispatched independently so a slow
                 // handle_tcp_connect doesn't block the receive loop.
 
-    function send_loop():
-        while websocket.is_open and not cancelled:
-            if downstream_queue is empty:
-                await sleep(10ms)
-                // Polling interval for the send queue.
-                // Implementations may use a semaphore/signal instead.
-                continue
+        // On exit (close/error), signal the send_loop so it wakes and stops —
+        // otherwise parallel() hangs on a send_loop parked waiting for a message.
+        signal_send_loop_to_stop()
 
-            if websocket is not open:
+    function send_loop():
+        # THE single writer. Wake on a SIGNAL, not a poll: park until a message
+        # is enqueued (semaphore / channel / async queue). Parking costs no CPU
+        # when idle AND adds no latency when a message arrives. A fixed
+        # sleep(10ms) poll also works but taxes every send up to ~10ms — prefer
+        # the signal.
+        while not cancelled:
+            await wait_for_send_signal()      // parks until an enqueue or cancel
+            if cancelled or websocket is not open:
                 break
-                // Guard against sending on a closing/closed socket.
-                // Without this, a sync drain loop spins without yielding.
 
             batch = [CheckInMessage(messenger_id=self.identifier)]
             while downstream_queue is not empty:
                 batch.append(downstream_queue.dequeue())
+                // Coalesce everything queued right now into one frame.
+
+            if batch contains only the CheckIn:
+                continue                      // surplus wake — nothing to send
 
             payload = serialize_messages(batch, encryption_key)
             await websocket.send_binary(payload)
 
     function send_downstream_message(message):
-        if websocket is open:
-            # Send immediately with CheckIn prepended.
-            payload = serialize_messages(
-                [CheckInMessage(messenger_id=self.identifier), message],
-                encryption_key
-            )
-            await websocket.send_binary(payload)
-        else:
-            downstream_queue.enqueue(message)
-            // Will be drained on reconnect or by the send loop.
+        # Producer only — NEVER writes the socket. Enqueue and wake the loop.
+        # (A library that serializes internally may instead send immediately.)
+        downstream_queue.enqueue(message)
+        signal_send_loop()
+        // Drained by the send_loop while connected, or on the next reconnect.
 
 
 # ============================================================================
@@ -752,6 +779,12 @@ function main():
             log("[+] Connected to {candidate_url}")
             await client.start()    # blocks until disconnect
             break                   # disconnected — enter retry logic
+        catch DecryptionError:
+            log("[!] Decryption failed — the encryption key is likely incorrect. "
+                "The messenger cannot decrypt server traffic and is stopping.")
+            return
+            // Fatal: a wrong key fails identically on every scheme and every
+            // reconnect, so do NOT try the next scheme or enter retry logic.
         catch error:
             log("[!] Connection failed: {error}")
             client = null
@@ -794,6 +827,11 @@ function main():
 
             await client.start()    # blocks until next disconnect
 
+        catch DecryptionError:
+            log("[!] Decryption failed — the encryption key is likely incorrect. "
+                "The messenger cannot decrypt server traffic and is stopping.")
+            return
+            // Fatal: reconnecting cannot fix a wrong key. Stop the loop.
         catch error:
             consecutive_failures += 1
             log("[!] Reconnection failed: {error}")

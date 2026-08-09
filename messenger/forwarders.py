@@ -330,6 +330,12 @@ class RemotePortForwarder(Forwarder):
             destination_port=self.destination_port
         )
         await self.messenger.send_message_upstream(bind_req)
+        self.update_cli.display(
+            f'Sent bind request to Messenger `{self.messenger.nickname}` for '
+            f'({self.listening_host}:{self.listening_port}) -> '
+            f'({self.destination_host}:{self.destination_port}).',
+            'information'
+        )
 
     async def stop(self):
         bind_req = InitiateBINDReq(
@@ -340,6 +346,11 @@ class RemotePortForwarder(Forwarder):
             destination_port=self.destination_port
         )
         await self.messenger.send_message_upstream(bind_req)
+        self.update_cli.display(
+            f'Sent bind shutdown request to Messenger `{self.messenger.nickname}` '
+            f'for `{self.identifier}` ({self.listening_host}:{self.listening_port}).',
+            'information'
+        )
 
         for client in self.clients:
             try:

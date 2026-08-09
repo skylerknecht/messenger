@@ -6,6 +6,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-08-08
+
+### Spec
+
+#### Changed
+
+- Established the single-writer send rule for WebSocket clients: a WebSocket is one ordered byte stream, so exactly one task may write to it — all sends flow through a single signal-driven send loop (a library that serializes internally, like Node's `ws`, satisfies this). Supersedes the earlier note that stateful clients may send immediately from any task
+- Decryption failure is now the one sanctioned exception to "never stop": a client that cannot decrypt server traffic (almost always a wrong encryption key) logs a distinctive error and returns from `main()` instead of reconnecting in a loop that can never succeed
+
+### Client
+
+#### Fixed
+
+- All clients: handle an `InitiateTCPClientRep` that omits the optional `remote_addr`/`remote_port` fields. The server leaves them off every remote-port-forward reply and denial, so the client's unconditional read overran the buffer (`Not enough bytes to read a 32-bit value`) and tore down the whole tunnel on any remote-forward hit
+- C# and Node.js: added a 5-second TCP connect timeout so connections to unresponsive hosts fail promptly instead of hanging on the OS default
+- C#: HTTP client now applies a 10-second connect and 15-second poll request timeout instead of the 100-second `HttpClient` default
+- C#: CLI string overrides use truthiness so an empty value falls back to the embedded default (`--server-url ""`, `--user-agent ""`, `--proxy ""`)
+- C#: removed the duplicate `[+] Connected to` log emitted from inside the HTTP/WebSocket connect (main logs it once)
+- Node.js and Python: standardized the reconnection-failure log to `[!] Reconnection failed: {error}`
+- Python: guard against `message_length < 8` during deserialization to prevent payload-length underflow on malformed frames
+- Python: HTTP poll requests now use a 15-second timeout (connect stays at 10 seconds)
+
+#### Changed
+
+- All clients: an AES decryption failure now logs `[!] Decryption failed — the encryption key is likely incorrect …` and stops the client, instead of silently retrying forever. A wrong key connects fine on the plaintext check-in and only surfaces on the first encrypted message, so the old behavior looked like a hang
+- C# and Python WebSocket clients serialize all sends through a single signal-driven send loop (`SemaphoreSlim` in C#, `asyncio.Queue` in Python) instead of sending immediately from concurrent handler tasks. Concurrent sends were aborting the C# `ClientWebSocket` (`… has been transitioned into the 'Aborted' state`) under remote-port-forward load and risked corrupting aiohttp frames; the loop wakes on enqueue (no polling latency) and coalesces queued messages into one frame. Node.js already serializes inside `ws` and is unchanged
+
+### Server
+
+#### Added
+
+- The remote port forwarder now logs when it *sends* a bind request or teardown to a client (`Sent bind request to Messenger …` / `Sent bind shutdown request …`), matching the existing `bound` / `confirmed bind shutdown` reply messages so both sides of the exchange are visible
+
 ## [0.7.0] - 2026-08-08
 
 ### Spec
