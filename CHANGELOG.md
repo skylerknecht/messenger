@@ -28,13 +28,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Changed
 
 - Remote-port-forward control plane reworked to the model above (empty-host stop/gone, orphan adopt, conflict-replace, connection teardown on remove). Routing forwarded connections now matches on the listening endpoint carried in `InitiateTCPClientReq`.
+- `remote` command adopts an orphan RPF (sets destination, no re-bind) instead of sending a duplicate bind request; rejects a `remote` on a listening endpoint that already has a configured forward.
+- `stop` on an unconfirmed RPF (no `BindRep` received yet) removes it locally and closes its connections without signaling the client; a confirmed RPF sends the empty-host stop signal.
+- An orphan RPF denies forwarded connections with reason 2 until the operator configures a destination.
+- `forwarders` table shows `(unconfigured)` for an orphan RPF's destination.
 - Applied single-threaded-asyncio discipline to `messenger.forwarders` mutations (atomic claim-then-await, snapshot-before-iterate) instead of locking.
 
 ### Client
 
 #### Changed
 
-- `handle_bind` recognizes the empty-host stop signal (tear down listener + connections, reply empty-host `BindRep`), emits an empty-host `BindRep` on listener failure/close, and appends the listening host:port to `InitiateTCPClientReq`.
+- Clients re-advertise all active RPFs on every reconnect (a real-host `BindRep` per forwarder at the top of `start`), so a restarted server re-learns them as orphans that the operator can re-adopt.
+- `handle_bind` recognizes the empty-host stop signal (tear down listener + connections, reply empty-host `BindRep`), is idempotent on duplicate bind requests, and replies with an empty-host `BindRep` on bind failure.
+- RPF listener crash-emit: if the accept loop exits (crash or intentional stop) the client emits an empty-host `BindRep` and removes the forwarder from its list; a `_gone` guard prevents double-reporting.
+- `InitiateTCPClientReq` now appends the RPF's listening host:port so the server can route by exact endpoint.
 
 ## [0.7.1] - 2026-08-08
 

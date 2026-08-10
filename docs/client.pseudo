@@ -288,16 +288,15 @@ class Client:
 
         # --- STOP: empty listening host tears this bind down. ---
         # Unambiguous — never mistaken for a new bind — so it works even if we
-        # don't have this bind_id (just no-op). RST all forwarded connections,
-        # close the listener, and confirm with an empty-host reply.
+        # don't have this bind_id (just no-op). Close the listener and RST all
+        # forwarded connections immediately; the accept-loop finally / close-event
+        # will fire report_gone() which sends the empty-host BindRep to the server.
         if listening_host == "":
             existing = find remote_port_forwarders where identifier == bind_id
             if existing is not null:
-                existing.stop()                 # mark stopped so a listener
-                existing.close_all_clients()    # 'close' event won't re-report
+                existing.stop()
+                existing.close_all_clients()
                 remote_port_forwarders.remove(existing)
-                await send_downstream_message(InitiateBINDRep(
-                    bind_id = bind_id, listening_host = "", listening_port = 0, reason = 0))
             return
 
         # --- Idempotent: already holding this bind_id → just re-confirm. ---
@@ -632,7 +631,7 @@ class RemotePortForwarder:
         self.destination_port = destination_port
         self.client_ids       = []
 
-    stopped: bool = false   // set by a deliberate stop; suppresses report_gone
+    gone: bool = false   // guards report_gone so it fires at most once
 
     function start():
         try:
@@ -647,16 +646,20 @@ class RemotePortForwarder:
         while true:
             accepted_socket = await server.accept()
             spawn handle_client(accepted_socket)
-        // If the accept loop ever exits and it was NOT a deliberate stop, the
-        // listener died — report it GONE so the server removes the forwarder:
+        // When the accept loop exits — whether from a deliberate stop or an
+        // unexpected crash — report_gone() sends the empty-host BindRep.
+        // handle_bind STOP already did cleanup (close_all_clients, remove from
+        // dict) so report_gone's cleanup calls are harmless no-ops in that case.
         finally:
-            if not self.stopped:
-                await report_gone()
+            await report_gone()
 
     function report_gone():
-        # CRASH-EMIT — the listener died on its own (not via stop). Tell the
-        # server it's gone with an empty-host BindRep, drop ourselves, and RST
-        # any connections. Guarded so it fires at most once.
+        # Notify the server this RPF is gone with an empty-host BindRep.
+        # Guarded by _gone so it fires at most once even if multiple
+        # close/error events race.
+        if self.gone:
+            return
+        self.gone = true
         remote_port_forwarders.remove(self)
         self.close_all_clients()
         await send_downstream_message(InitiateBINDRep(

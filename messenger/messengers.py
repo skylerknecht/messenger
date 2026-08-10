@@ -174,6 +174,12 @@ class Messenger:
                             f'is gone; removed and closed its connections.',
                             'warning'
                         )
+                    else:
+                        self.update_cli.display(
+                            f'Messenger `{self.nickname}` remote port forward `{message.bind_id}` '
+                            f'is no longer bound.',
+                            'status'
+                        )
                 else:
                     # PRESENT — the client is listening. Reconcile to its claim.
                     existing = next(
