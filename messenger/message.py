@@ -10,7 +10,7 @@ from messenger.aes import decrypt, encrypt
 # ---------------------------
 
 CheckInMessage = namedtuple('CheckInMessage', ['messenger_id'])
-InitiateTCPClientReq = namedtuple('InitiateTCPClientReq', ['client_id', 'ip_address', 'port'])
+InitiateTCPClientReq = namedtuple('InitiateTCPClientReq', ['client_id', 'ip_address', 'port', 'listening_host', 'listening_port'], defaults=['', 0])
 InitiateTCPClientRep = namedtuple('InitiateTCPClientRep', ['client_id', 'bind_address', 'bind_port', 'address_type', 'reason', 'remote_addr', 'remote_port'], defaults=['', 0])
 SendDataMessage = namedtuple('SendDataMessage', ['client_id', 'data'])
 InitiateBINDReq = namedtuple('InitiateBINDReq', ['bind_id', 'listening_host', 'listening_port', 'destination_host', 'destination_port'])
@@ -67,10 +67,21 @@ class MessageParser:
         client_id, value = MessageParser.read_string(value)
         ip_address, value = MessageParser.read_string(value)
         port, value = MessageParser.read_uint32(value)
+        # listening_host / listening_port are optional — appended by a remote
+        # port forwarder so the server can map the forwarded connection to the
+        # exact RPF by its listening endpoint. Absent for server-initiated
+        # (SOCKS/local) requests.
+        listening_host = ''
+        listening_port = 0
+        if len(value) > 0:
+            listening_host, value = MessageParser.read_string(value)
+            listening_port, value = MessageParser.read_uint32(value)
         return InitiateTCPClientReq(
             client_id=client_id,
             ip_address=ip_address,
-            port=port
+            port=port,
+            listening_host=listening_host,
+            listening_port=listening_port
         )
 
     @staticmethod
@@ -193,7 +204,9 @@ class MessageBuilder:
             value = encrypt(encryption_key, MessageBuilder.build_initiate_tcp_client_req(
                 msg.client_id,
                 msg.ip_address,
-                msg.port
+                msg.port,
+                msg.listening_host,
+                msg.listening_port
             ))
         elif isinstance(msg, InitiateTCPClientRep):
             message_type = 0x02
@@ -265,12 +278,18 @@ class MessageBuilder:
 
     @staticmethod
     def build_initiate_tcp_client_req(client_id: str,
-                                      ip_address: str, port: int) -> bytes:
-        return (
+                                      ip_address: str, port: int,
+                                      listening_host: str = '', listening_port: int = 0) -> bytes:
+        result = (
             MessageBuilder.build_string(client_id) +
             MessageBuilder.build_string(ip_address) +
             struct.pack('!I', port)
         )
+        # Only a remote port forwarder appends its listening endpoint; empty
+        # host means "not an RPF request" so nothing is appended.
+        if listening_host:
+            result += MessageBuilder.build_string(listening_host) + struct.pack('!I', listening_port)
+        return result
 
     @staticmethod
     def build_initiate_tcp_client_rep(client_id: str,

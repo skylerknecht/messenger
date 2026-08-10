@@ -254,11 +254,55 @@ class RemotePortForwarder(Forwarder):
         self.update_cli = update_cli
         listening_host, listening_port, destination_host, destination_port = self.parse_config(config)
         super().__init__(listening_host, listening_port, destination_host, destination_port, update_cli)
+        # True once the client has confirmed the bind (a real-host BindRep).
+        self.seen_bind_rep = False
+
+    @classmethod
+    def orphan(cls, messenger, bind_id, listening_host, listening_port, update_cli):
+        # A remote port forward the client advertised (via a real-host BindRep)
+        # that this server has no destination for — e.g. after a restart, or a
+        # bind_id it minted before we knew about it. Stored with an EMPTY
+        # destination so it never routes until the operator re-runs `remote` to
+        # set the destination. seen_bind_rep is True because the client told us
+        # it's listening.
+        self = cls.__new__(cls)
+        self.messenger = messenger
+        self.update_cli = update_cli
+        Forwarder.__init__(self, listening_host, int(listening_port), '', 0, update_cli)
+        self.identifier = bind_id
+        self.seen_bind_rep = True
+        return self
+
+    @property
+    def is_orphan(self):
+        # No destination configured yet → cannot route.
+        return not self.destination_host
+
+    def close_all_clients(self):
+        # RST every forwarded connection this RPF owns. Synchronous (abort()
+        # doesn't await) so it stays atomic between yield points.
+        for client in list(self.clients):
+            try:
+                transport = client.writer.transport
+                if transport:
+                    transport.abort()
+            except Exception:
+                pass
+        self.clients = []
 
     async def handle_initiate_tcp_client_rep(self, message):
         pass
 
     async def handle_initiate_tcp_client_req(self, message):
+        if self.is_orphan:
+            # No destination set — deny; the operator must configure it first.
+            await self.messenger.send_message_upstream(
+                InitiateTCPClientRep(
+                    client_id=message.client_id, bind_address="0.0.0.0",
+                    bind_port=0, address_type=1, reason=2
+                )
+            )
+            return
         try:
             reader, writer = await asyncio.wait_for(
                 asyncio.open_connection(self.destination_host, self.destination_port),
@@ -338,27 +382,23 @@ class RemotePortForwarder(Forwarder):
         )
 
     async def stop(self):
+        # Explicit teardown: an empty listening host is the STOP sentinel. The
+        # client can never mistake it for a new bind, so it just tears down the
+        # forwarder with this bind_id (or no-ops if it no longer has it).
         bind_req = InitiateBINDReq(
             bind_id=self.identifier,
-            listening_host=self.listening_host,
-            listening_port=self.listening_port,
-            destination_host=self.destination_host,
-            destination_port=self.destination_port
+            listening_host='',
+            listening_port=0,
+            destination_host='',
+            destination_port=0
         )
         await self.messenger.send_message_upstream(bind_req)
         self.update_cli.display(
-            f'Sent bind shutdown request to Messenger `{self.messenger.nickname}` '
-            f'for `{self.identifier}` ({self.listening_host}:{self.listening_port}).',
+            f'Sent stop to Messenger `{self.messenger.nickname}` for bind '
+            f'`{self.identifier}` ({self.listening_host}:{self.listening_port}).',
             'information'
         )
-
-        for client in self.clients:
-            try:
-                transport = client.writer.transport
-                if transport:
-                    transport.abort()
-            except Exception:
-                pass
+        self.close_all_clients()
 
         self.update_cli.display(
             f'Messenger `{self.messenger.nickname}` has stopped forwarding ({self.listening_host}:{self.listening_port}) -> ({self.destination_host}:{self.destination_port}).',

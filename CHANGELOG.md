@@ -6,6 +6,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-08-10
+
+> **Wire-protocol change (breaking for remote port forwards).** This release
+> reworks the remote-port-forward (BIND) control messages. A 0.7.2 server and a
+> pre-0.7.2 client will **not** interoperate for RPFs — rebuild and redeploy
+> clients from this version. SOCKS and local port forwards are unaffected.
+
+### Spec
+
+#### Changed
+
+- Reworked the remote-port-forward lifecycle in `docs/client.pseudo`:
+  - **Empty listening host is a sentinel.** A `BindReq` with `listening_host=""` means **stop** this bind; a `BindRep` with `listening_host=""` means the RPF is **gone** (failed / crashed / torn down). Replaces the old "duplicate bind_id toggles shutdown" and `0.0.0.0:0` conventions.
+  - **Empty destination = orphan.** A forwarder the server learns about (via a re-advertised `BindRep`) but has no destination for is stored with an empty destination; it never routes until the operator re-runs `remote` to set the destination.
+  - `InitiateTCPClientReq` now carries the originating **listening host:port** so the server maps a forwarded connection to the exact RPF instead of guessing by destination.
+  - Clients emit an empty-host `BindRep` on any listener death; the server removes the forwarder and tears down its connections.
+
+### Server
+
+#### Changed
+
+- Remote-port-forward control plane reworked to the model above (empty-host stop/gone, orphan adopt, conflict-replace, connection teardown on remove). Routing forwarded connections now matches on the listening endpoint carried in `InitiateTCPClientReq`.
+- Applied single-threaded-asyncio discipline to `messenger.forwarders` mutations (atomic claim-then-await, snapshot-before-iterate) instead of locking.
+
+### Client
+
+#### Changed
+
+- `handle_bind` recognizes the empty-host stop signal (tear down listener + connections, reply empty-host `BindRep`), emits an empty-host `BindRep` on listener failure/close, and appends the listening host:port to `InitiateTCPClientReq`.
+
 ## [0.7.1] - 2026-08-08
 
 ### Spec
