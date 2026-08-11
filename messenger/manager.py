@@ -139,7 +139,7 @@ class Manager:
                     'information', reprompt=False)
             else:
                 self.update_cli.display(
-                    f'Logging commands to: {self.logger.log_dir} (no messages)',
+                    f'Logging commands and no messages to: {self.logger.log_dir}',
                     'information', reprompt=False)
         self.messenger_engine = Engine(self.messengers, self.update_cli, generate_hash(self.encryption_key))
         self.messenger_server = HTTPWSServer(self.update_cli, self.messenger_engine, ip=server_ip, port=server_port, ssl=ssl)
