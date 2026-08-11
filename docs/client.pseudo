@@ -824,8 +824,7 @@ function main():
         try:
             await client.connect()
             log("[+] Connected to {candidate_url}")
-            await client.start()    # blocks until disconnect
-            break                   # disconnected — enter retry logic
+            break
         catch DecryptionError:
             log("[!] Decryption failed — the encryption key is likely incorrect. "
                 "The messenger cannot decrypt server traffic and is stopping.")
@@ -840,6 +839,19 @@ function main():
     if client is null:
         log("[!] All connection attempts failed.")
         return
+
+    # --- Initial start ---
+    # start() blocks until disconnect. Separated from connect() so a
+    # start() failure falls through to the retry loop instead of
+    # being mistaken for a connection failure.
+    try:
+        await client.start()
+    catch DecryptionError:
+        log("[!] Decryption failed — the encryption key is likely incorrect. "
+            "The messenger cannot decrypt server traffic and is stopping.")
+        return
+    catch error:
+        log("[!] Disconnected: {error}")
 
     # --- Reconnection ---
     if config.retry_attempts <= 0:

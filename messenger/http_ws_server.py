@@ -34,9 +34,9 @@ class HTTPWSServer:
             else:
                 site = web.TCPSite(runner, self.ip, self.port)
                 await site.start()
-            self.update_cli.display(f"Waiting for messengers on http{'s' if self.ssl else ''}+ws{'s' if self.ssl else ''}://{self.ip}:{self.port}/", 'Information', reprompt=False)
+            self.update_cli.display(f"Waiting for messengers on http{'s' if self.ssl else ''}+ws{'s' if self.ssl else ''}://{self.ip}:{self.port}/", 'Information')
         except OSError:
-            self.update_cli.display(f'An error prevented the server from starting:\n{traceback.format_exc()}', 'error', reprompt=False)
+            self.update_cli.display(f'An error prevented the server from starting:\n{traceback.format_exc()}', 'error')
 
     @staticmethod
     async def remove_server_header(_, response):
