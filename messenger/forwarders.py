@@ -400,12 +400,6 @@ class RemotePortForwarder(Forwarder):
         )
         self.close_all_clients()
 
-        self.update_cli.display(
-            f'Messenger `{self.messenger.nickname}` has stopped forwarding ({self.listening_host}:{self.listening_port}) -> ({self.destination_host}:{self.destination_port}).',
-            'success',
-            reprompt=False
-        )
-
 
 class InvalidConfigError(Exception):
     """Raised when a provided config string is invalid."""

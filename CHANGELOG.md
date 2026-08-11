@@ -14,19 +14,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `CheckOutMessage` (0x07) — server-to-client kill signal. Empty payload, not encrypted. The client tears down all RPF listeners and TCP clients, then returns from `main()` without reconnecting. No `exit()`/`abort` — a graceful unwind like decryption failure.
 - `killed` flag on the client base class, checked after `start()` returns and inside the reconnect loop.
+- Receive loops check for `CheckOutMessage` before spawning handlers — handled inline so the loop breaks immediately.
 
 ### Server
 
 #### Added
 
-- `kill` command — sends a `CheckOutMessage` to a messenger, closes all its forwarder TCP clients, and removes it from the messenger list.
+- `kill` command — sends a `CheckOutMessage` to a messenger. Supports targeting by ID/name or defaults to the current messenger when interacting. Does not remove the messenger from the list.
 - `CheckOutMessage` (type 7) added to logging type map.
+- `rename` now accepts a single argument when interacting with a messenger, renaming the current messenger.
+
+#### Changed
+
+- Status messages: "Sent kill signal" → "Queued kill signal", "Sent bind request" → "Queued bind request" to reflect that messages are queued, not delivered.
+- RPF "is gone" message unified to "is no longer bound" at status level.
+- Removed redundant "has stopped forwarding" message from remote port forward stop — the "removed from forwarders" and "is no longer bound" messages are sufficient.
 
 ### Client
 
 #### Added
 
 - All clients: `CheckOutMessage` (0x07) handler that stops all RPF listeners, closes all TCP clients, sets a `killed` flag, and lets `start()` return naturally. The reconnect loop checks `killed` and exits instead of retrying.
+
+#### Changed
+
+- All clients: receive loops now check for `CheckOutMessage` before spawning handlers, handling it inline so the loop exits immediately.
+
+#### Fixed
+
+- C# client: reconnection failed with "CancellationTokenSource has been disposed" after a dropped connection. The CTS is now nulled after disposal.
 
 ## [0.7.2] - 2026-08-10
 ### Spec
