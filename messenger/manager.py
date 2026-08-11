@@ -9,7 +9,6 @@ from collections import namedtuple
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import Completer, Completion
-from prompt_toolkit.patch_stdout import patch_stdout
 
 from functools import wraps
 from inspect import Parameter
@@ -62,7 +61,13 @@ class UpdateCLI:
             icon = color_text(status_info.icon, status_info.color)
 
         timestamp = color_text(f'[{datetime.now().strftime("%H:%M:%S")}]', 'white')
-        print(f'{timestamp} {icon} {stdout}')
+        # Erase the current line (prompt + user input), print our message,
+        # then tell prompt_toolkit its screen is stale so it redraws.
+        sys.stdout.write(f'\x1b[2K\r{timestamp} {icon} {stdout}\n')
+        sys.stdout.flush()
+        app = self.session.app
+        if app and app.is_running:
+            app.invalidate()
 
 
 class Manager:
@@ -734,39 +739,38 @@ class Manager:
         """
         await self.messenger_server.start()
 
-        with patch_stdout():
-            while True:
+        while True:
+            try:
+                prompt = self.current_messenger.nickname if self.current_messenger else self.PROMPT
+                user_input = await self.session.prompt_async(f'({prompt})~# ')
+            except KeyboardInterrupt:
+                self.update_cli.display(f"CTRL+C caught, type `exit` to quit Messenger.", 'information')
+                continue
+
+            if not user_input.strip():
+                continue
+
+            timestamp = self.logger.now()
+            output_path = None
+            with self.logger.capture() as output:
                 try:
-                    prompt = self.current_messenger.nickname if self.current_messenger else self.PROMPT
-                    user_input = await self.session.prompt_async(f'({prompt})~# ')
+                    parts = user_input.split(' ')
+                    command = parts[0]
+                    for messenger in self.messengers:
+                        if command in (messenger.identifier, messenger.nickname):
+                            await self.interact(messenger)
+                            break
+                    else:
+                        output_path = await self.execute_command(command, parts[1:])
+                except InvalidConfigError as e:
+                    self.update_cli.display(str(e), 'error')
                 except KeyboardInterrupt:
                     self.update_cli.display(f"CTRL+C caught, type `exit` to quit Messenger.", 'information')
-                    continue
+                except Exception as e:
+                    self._log_unexpected_error(e)
 
-                if not user_input.strip():
-                    continue
-
-                timestamp = self.logger.now()
-                output_path = None
-                with self.logger.capture() as output:
-                    try:
-                        parts = user_input.split(' ')
-                        command = parts[0]
-                        for messenger in self.messengers:
-                            if command in (messenger.identifier, messenger.nickname):
-                                await self.interact(messenger)
-                                break
-                        else:
-                            output_path = await self.execute_command(command, parts[1:])
-                    except InvalidConfigError as e:
-                        self.update_cli.display(str(e), 'error')
-                    except KeyboardInterrupt:
-                        self.update_cli.display(f"CTRL+C caught, type `exit` to quit Messenger.", 'information')
-                    except Exception as e:
-                        self._log_unexpected_error(e)
-
-                captured = strip_ansi(output.getvalue()).strip()
-                self.logger.record_command(timestamp, user_input.strip(), captured)
+            captured = strip_ansi(output.getvalue()).strip()
+            self.logger.record_command(timestamp, user_input.strip(), captured)
 
             if output_path:
                 self._write_output_file(output_path, captured)
