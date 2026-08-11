@@ -33,6 +33,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - An orphan RPF denies forwarded connections with reason 2 until the operator configures a destination.
 - `forwarders` table shows `(unconfigured)` for an orphan RPF's destination.
 - Applied single-threaded-asyncio discipline to `messenger.forwarders` mutations (atomic claim-then-await, snapshot-before-iterate) instead of locking.
+- Removed timestamps from CLI status messages — the bracket-prefix icon is now the only decoration.
+- Context-aware logging display: `logging` output shows which message types are being recorded by name (e.g. `CheckInMessage, SendDataMessage`) or `no messages` when none are enabled.
+- `BindRep` with `reason != 0` now logs at error severity instead of warning.
+- Missing `User-Agent` on a messenger defaults to `•••` instead of `Unknown`.
+
+#### Fixed
+
+- ANSI corruption when async output interleaved with the prompt — replaced `patch_stdout` with `\x1b[2K` erase-line plus prompt invalidation.
+- `logging` command displayed `(no messages)` as a suffix instead of inline `and no messages to:`.
 
 ### Client
 
@@ -42,6 +51,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `handle_bind` recognizes the empty-host stop signal (tear down listener + connections, reply empty-host `BindRep`), is idempotent on duplicate bind requests, and replies with an empty-host `BindRep` on bind failure.
 - RPF listener crash-emit: if the accept loop exits (crash or intentional stop) the client emits an empty-host `BindRep` and removes the forwarder from its list; a `_gone` guard prevents double-reporting.
 - `InitiateTCPClientReq` now appends the RPF's listening host:port so the server can route by exact endpoint.
+- Retry loop now logs the attempt number (`[*] Attempting to reconnect (1/5)…`) with `consecutive_failures` incremented before the attempt, not after a failure.
+- `connect()` and `start()` are wrapped in separate try blocks so a transport-connect failure is distinguished from a session-start failure.
+
+#### Fixed
+
+- C# and Node.js: removed a duplicate `consecutiveFailures++` in the catch block that double-counted failures after the increment was moved before the try block.
+- Python: `namedtuple` `defaults` parameter replaced with a pattern compatible with Python 3.6.
 
 ## [0.7.1] - 2026-08-08
 
