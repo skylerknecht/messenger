@@ -983,46 +983,67 @@ class Manager:
                 return
         self.update_cli.display(f'`{id}` not found', 'error', reprompt=False)
 
-    async def kill(self, id):
+    async def kill(self, id=None):
         """
         Kill a messenger by sending a checkout signal.
 
-        required:
+        optional:
           id                       ID or name of the messenger to kill.
+                                   Defaults to the current messenger if interacting.
 
         examples:
           kill NkMCyCrrcP
           kill dc01
+          kill
         """
-        target = None
-        for messenger in self.messengers:
-            if id in (messenger.identifier, messenger.nickname):
-                target = messenger
-                break
-        if target is None:
-            self.update_cli.display(f'`{id}` not found.', 'error', reprompt=False)
-            return
+        if id is None:
+            if self.current_messenger is None:
+                self.update_cli.display('Please specify a messenger or interact with one first.', 'error', reprompt=False)
+                return
+            target = self.current_messenger
+        else:
+            target = None
+            for messenger in self.messengers:
+                if id in (messenger.identifier, messenger.nickname):
+                    target = messenger
+                    break
+            if target is None:
+                self.update_cli.display(f'`{id}` not found.', 'error', reprompt=False)
+                return
         await target.send_message_upstream(CheckOutMessage())
         for forwarder in list(target.forwarders):
             forwarder.close_all_clients() if hasattr(forwarder, 'close_all_clients') else None
-        self.messengers.remove(target)
         self.update_cli.display(
             f'Sent kill signal to Messenger `{target.nickname}`.',
             'success', reprompt=False
         )
 
-    async def rename(self, id, name):
+    async def rename(self, id_or_name, name=None):
         """
         Rename a messenger, forwarder, or scanner.
 
         required:
-          id                       ID or current name of the target.
-          name                     The new name to assign.
+          id_or_name               ID or current name of the target, or the new
+                                   name when interacting with a messenger.
+
+        optional:
+          name                     The new name to assign. Required unless
+                                   interacting with a messenger.
 
         examples:
           rename NkMCyCrrcP dc01
           rename dc01 webserver
+          rename dc01
         """
+        if name is None:
+            if self.current_messenger is None:
+                self.update_cli.display('Please specify both an ID and a name, or interact with a messenger first.', 'error', reprompt=False)
+                return
+            name = id_or_name
+            id = self.current_messenger.identifier
+        else:
+            id = id_or_name
+
         if not re.fullmatch(r'[A-Za-z0-9_-]+', name):
             self.update_cli.display('Names may only contain letters, numbers, hyphens, and underscores.', 'error', reprompt=False)
             return
