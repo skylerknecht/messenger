@@ -8,11 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.7.2] - 2026-08-10
 
-> **Wire-protocol change (breaking for remote port forwards).** This release
-> reworks the remote-port-forward (BIND) control messages. A 0.7.2 server and a
-> pre-0.7.2 client will **not** interoperate for RPFs — rebuild and redeploy
-> clients from this version. SOCKS and local port forwards are unaffected.
-
 ### Spec
 
 #### Changed
