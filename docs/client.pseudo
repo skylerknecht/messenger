@@ -305,9 +305,6 @@ class Client:
                     close(socket)
                 tcp_clients.clear()
                 killed = true
-                // start() will return naturally when the transport closes
-                // or on the next loop iteration (HTTP). The reconnect loop
-                // in main() checks `killed` and returns instead of retrying.
 
 
     function handle_bind(bind_id, listening_host, listening_port, destination_host, destination_port):
@@ -545,6 +542,11 @@ class WSClient extends Client:
                 break
 
             messages = deserialize_messages(frame_bytes, encryption_key)
+
+            if any message is CheckOutMessage:
+                handle_message(CheckOutMessage)   // inline, not spawned
+                break
+
             for message in messages:
                 spawn handle_message(message)
                 // Each message dispatched independently so a slow
@@ -624,6 +626,11 @@ class HTTPClient extends Client:
 
             if response.body is not empty:
                 messages = deserialize_messages(response.body, encryption_key)
+
+                if any message is CheckOutMessage:
+                    handle_message(CheckOutMessage)   // inline, not spawned
+                    break
+
                 for message in messages:
                     spawn handle_message(message)
 
