@@ -147,8 +147,12 @@ struct CheckInMessage:
 
 struct InitiateTCPClientReq:
     client_id: string
-    ip_address: string
-    port: uint32
+    destination_host: string
+    destination_port: uint32
+    listening_host: string  # optional — a remote port forwarder appends the
+    listening_port: uint32  # listening endpoint it came through, so the server
+                            # maps the connection to the exact RPF (not by dest).
+                            # Absent for server-initiated (SOCKS/local) requests.
 
 struct InitiateTCPClientRep:
     client_id: string
@@ -165,16 +169,45 @@ struct SendDataMessage:
 
 struct InitiateBINDReq:
     bind_id: string
-    listening_host: string
-    listening_port: uint32
+    listening_host: string  # SENTINEL: "" (empty) = STOP this bind (teardown).
+    listening_port: uint32  #   A real host = create/bind this RPF.
     destination_host: string
     destination_port: uint32
 
 struct InitiateBINDRep:
     bind_id: string
-    listening_host: string
+    listening_host: string  # always the real listening endpoint, even on failure
     listening_port: uint32
-    reason: uint32          # 0 = success
+    reason: uint32          # 0 = success/confirmed; non-zero = GONE (bind failed,
+                            #   crashed, or torn down)
+
+# ---------------------------------------------------------------------------
+# REMOTE PORT FORWARD (BIND) LIFECYCLE
+# ---------------------------------------------------------------------------
+# The client is the ground truth for what is actually listening (the listener
+# physically lives on it). The server keeps a per-connection cache and
+# reconciles to the client.
+#
+#   server -> client   InitiateBINDReq
+#       listening_host = real  -> create + bind (idempotent if already held)
+#       listening_host = ""    -> STOP: tear down that bind_id (kill its
+#                                 forwarded connections + close the listener)
+#
+#   client -> server   InitiateBINDRep  (always carries the real host:port)
+#       reason == 0  -> "I'm listening": server confirms it, or (if the
+#                       bind_id is unknown) stores an ORPHAN with an EMPTY
+#                       destination — it never routes until the operator
+#                       re-runs `remote` to set the dest. A reason-0 BindRep
+#                       for a listening endpoint the server holds under a
+#                       DIFFERENT bind_id replaces that stale entry (client
+#                       wins).
+#       reason != 0  -> GONE: server removes the forwarder and RSTs its
+#                       connections. Covers bind failure, listener crash,
+#                       and the reply to a stop.
+#
+# A forwarded connection carries its listening endpoint in InitiateTCPClientReq,
+# so the server routes it to the exact RPF and connects to that RPF's
+# operator-configured destination (an orphan with no destination is denied).
 
 # SendDataMessage payload format:
 #   client_id (length-prefixed string)
@@ -199,8 +232,8 @@ class Client:
             InitiateTCPClientReq:
                 await handle_tcp_connect(
                     message.client_id,
-                    message.ip_address,
-                    message.port
+                    message.destination_host,
+                    message.destination_port
                 )
 
             InitiateTCPClientRep:
@@ -252,23 +285,29 @@ class Client:
 
 
     function handle_bind(bind_id, listening_host, listening_port, destination_host, destination_port):
-        existing = find remote_port_forwarders where identifier == bind_id
-        if existing is not null:
-            # Same bind_id received again — shut it down.
-            # RST all TCP clients spawned by this forwarder so their
-            # stream() tasks finish and don't block future check-ins.
-            existing.close_all_clients()
-            await existing.stop()
-            remote_port_forwarders.remove(existing)
-            reply = InitiateBINDRep(
-                bind_id        = bind_id,
-                listening_host = "0.0.0.0",
-                listening_port = 0,
-                reason         = 0
-            )
-            await send_downstream_message(reply)
+
+        # --- STOP: empty listening host tears this bind down. ---
+        # Unambiguous — never mistaken for a new bind — so it works even if we
+        # don't have this bind_id (just no-op). Close the listener and RST all
+        # forwarded connections immediately; the accept-loop finally / close-event
+        # will fire report_gone() which sends the BindRep with reason!=0 to the server.
+        if listening_host == "":
+            existing = find remote_port_forwarders where identifier == bind_id
+            if existing is not null:
+                existing.stop()
+                existing.close_all_clients()
+                remote_port_forwarders.remove(existing)
             return
 
+        # --- Idempotent: already holding this bind_id → just re-confirm. ---
+        # (A duplicate real BindReq is NOT a shutdown any more.)
+        if remote_port_forwarders has one where identifier == bind_id:
+            await send_downstream_message(InitiateBINDRep(
+                bind_id = bind_id, listening_host = listening_host,
+                listening_port = listening_port, reason = 0))
+            return
+
+        # --- Create + bind. ---
         try:
             forwarder = new RemotePortForwarder(
                 self, bind_id, listening_host, listening_port,
@@ -276,32 +315,20 @@ class Client:
             )
             success = await forwarder.start()
             if not success:
-                reply = InitiateBINDRep(
-                    bind_id        = bind_id,
-                    listening_host = listening_host,
-                    listening_port = listening_port,
-                    reason         = 1
-                )
-                await send_downstream_message(reply)
+                await send_downstream_message(InitiateBINDRep(
+                    bind_id = bind_id, listening_host = listening_host,
+                    listening_port = listening_port, reason = 1))
                 return
 
             remote_port_forwarders.append(forwarder)
-            reply = InitiateBINDRep(
-                bind_id        = bind_id,
-                listening_host = listening_host,
-                listening_port = listening_port,
-                reason         = 0
-            )
-            await send_downstream_message(reply)
+            await send_downstream_message(InitiateBINDRep(
+                bind_id = bind_id, listening_host = listening_host,
+                listening_port = listening_port, reason = 0))
 
         catch error:
-            reply = InitiateBINDRep(
-                bind_id        = bind_id,
-                listening_host = listening_host,
-                listening_port = listening_port,
-                reason         = 1
-            )
-            await send_downstream_message(reply)
+            await send_downstream_message(InitiateBINDRep(
+                bind_id = bind_id, listening_host = listening_host,
+                listening_port = listening_port, reason = 1))
 
 
     function handle_tcp_connect(client_id, ip, port):
@@ -605,22 +632,40 @@ class RemotePortForwarder:
         self.destination_port = destination_port
         self.client_ids       = []
 
+    gone: bool = false   // guards report_gone so it fires at most once
+
     function start():
         try:
             address = resolve_hostname(listening_host)
             server = bind_tcp(address, listening_port)
         catch bind_error:
             log("[!] {host}:{port} is already in use or encountered an error")
-            return
-            // Do NOT crash the process. Other forwarders and the main
-            // client should continue running.
-            //
-            // NOTE: The error handler MUST be reachable. If using a Promise
-            // constructor, ensure reject is defined as a parameter.
+            return false
+            // Do NOT crash the process. handle_bind reports this as GONE
+            // (empty-host BindRep) so the server drops its record.
 
         while true:
             accepted_socket = await server.accept()
             spawn handle_client(accepted_socket)
+        // When the accept loop exits — whether from a deliberate stop or an
+        // unexpected crash — report_gone() sends the empty-host BindRep.
+        // handle_bind STOP already did cleanup (close_all_clients, remove from
+        // dict) so report_gone's cleanup calls are harmless no-ops in that case.
+        finally:
+            await report_gone()
+
+    function report_gone():
+        # Notify the server this RPF is gone with an empty-host BindRep.
+        # Guarded by _gone so it fires at most once even if multiple
+        # close/error events race.
+        if self.gone:
+            return
+        self.gone = true
+        remote_port_forwarders.remove(self)
+        self.close_all_clients()
+        await send_downstream_message(InitiateBINDRep(
+            bind_id = self.identifier, listening_host = self.listening_host,
+            listening_port = self.listening_port, reason = 1))
 
     function stop():
         if server is not null:
@@ -651,9 +696,11 @@ class RemotePortForwarder:
         // would be lost because no stream() task is running yet.
 
         request = InitiateTCPClientReq(
-            client_id = client_id,
-            ip_address          = destination_host,
-            port                = destination_port
+            client_id      = client_id,
+            destination_host = destination_host,
+            destination_port = destination_port,
+            listening_host = self.listening_host,   # so the server maps this
+            listening_port = self.listening_port    # connection to THIS exact RPF
         )
         await messenger.send_downstream_message(request)
 
@@ -777,8 +824,7 @@ function main():
         try:
             await client.connect()
             log("[+] Connected to {candidate_url}")
-            await client.start()    # blocks until disconnect
-            break                   # disconnected — enter retry logic
+            break
         catch DecryptionError:
             log("[!] Decryption failed — the encryption key is likely incorrect. "
                 "The messenger cannot decrypt server traffic and is stopping.")
@@ -794,6 +840,19 @@ function main():
         log("[!] All connection attempts failed.")
         return
 
+    # --- Initial start ---
+    # start() blocks until disconnect. Separated from connect() so a
+    # start() failure falls through to the retry loop instead of
+    # being mistaken for a connection failure.
+    try:
+        await client.start()
+    catch DecryptionError:
+        log("[!] Decryption failed — the encryption key is likely incorrect. "
+            "The messenger cannot decrypt server traffic and is stopping.")
+        return
+    catch error:
+        log("[!] Disconnected: {error}")
+
     # --- Reconnection ---
     if config.retry_attempts <= 0:
         return
@@ -802,6 +861,8 @@ function main():
     consecutive_failures = 0
 
     while consecutive_failures < config.retry_attempts:
+        consecutive_failures += 1
+        log("[*] Attempting to reconnect (attempt {consecutive_failures}/{config.retry_attempts})")
         await sleep(sleep_interval)
 
         try:
@@ -833,5 +894,4 @@ function main():
             return
             // Fatal: reconnecting cannot fix a wrong key. Stop the loop.
         catch error:
-            consecutive_failures += 1
             log("[!] Reconnection failed: {error}")

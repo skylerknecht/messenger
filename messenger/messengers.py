@@ -10,6 +10,7 @@ from messenger.message import (
     InitiateBINDReq,
     InitiateBINDRep
 )
+from messenger.forwarders import RemotePortForwarder
 from messenger.text import color_text
 
 class Messenger:
@@ -99,16 +100,24 @@ class Messenger:
             self.log_message('downstream', message)
             # 1) Initiate TCP Client Request (0x01)
             if isinstance(message, InitiateTCPClientReq):
-                destination_host = message.ip_address
-                destination_port = message.port
-                for forwarder in self.forwarders:
-                    if forwarder.destination_host == destination_host and int(forwarder.destination_port) == destination_port:
-                        await forwarder.handle_initiate_tcp_client_req(message)
-                        break
+                # A forwarded connection from a remote port forwarder carries the
+                # listening endpoint it came through, so map it to the EXACT RPF
+                # rather than guessing by destination. Snapshot the list before
+                # awaiting (don't iterate-and-await over shared state).
+                forwarder = next(
+                    (f for f in list(self.forwarders)
+                     if isinstance(f, RemotePortForwarder)
+                     and f.listening_host == message.listening_host
+                     and int(f.listening_port) == int(message.listening_port)),
+                    None
+                )
+                if forwarder is not None and not forwarder.is_orphan:
+                    await forwarder.handle_initiate_tcp_client_req(message)
                 else:
                     self.update_cli.display(
-                        f'Messenger `{self.nickname}` has no Remote Port Forwarder configured '
-                        f'for {destination_host}:{destination_port}, denying forward!',
+                        f'Messenger `{self.nickname}` has no configured remote port forward '
+                        f'for {message.listening_host}:{message.listening_port} -> '
+                        f'{message.destination_host}:{message.destination_port}, denying forward!',
                         'warning'
                     )
                     await self.send_message_upstream(
@@ -148,21 +157,82 @@ class Messenger:
 
             # 5) Initiate BIND Response (0x06)
             elif isinstance(message, InitiateBINDRep):
-                if message.reason == 0 and message.listening_host == '0.0.0.0' and message.listening_port == 0:
-                    self.update_cli.display(
-                        f'Messenger `{self.nickname}` confirmed bind shutdown for `{message.bind_id}`.',
-                        'success'
-                    )
-                elif message.reason == 0:
-                    self.update_cli.display(
-                        f'Messenger `{self.nickname}` bound {message.listening_host}:{message.listening_port}.',
-                        'success'
-                    )
+                if message.reason != 0:
+                    # GONE — the RPF failed to bind, crashed, or was torn down.
+                    # Claim the entry atomically (pop before any await), then RST
+                    # its connections. A stop we initiated lands here too.
+                    gone = None
+                    for i, f in enumerate(self.forwarders):
+                        if f.identifier == message.bind_id:
+                            gone = self.forwarders.pop(i)
+                            break
+                    if gone is not None:
+                        gone.close_all_clients()
+                        if not gone.seen_bind_rep:
+                            self.update_cli.display(
+                                f'Messenger `{self.nickname}` failed to bind '
+                                f'{message.listening_host}:{message.listening_port}.',
+                                'error'
+                            )
+                        else:
+                            self.update_cli.display(
+                                f'Messenger `{self.nickname}` remote port forward `{message.bind_id}` '
+                                f'({message.listening_host}:{message.listening_port}) is gone; '
+                                f'removed and closed its connections.',
+                                'error'
+                            )
+                    else:
+                        self.update_cli.display(
+                            f'Messenger `{self.nickname}` remote port forward `{message.bind_id}` '
+                            f'({message.listening_host}:{message.listening_port}) is no longer bound.',
+                            'status'
+                        )
                 else:
-                    self.update_cli.display(
-                        f'Messenger `{self.nickname}` failed to bind {message.listening_host}:{message.listening_port} (reason={message.reason}).',
-                        'error'
+                    # PRESENT — the client is listening. Reconcile to its claim.
+                    existing = next(
+                        (f for f in self.forwarders if f.identifier == message.bind_id),
+                        None
                     )
+                    if existing is not None:
+                        existing.seen_bind_rep = True
+                        self.update_cli.display(
+                            f'Messenger `{self.nickname}` bound {message.listening_host}:{message.listening_port}.',
+                            'success'
+                        )
+                    else:
+                        # Unknown bind_id. Any forwarder we hold on this listening
+                        # endpoint is stale (the client is ground truth for what's
+                        # actually listening) — replace it, then store an orphan
+                        # (empty dest) awaiting `remote` to configure it.
+                        stale = None
+                        for i, f in enumerate(self.forwarders):
+                            if (isinstance(f, RemotePortForwarder)
+                                    and f.listening_host == message.listening_host
+                                    and int(f.listening_port) == int(message.listening_port)):
+                                stale = self.forwarders.pop(i)
+                                break
+                        if stale is not None:
+                            stale.close_all_clients()
+                            self.update_cli.display(
+                                f'Messenger `{self.nickname}` claims bind `{message.bind_id}` on '
+                                f'{message.listening_host}:{message.listening_port}, which was tracked as '
+                                f'`{stale.identifier}`; replaced the stale entry.',
+                                'warning'
+                            )
+                        orphan = RemotePortForwarder.orphan(
+                            self, message.bind_id, message.listening_host,
+                            message.listening_port, self.update_cli
+                        )
+                        self.forwarders.append(orphan)
+                        self.update_cli.display(
+                            f'Messenger `{self.nickname}` advertised remote port forward `{message.bind_id}` '
+                            f'on {message.listening_host}:{message.listening_port} with no destination.',
+                            'warning'
+                        )
+                        self.update_cli.display(
+                            f'Run `remote {message.listening_host}:{message.listening_port}:<destination>` to configure it.',
+                            'warning'
+                        )
 
             # Unknown / Unhandled
             else:

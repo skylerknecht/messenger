@@ -62,7 +62,7 @@ class HTTPWSServer:
 
     async def http_post_handler(self, request):
         ip = request.remote
-        user_agent = request.headers.get('User-Agent', 'Unknown')
+        user_agent = request.headers.get('User-Agent', '•••')
 
         upstream_message_data = b''
         data = await request.read()
@@ -100,7 +100,7 @@ class HTTPWSServer:
         await ws.prepare(request)
 
         ip = request.remote
-        user_agent = request.headers.get('User-Agent', 'Unknown')
+        user_agent = request.headers.get('User-Agent', '•••')
         msg = await ws.receive()
         if msg.type != web.WSMsgType.BINARY:
             await ws.close()

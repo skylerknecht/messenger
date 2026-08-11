@@ -187,8 +187,8 @@ class Scanner:
 
             msg = InitiateTCPClientReq(
                 client_id=identifier,
-                ip_address=ip,
-                port=port
+                destination_host=ip,
+                destination_port=port
             )
             await self.messenger.send_message_upstream(msg)
             await asyncio.sleep(1)
