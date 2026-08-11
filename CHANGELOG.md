@@ -6,6 +6,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-08-11
+
+### Spec
+
+#### Added
+
+- `CheckOutMessage` (0x07) — server-to-client kill signal. Empty payload, not encrypted. The client tears down all RPF listeners and TCP clients, then returns from `main()` without reconnecting. No `exit()`/`abort` — a graceful unwind like decryption failure.
+- `killed` flag on the client base class, checked after `start()` returns and inside the reconnect loop.
+
+### Server
+
+#### Added
+
+- `kill` command — sends a `CheckOutMessage` to a messenger, closes all its forwarder TCP clients, and removes it from the messenger list.
+- `CheckOutMessage` (type 7) added to logging type map.
+
+### Client
+
+#### Added
+
+- All clients: `CheckOutMessage` (0x07) handler that stops all RPF listeners, closes all TCP clients, sets a `killed` flag, and lets `start()` return naturally. The reconnect loop checks `killed` and exits instead of retrying.
+
 ## [0.7.2] - 2026-08-10
 
 > **Wire-protocol change (breaking for remote port forwards).** This release
