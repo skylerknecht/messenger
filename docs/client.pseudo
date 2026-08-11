@@ -861,6 +861,8 @@ function main():
     consecutive_failures = 0
 
     while consecutive_failures < config.retry_attempts:
+        consecutive_failures += 1
+        log("[*] Attempting to reconnect (attempt {consecutive_failures}/{config.retry_attempts})")
         await sleep(sleep_interval)
 
         try:
@@ -892,5 +894,4 @@ function main():
             return
             // Fatal: reconnecting cannot fix a wrong key. Stop the loop.
         catch error:
-            consecutive_failures += 1
             log("[!] Reconnection failed: {error}")

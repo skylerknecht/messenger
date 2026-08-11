@@ -60,8 +60,7 @@ class UpdateCLI:
         else:
             icon = color_text(status_info.icon, status_info.color)
 
-        timestamp = color_text(f'[{datetime.now().strftime("%H:%M:%S")}]', 'white')
-        print(f'\x1b[2K\r{timestamp} {icon} {stdout}')
+        print(f'\x1b[2K\r{icon} {stdout}')
 
         if reprompt:
             print(f'({self.prompt})~# ' + self.session.app.current_buffer.text, end='')
@@ -129,7 +128,19 @@ class Manager:
                 self.update_cli.display(f'Created logging directory: {self.logger.log_dir}', 'information', reprompt=False)
             self.update_cli.display(f'Using messenger directory: {self.logger.base_dir}', 'information', reprompt=False)
             self.update_cli.display(f'Using config file: {config_path}', 'information', reprompt=False)
-            self.update_cli.display(f'Using logging directory: {self.logger.log_dir}', 'information', reprompt=False)
+            if logging_types:
+                msg_names = ', '.join(sorted({
+                    {1: 'CheckInMessage', 2: 'InitiateTCPClientReq', 3: 'InitiateTCPClientRep',
+                     4: 'SendDataMessage', 5: 'InitiateBINDReq', 6: 'InitiateBINDRep'}[t]
+                    for t in logging_types if t in range(1, 7)
+                }))
+                self.update_cli.display(
+                    f'Logging commands and {msg_names} messages to: {self.logger.log_dir}',
+                    'information', reprompt=False)
+            else:
+                self.update_cli.display(
+                    f'Logging commands to: {self.logger.log_dir} (no messages)',
+                    'information', reprompt=False)
         self.messenger_engine = Engine(self.messengers, self.update_cli, generate_hash(self.encryption_key))
         self.messenger_server = HTTPWSServer(self.update_cli, self.messenger_engine, ip=server_ip, port=server_port, ssl=ssl)
 
@@ -864,7 +875,7 @@ class Manager:
             self.update_cli.display(
                 f'Configured remote port forward `{existing.identifier}` on Messenger '
                 f'`{messenger.nickname}` ({existing.listening_host}:{existing.listening_port} -> '
-                f'{existing.destination_host}:{existing.destination_port}); no bind request sent.',
+                f'{existing.destination_host}:{existing.destination_port}).',
                 'success', reprompt=False
             )
             return

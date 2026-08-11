@@ -172,14 +172,14 @@ class Messenger:
                             self.update_cli.display(
                                 f'Messenger `{self.nickname}` failed to bind '
                                 f'{message.listening_host}:{message.listening_port}.',
-                                'warning'
+                                'error'
                             )
                         else:
                             self.update_cli.display(
                                 f'Messenger `{self.nickname}` remote port forward `{message.bind_id}` '
                                 f'({message.listening_host}:{message.listening_port}) is gone; '
                                 f'removed and closed its connections.',
-                                'warning'
+                                'error'
                             )
                     else:
                         self.update_cli.display(
@@ -226,8 +226,11 @@ class Messenger:
                         self.forwarders.append(orphan)
                         self.update_cli.display(
                             f'Messenger `{self.nickname}` advertised remote port forward `{message.bind_id}` '
-                            f'on {message.listening_host}:{message.listening_port} with no destination; run '
-                            f'`remote {message.listening_host}:{message.listening_port}:<destination>` to configure it.',
+                            f'on {message.listening_host}:{message.listening_port} with no destination.',
+                            'warning'
+                        )
+                        self.update_cli.display(
+                            f'Run `remote {message.listening_host}:{message.listening_port}:<destination>` to configure it.',
                             'warning'
                         )
 
