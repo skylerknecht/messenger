@@ -226,11 +226,11 @@ class Messenger:
                         self.forwarders.append(orphan)
                         self.update_cli.display(
                             f'Messenger `{self.nickname}` advertised remote port forward `{message.bind_id}` '
-                            f'on {message.listening_host}:{message.listening_port} with no destination.',
+                            f'on {message.listening_host}:{message.listening_port}.',
                             'warning'
                         )
                         self.update_cli.display(
-                            f'Run `remote {message.listening_host}:{message.listening_port}:<destination>` to configure it.',
+                            f'Run `remote {message.listening_host}:{message.listening_port}:<destination_host>:<destination_port>` to configure it.',
                             'warning'
                         )
 
