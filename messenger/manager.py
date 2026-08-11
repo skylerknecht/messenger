@@ -49,7 +49,7 @@ class UpdateCLI:
         self.debug_types = set()
         self.logging_types = set(logging_types) if logging_types else set()
 
-    def display(self, stdout, status='standard', debug_level=0):
+    def display(self, stdout, status='standard', reprompt=True, debug_level=0):
         status_info = self.STATUS_LEVELS.get(status, self.STATUS_LEVELS['information'])
 
         if status == 'debug':
@@ -61,13 +61,11 @@ class UpdateCLI:
             icon = color_text(status_info.icon, status_info.color)
 
         timestamp = color_text(f'[{datetime.now().strftime("%H:%M:%S")}]', 'white')
-        # Erase the current line (prompt + user input), print our message,
-        # then tell prompt_toolkit its screen is stale so it redraws.
-        sys.stdout.write(f'\x1b[2K\r{timestamp} {icon} {stdout}\n')
-        sys.stdout.flush()
-        app = self.session.app
-        if app and app.is_running:
-            app.invalidate()
+        print(f'\x1b[2K\r{timestamp} {icon} {stdout}')
+
+        if reprompt:
+            print(f'({self.prompt})~# ' + self.session.app.current_buffer.text, end='')
+            sys.stdout.flush()
 
 
 class Manager:
@@ -122,16 +120,16 @@ class Manager:
         self.update_cli = UpdateCLI(self.PROMPT, self.session, self.logger, logging_types)
         self.encryption_key = encryption_key if encryption_key is not None else generate_encryption_key()
         if not quiet:
-            self.update_cli.display(f'The AES encryption key is {bold_text(self.encryption_key)}', 'information')
+            self.update_cli.display(f'The AES encryption key is {bold_text(self.encryption_key)}', 'information', reprompt=False)
             if created_dir:
-                self.update_cli.display(f'Created messenger directory: {self.logger.base_dir}', 'information')
+                self.update_cli.display(f'Created messenger directory: {self.logger.base_dir}', 'information', reprompt=False)
             if created_config:
-                self.update_cli.display(f'Created config file: {config_path}', 'information')
+                self.update_cli.display(f'Created config file: {config_path}', 'information', reprompt=False)
             if self.logger.logs_created:
-                self.update_cli.display(f'Created logging directory: {self.logger.log_dir}', 'information')
-            self.update_cli.display(f'Using messenger directory: {self.logger.base_dir}', 'information')
-            self.update_cli.display(f'Using config file: {config_path}', 'information')
-            self.update_cli.display(f'Using logging directory: {self.logger.log_dir}', 'information')
+                self.update_cli.display(f'Created logging directory: {self.logger.log_dir}', 'information', reprompt=False)
+            self.update_cli.display(f'Using messenger directory: {self.logger.base_dir}', 'information', reprompt=False)
+            self.update_cli.display(f'Using config file: {config_path}', 'information', reprompt=False)
+            self.update_cli.display(f'Using logging directory: {self.logger.log_dir}', 'information', reprompt=False)
         self.messenger_engine = Engine(self.messengers, self.update_cli, generate_hash(self.encryption_key))
         self.messenger_server = HTTPWSServer(self.update_cli, self.messenger_engine, ip=server_ip, port=server_port, ssl=ssl)
 
@@ -197,7 +195,8 @@ class Manager:
 
     async def execute_command(self, command, tokens):
         if command not in self.commands:
-            self.update_cli.display(f'Command `{command}` not found. Type `help` for available commands.', 'warning')
+            self.update_cli.display(f'Command `{command}` not found. Type `help` for available commands.', 'warning',
+                                    reprompt=False)
             return
 
         func, _ = self.commands[command]
@@ -221,13 +220,13 @@ class Manager:
                 try:
                     output_path = next(tokens_iter)
                 except StopIteration:
-                    self.update_cli.display(f'Flag `{token}` requires a file path.', 'error')
+                    self.update_cli.display(f'Flag `{token}` requires a file path.', 'error', reprompt=False)
                     return
             elif token.startswith('--') or token.startswith('-'):
                 name = token.lstrip('-').replace('-', '_')
                 param = params.get(name)
                 if param is None or param.kind not in (Parameter.POSITIONAL_OR_KEYWORD, Parameter.KEYWORD_ONLY):
-                    self.update_cli.display(f'{command} does not support the flag `{token}`.', 'error')
+                    self.update_cli.display(f'{command} does not support the flag `{token}`.', 'error', reprompt=False)
                     return
                 consumed_flags.add(name)
                 default = param.default
@@ -237,7 +236,7 @@ class Manager:
                     try:
                         keyword_args[name] = next(tokens_iter)
                     except StopIteration:
-                        self.update_cli.display(f'Flag `{token}` requires a value.', 'error')
+                        self.update_cli.display(f'Flag `{token}` requires a value.', 'error', reprompt=False)
                         return
             else:
                 positional_args.append(token)
@@ -257,7 +256,8 @@ class Manager:
         if len(positional_args) < len(required_params):
             self.update_cli.display(
                 f'Command `{command}` requires {len(required_params)} argument(s), but got {len(positional_args)}.',
-                'warning'            )
+                'warning', reprompt=False
+            )
             return
 
         # Map ONLY provided positionals; DO NOT append defaults positionally
@@ -279,7 +279,8 @@ class Manager:
         @wraps(func)
         async def wrapper(self, *args, **kwargs):
             if not self.current_messenger:
-                self.update_cli.display("Please interact with a messenger before using this command.", 'error')
+                self.update_cli.display("Please interact with a messenger before using this command.", 'error',
+                                        reprompt=False)
                 return
             return await func(self, *args, **kwargs)
 
@@ -333,11 +334,11 @@ class Manager:
         }
         if types is None:
             if not self.update_cli.debug_types:
-                self.update_cli.display('All debug output disabled.', 'information')
+                self.update_cli.display('All debug output disabled.', 'information', reprompt=False)
             else:
                 for t in sorted(VALID_TYPES):
                     state = color_text('on', 'green') if t in self.update_cli.debug_types else color_text('off', 'red')
-                    self.update_cli.display(f'{t} {LABELS[t]}: {state}', 'standard')
+                    self.update_cli.display(f'{t} {LABELS[t]}: {state}', 'standard', reprompt=False)
             return
 
         raw = str(types).split(',')
@@ -347,24 +348,24 @@ class Manager:
             try:
                 val = int(token)
             except ValueError:
-                self.update_cli.display(f'`{token}` is not a valid debug type.', 'error')
+                self.update_cli.display(f'`{token}` is not a valid debug type.', 'error', reprompt=False)
                 return
             if val == 0:
                 self.update_cli.debug_types.clear()
-                self.update_cli.display('All debug output disabled.', 'success')
+                self.update_cli.display('All debug output disabled.', 'success', reprompt=False)
                 return
             if val not in VALID_TYPES:
-                self.update_cli.display(f'`{val}` is not a valid debug type. Valid types: 1-6.', 'error')
+                self.update_cli.display(f'`{val}` is not a valid debug type. Valid types: 1-6.', 'error', reprompt=False)
                 return
             parsed.add(val)
 
         for t in parsed:
             if t in self.update_cli.debug_types:
                 self.update_cli.debug_types.discard(t)
-                self.update_cli.display(f'{LABELS[t]} disabled.', 'information')
+                self.update_cli.display(f'{LABELS[t]} disabled.', 'information', reprompt=False)
             else:
                 self.update_cli.debug_types.add(t)
-                self.update_cli.display(f'{LABELS[t]} enabled.', 'information')
+                self.update_cli.display(f'{LABELS[t]} enabled.', 'information', reprompt=False)
 
     async def logging(self, types=None):
         """
@@ -401,11 +402,11 @@ class Manager:
         }
         if types is None:
             if not self.update_cli.logging_types:
-                self.update_cli.display('All message logging disabled.', 'information')
+                self.update_cli.display('All message logging disabled.', 'information', reprompt=False)
             else:
                 for t in sorted(VALID_TYPES):
                     state = color_text('on', 'green') if t in self.update_cli.logging_types else color_text('off', 'red')
-                    self.update_cli.display(f'{t} {LABELS[t]}: {state}', 'standard')
+                    self.update_cli.display(f'{t} {LABELS[t]}: {state}', 'standard', reprompt=False)
             return
 
         raw = str(types).split(',')
@@ -415,24 +416,24 @@ class Manager:
             try:
                 val = int(token)
             except ValueError:
-                self.update_cli.display(f'`{token}` is not a valid logging type.', 'error')
+                self.update_cli.display(f'`{token}` is not a valid logging type.', 'error', reprompt=False)
                 return
             if val == 0:
                 self.update_cli.logging_types.clear()
-                self.update_cli.display('All message logging disabled.', 'success')
+                self.update_cli.display('All message logging disabled.', 'success', reprompt=False)
                 return
             if val not in VALID_TYPES:
-                self.update_cli.display(f'`{val}` is not a valid logging type. Valid types: 1-4.', 'error')
+                self.update_cli.display(f'`{val}` is not a valid logging type. Valid types: 1-4.', 'error', reprompt=False)
                 return
             parsed.add(val)
 
         for t in parsed:
             if t in self.update_cli.logging_types:
                 self.update_cli.logging_types.discard(t)
-                self.update_cli.display(f'{LABELS[t]} logging disabled.', 'information')
+                self.update_cli.display(f'{LABELS[t]} logging disabled.', 'information', reprompt=False)
             else:
                 self.update_cli.logging_types.add(t)
-                self.update_cli.display(f'{LABELS[t]} logging enabled.', 'information')
+                self.update_cli.display(f'{LABELS[t]} logging enabled.', 'information', reprompt=False)
 
     async def interact(self, messenger):
         """
@@ -452,13 +453,14 @@ class Manager:
                     self.current_messenger = _messenger
                     self.update_cli.prompt = self.current_messenger.nickname
                     return
-            self.update_cli.display(f'Could not find Messenger `{messenger}`', 'error')
+            self.update_cli.display(f'Could not find Messenger `{messenger}`', 'error',
+                                    reprompt=False)
             return
         elif isinstance(messenger, Messenger):
             self.current_messenger = messenger
             self.update_cli.prompt = self.current_messenger.nickname
         else:
-            self.update_cli.display(f'Could not find Messenger `{messenger.nickname}`', 'error')
+            self.update_cli.display(f'Could not find Messenger `{messenger.nickname}`', 'error', reprompt=False)
             return
 
     async def print_help(self, command=None):
@@ -478,7 +480,8 @@ class Manager:
             if not docstring:
                 self.update_cli.display(
                     f'Command `{command}` does not have a help message.',
-                    'information'                )
+                    'information', reprompt=False
+                )
                 return
             print(docstring)
             return
@@ -505,11 +508,11 @@ class Manager:
         items = []
 
         if len(self.messengers) == 0:
-            self.update_cli.display('There are no connected Messengers, therefore, there cannot be any Forwarders. Idiot.', 'status')
+            self.update_cli.display('There are no connected Messengers, therefore, there cannot be any Forwarders. Idiot.', 'status', reprompt=False)
             return
 
         if messenger_id and not any(messenger_id in (m.identifier, m.nickname) for m in self.messengers):
-            self.update_cli.display(f'Messenger `{messenger_id}` does not exist.', 'status')
+            self.update_cli.display(f'Messenger `{messenger_id}` does not exist.', 'status', reprompt=False)
             return
 
         for messenger in self.messengers:
@@ -545,9 +548,9 @@ class Manager:
                 })
         if len(items) == 0:
             if messenger_id:
-                self.update_cli.display(f'There are no forwarders to display for messenger `{messenger_id}`.', 'status')
+                self.update_cli.display(f'There are no forwarders to display for messenger `{messenger_id}`.', 'status', reprompt=False)
             else:
-                self.update_cli.display('There are no forwarders to display.', 'status')
+                self.update_cli.display('There are no forwarders to display.', 'status', reprompt=False)
             return
         print(self.create_table('Forwarders', columns, items))
 
@@ -572,7 +575,7 @@ class Manager:
                         messenger = m
                         break
                 if not messenger:
-                    self.update_cli.display(f'Messenger `{identifier}` not found.', 'error')
+                    self.update_cli.display(f'Messenger `{identifier}` not found.', 'error', reprompt=False)
                     continue
                 self._print_messenger_detail(messenger)
             return
@@ -610,7 +613,7 @@ class Manager:
             items.append(item)
 
         if len(items) == 0:
-            self.update_cli.display('There are no messengers to display.', 'status')
+            self.update_cli.display('There are no messengers to display.', 'status', reprompt=False)
             return
         print(self.create_table('Messengers', columns, items))
 
@@ -684,7 +687,7 @@ class Manager:
         scanners = [scanner for messenger in self.messengers for scanner in messenger.scanners]
 
         if not scanners:
-            self.update_cli.display("There are no scans to display.", 'warning')
+            self.update_cli.display("There are no scans to display.", 'warning', reprompt=False)
             return
 
         if not identifier:
@@ -710,7 +713,7 @@ class Manager:
 
         scanner = next((s for s in scanners if s and identifier in (s.identifier, s.nickname)), None)
         if not scanner:
-            self.update_cli.display(f"No scanner found with identifier `{identifier}`", 'warning')
+            self.update_cli.display(f"No scanner found with identifier `{identifier}`", 'warning', reprompt=False)
             return
 
         columns = ["Address", "Port", "Result"]
@@ -744,7 +747,8 @@ class Manager:
                 prompt = self.current_messenger.nickname if self.current_messenger else self.PROMPT
                 user_input = await self.session.prompt_async(f'({prompt})~# ')
             except KeyboardInterrupt:
-                self.update_cli.display(f"CTRL+C caught, type `exit` to quit Messenger.", 'information')
+                self.update_cli.display(f"CTRL+C caught, type `exit` to quit Messenger.", 'information',
+                                        reprompt=False)
                 continue
 
             if not user_input.strip():
@@ -763,9 +767,10 @@ class Manager:
                     else:
                         output_path = await self.execute_command(command, parts[1:])
                 except InvalidConfigError as e:
-                    self.update_cli.display(str(e), 'error')
+                    self.update_cli.display(str(e), 'error', reprompt=False)
                 except KeyboardInterrupt:
-                    self.update_cli.display(f"CTRL+C caught, type `exit` to quit Messenger.", 'information')
+                    self.update_cli.display(f"CTRL+C caught, type `exit` to quit Messenger.", 'information',
+                                            reprompt=False)
                 except Exception as e:
                     self._log_unexpected_error(e)
 
@@ -781,9 +786,9 @@ class Manager:
             path = os.path.expanduser(path)
             with open(path, 'w', encoding='utf-8') as f:
                 f.write(contents + '\n')
-            self.update_cli.display(f'Output written to {path}.', 'success')
+            self.update_cli.display(f'Output written to {path}.', 'success', reprompt=False)
         except OSError as e:
-            self.update_cli.display(f'Could not write output to {path}: {e}', 'error')
+            self.update_cli.display(f'Could not write output to {path}: {e}', 'error', reprompt=False)
 
     def _log_unexpected_error(self, e):
         log_file = os.path.join(self.logger.base_dir, "exceptions.log")
@@ -796,12 +801,12 @@ class Manager:
         )
 
         if self.update_cli.debug_types:
-            self.update_cli.display(log_entry, 'error')
+            self.update_cli.display(log_entry, 'error', reprompt=False)
 
         with open(log_file, "a", encoding="utf-8") as f:
             f.write(log_entry)
-        self.update_cli.display(f'Captured unexpected error and wrote to {log_file}', 'error')
-        self.update_cli.display(f'Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new', 'information')
+        self.update_cli.display(f'Captured unexpected error and wrote to {log_file}', 'error', reprompt=False)
+        self.update_cli.display(f'Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new', 'information', reprompt=False)
 
     @require_messenger
     async def start_local_forwarder(self, forwarder_config):
@@ -849,7 +854,8 @@ class Manager:
                 self.update_cli.display(
                     f'Messenger `{messenger.nickname}` is already forwarding on '
                     f'{forwarder.listening_host}:{forwarder.listening_port}.',
-                    'error'                )
+                    'error', reprompt=False
+                )
                 return
             # Adopt the orphan: set its destination, send NO bind request (the
             # client is already listening under this bind_id).
@@ -859,7 +865,8 @@ class Manager:
                 f'Configured remote port forward `{existing.identifier}` on Messenger '
                 f'`{messenger.nickname}` ({existing.listening_host}:{existing.listening_port} -> '
                 f'{existing.destination_host}:{existing.destination_port}); no bind request sent.',
-                'success'            )
+                'success', reprompt=False
+            )
             return
 
         # Fresh forward — ask the client to bind.
@@ -906,12 +913,12 @@ class Manager:
         try:
             concurrency = int(concurrency)
         except:
-            self.update_cli.display(f'{concurrency} is not a valid concurrency.', 'error')
+            self.update_cli.display(f'{concurrency} is not a valid concurrency.', 'error', reprompt=False)
             return
         try:
             top_ports = int(top_ports)
         except:
-            self.update_cli.display(f'{top_ports} is not a valid integer.', 'error')
+            self.update_cli.display(f'{top_ports} is not a valid integer.', 'error', reprompt=False)
             return
 
         scanner = Scanner(ips, ports, int(top_ports), self.update_cli, self.current_messenger, int(concurrency))
@@ -944,19 +951,21 @@ class Manager:
                     target.close_all_clients()
                     self.update_cli.display(
                         f'Removed unconfirmed remote port forward `{target.nickname}`.',
-                        'information'                    )
+                        'information', reprompt=False
+                    )
                 else:
                     await target.stop()
                     self.update_cli.display(
                         f'Removed `{target.nickname}` from forwarders.',
-                        'information'                    )
+                        'information', reprompt=False
+                    )
                 return
             for scanner in messenger.scanners:
                 if id not in (scanner.identifier, scanner.nickname):
                     continue
                 await scanner.stop()
                 return
-        self.update_cli.display(f'`{id}` not found', 'error')
+        self.update_cli.display(f'`{id}` not found', 'error', reprompt=False)
 
     async def rename(self, id, name):
         """
@@ -971,7 +980,7 @@ class Manager:
           rename dc01 webserver
         """
         if not re.fullmatch(r'[A-Za-z0-9_-]+', name):
-            self.update_cli.display('Names may only contain letters, numbers, hyphens, and underscores.', 'error')
+            self.update_cli.display('Names may only contain letters, numbers, hyphens, and underscores.', 'error', reprompt=False)
             return
 
         all_objects = list(self.messengers)
@@ -986,19 +995,19 @@ class Manager:
                 break
 
         if not target:
-            self.update_cli.display(f'`{id}` not found.', 'error')
+            self.update_cli.display(f'`{id}` not found.', 'error', reprompt=False)
             return
 
         for obj in all_objects:
             if obj is not target and name in (obj.identifier, obj._nickname):
-                self.update_cli.display(f'Name `{name}` is already in use.', 'error')
+                self.update_cli.display(f'Name `{name}` is already in use.', 'error', reprompt=False)
                 return
 
         old = target.nickname
         target.nickname = name
         if self.current_messenger and self.current_messenger is target:
             self.update_cli.prompt = name
-        self.update_cli.display(f'`{old}` is now known as `{name}`.', 'success')
+        self.update_cli.display(f'`{old}` is now known as `{name}`.', 'success', reprompt=False)
 
 
 class DynamicCompleter(Completer):
