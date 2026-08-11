@@ -178,9 +178,8 @@ class Messenger:
                         else:
                             self.update_cli.display(
                                 f'Messenger `{self.nickname}` remote port forward `{message.bind_id}` '
-                                f'({message.listening_host}:{message.listening_port}) is gone; '
-                                f'removed and closed its connections.',
-                                'error'
+                                f'({message.listening_host}:{message.listening_port}) is no longer bound.',
+                                'status'
                             )
                     else:
                         self.update_cli.display(

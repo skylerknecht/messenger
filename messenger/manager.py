@@ -1014,7 +1014,7 @@ class Manager:
         for forwarder in list(target.forwarders):
             forwarder.close_all_clients() if hasattr(forwarder, 'close_all_clients') else None
         self.update_cli.display(
-            f'Sent kill signal to Messenger `{target.nickname}`.',
+            f'Queued kill signal for Messenger `{target.nickname}`.',
             'success', reprompt=False
         )
 
