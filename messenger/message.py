@@ -15,6 +15,7 @@ InitiateTCPClientRep = namedtuple('InitiateTCPClientRep', ['client_id', 'bind_ad
 SendDataMessage = namedtuple('SendDataMessage', ['client_id', 'data'])
 InitiateBINDReq = namedtuple('InitiateBINDReq', ['bind_id', 'listening_host', 'listening_port', 'destination_host', 'destination_port'])
 InitiateBINDRep = namedtuple('InitiateBINDRep', ['bind_id', 'listening_host', 'listening_port', 'reason'])
+CheckOutMessage = namedtuple('CheckOutMessage', [])
 
 # You could also store message_type inside each namedtuple, or convert them to @dataclass if you prefer.
 
@@ -181,6 +182,8 @@ class MessageParser:
         elif message_type == 0x06:
             decrypted = decrypt(encryption_key, payload)
             parsed_msg = MessageParser.parse_initiate_bind_rep(decrypted)
+        elif message_type == 0x07:
+            parsed_msg = CheckOutMessage()
         else:
             raise ValueError(f"Unknown message type: {hex(message_type)}")
 
@@ -247,6 +250,9 @@ class MessageBuilder:
                 msg.listening_port,
                 msg.reason
             ))
+        elif isinstance(msg, CheckOutMessage):
+            message_type = 0x07
+            value = b''
         else:
             raise ValueError(f"Unknown message tuple type: {type(msg)}")
 

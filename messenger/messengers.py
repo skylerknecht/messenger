@@ -67,6 +67,7 @@ class Messenger:
         'SendDataMessage': 4,
         'InitiateBINDReq': 5,
         'InitiateBINDRep': 6,
+        'CheckOutMessage': 7,
     }
 
     def log_message(self, direction, message):
