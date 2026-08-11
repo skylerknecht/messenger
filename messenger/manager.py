@@ -17,6 +17,7 @@ from messenger.messengers import Messenger
 from messenger.http_ws_server import HTTPWSServer
 from messenger.engine import Engine
 from messenger.forwarders import LocalPortForwarder, SocksProxy, RemotePortForwarder, InvalidConfigError
+from messenger.message import CheckOutMessage
 from messenger.generator import generate_encryption_key, generate_hash
 from messenger.scanner import Scanner
 from messenger.text import color_text, bold_text, strip_ansi
@@ -100,6 +101,7 @@ class Manager:
             'interact': (self.interact, "Interact with a messenger."),
             'rename': (self.rename, "Rename a messenger, forwarder, or scanner."),
             'stop': (self.stop, "Stop a forwarder or a scanner."),
+            'kill': (self.kill, "Kill a messenger."),
             'help': (self.print_help, "Display this help message."),
             '?': (self.print_help, "Display this help message but with fewer characters."),
             'exit': (self.exit, "Exit Messenger, stopping the server."),
@@ -131,8 +133,9 @@ class Manager:
             if logging_types:
                 msg_names = ', '.join(sorted({
                     {1: 'CheckInMessage', 2: 'InitiateTCPClientReq', 3: 'InitiateTCPClientRep',
-                     4: 'SendDataMessage', 5: 'InitiateBINDReq', 6: 'InitiateBINDRep'}[t]
-                    for t in logging_types if t in range(1, 7)
+                     4: 'SendDataMessage', 5: 'InitiateBINDReq', 6: 'InitiateBINDRep',
+                     7: 'CheckOutMessage'}[t]
+                    for t in logging_types if t in range(1, 8)
                 }))
                 self.update_cli.display(
                     f'Logging commands and {msg_names} messages to: {self.logger.log_dir}',
@@ -392,6 +395,7 @@ class Manager:
         4    | SendDataMessage
         5    | InitiateBINDReq
         6    | InitiateBINDRep
+        7    | CheckOutMessage
 
         optional:
           types        Comma-separated list of types to toggle (e.g. 1,4)
@@ -402,7 +406,7 @@ class Manager:
           logging 1
           logging 2,3
         """
-        VALID_TYPES = {1, 2, 3, 4, 5, 6}
+        VALID_TYPES = {1, 2, 3, 4, 5, 6, 7}
         LABELS = {
             1: 'CheckInMessage',
             2: 'InitiateTCPClientReq',
@@ -410,6 +414,7 @@ class Manager:
             4: 'SendDataMessage',
             5: 'InitiateBINDReq',
             6: 'InitiateBINDRep',
+            7: 'CheckOutMessage',
         }
         if types is None:
             if not self.update_cli.logging_types:
@@ -978,18 +983,67 @@ class Manager:
                 return
         self.update_cli.display(f'`{id}` not found', 'error', reprompt=False)
 
-    async def rename(self, id, name):
+    async def kill(self, id=None):
+        """
+        Kill a messenger by sending a checkout signal.
+
+        optional:
+          id                       ID or name of the messenger to kill.
+                                   Defaults to the current messenger if interacting.
+
+        examples:
+          kill NkMCyCrrcP
+          kill dc01
+          kill
+        """
+        if id is None:
+            if self.current_messenger is None:
+                self.update_cli.display('Please specify a messenger or interact with one first.', 'error', reprompt=False)
+                return
+            target = self.current_messenger
+        else:
+            target = None
+            for messenger in self.messengers:
+                if id in (messenger.identifier, messenger.nickname):
+                    target = messenger
+                    break
+            if target is None:
+                self.update_cli.display(f'`{id}` not found.', 'error', reprompt=False)
+                return
+        await target.send_message_upstream(CheckOutMessage())
+        for forwarder in list(target.forwarders):
+            forwarder.close_all_clients() if hasattr(forwarder, 'close_all_clients') else None
+        self.update_cli.display(
+            f'Queued kill signal for Messenger `{target.nickname}`.',
+            'success', reprompt=False
+        )
+
+    async def rename(self, id_or_name, name=None):
         """
         Rename a messenger, forwarder, or scanner.
 
         required:
-          id                       ID or current name of the target.
-          name                     The new name to assign.
+          id_or_name               ID or current name of the target, or the new
+                                   name when interacting with a messenger.
+
+        optional:
+          name                     The new name to assign. Required unless
+                                   interacting with a messenger.
 
         examples:
           rename NkMCyCrrcP dc01
           rename dc01 webserver
+          rename dc01
         """
+        if name is None:
+            if self.current_messenger is None:
+                self.update_cli.display('Please specify both an ID and a name, or interact with a messenger first.', 'error', reprompt=False)
+                return
+            name = id_or_name
+            id = self.current_messenger.identifier
+        else:
+            id = id_or_name
+
         if not re.fullmatch(r'[A-Za-z0-9_-]+', name):
             self.update_cli.display('Names may only contain letters, numbers, hyphens, and underscores.', 'error', reprompt=False)
             return

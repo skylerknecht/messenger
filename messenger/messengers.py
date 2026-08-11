@@ -67,6 +67,7 @@ class Messenger:
         'SendDataMessage': 4,
         'InitiateBINDReq': 5,
         'InitiateBINDRep': 6,
+        'CheckOutMessage': 7,
     }
 
     def log_message(self, direction, message):
@@ -177,9 +178,8 @@ class Messenger:
                         else:
                             self.update_cli.display(
                                 f'Messenger `{self.nickname}` remote port forward `{message.bind_id}` '
-                                f'({message.listening_host}:{message.listening_port}) is gone; '
-                                f'removed and closed its connections.',
-                                'error'
+                                f'({message.listening_host}:{message.listening_port}) is no longer bound.',
+                                'status'
                             )
                     else:
                         self.update_cli.display(
@@ -226,11 +226,11 @@ class Messenger:
                         self.forwarders.append(orphan)
                         self.update_cli.display(
                             f'Messenger `{self.nickname}` advertised remote port forward `{message.bind_id}` '
-                            f'on {message.listening_host}:{message.listening_port} with no destination.',
+                            f'on {message.listening_host}:{message.listening_port}.',
                             'warning'
                         )
                         self.update_cli.display(
-                            f'Run `remote {message.listening_host}:{message.listening_port}:<destination>` to configure it.',
+                            f'Run `remote {message.listening_host}:{message.listening_port}:<destination_host>:<destination_port>` to configure it.',
                             'warning'
                         )
 

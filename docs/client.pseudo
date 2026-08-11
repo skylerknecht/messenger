@@ -13,13 +13,18 @@
 #   - Clients must NEVER call exit() or terminate the process. All errors
 #     should be logged and handled gracefully. The client should always
 #     attempt to continue running.
-#     EXCEPTION — decryption failure is fatal and non-recoverable. An AES
+#     EXCEPTION 1 — decryption failure is fatal and non-recoverable. An AES
 #     decrypt/unpad failure almost always means the encryption key is wrong,
 #     so the client can never decrypt server traffic and is useless. On a
 #     decryption failure the client logs a single distinctive error and
 #     RETURNS from main() — a graceful stop, not exit()/abort — instead of
-#     reconnecting in a loop that can never succeed. This is the ONLY
-#     condition that halts the client; every other error keeps it running.
+#     reconnecting in a loop that can never succeed.
+#     EXCEPTION 2 — a CheckOutMessage (0x07) from the server is a kill
+#     signal. On receipt, the client tears down all forwarders and TCP
+#     clients, sets a `killed` flag, and lets start() return. The
+#     reconnect loop checks `killed` and returns from main() instead of
+#     retrying. Like decryption failure, this is a graceful return, not
+#     exit()/abort.
 #   - Status messages use bracketed prefixes: [+] success, [*] info, [!] error/warning.
 #     Do not print transport names, debug details, or verbose diagnostics.
 #   - Identifiers (client_id in RPF, etc.) must be 10-character alphanumeric
@@ -118,7 +123,7 @@ function deserialize_messages(raw_data, encryption_key) -> list[message]:
         payload  = raw_data[8 : message_length]
         raw_data = raw_data[message_length :]
 
-        if message_type != CHECK_IN:
+        if message_type not in (CHECK_IN, CHECK_OUT):
             payload = decrypt(encryption_key, payload)
             // decrypt() raises DecryptionError on a bad key — let it
             // propagate uncaught, past the receive/poll loop, out of
@@ -141,6 +146,7 @@ function deserialize_messages(raw_data, encryption_key) -> list[message]:
 #   0x04 = CheckInMessage                (NOT encrypted)
 #   0x05 = InitiateBINDReq               (encrypted)
 #   0x06 = InitiateBINDRep               (encrypted)
+#   0x07 = CheckOutMessage               (NOT encrypted, empty payload)
 
 struct CheckInMessage:
     messenger_id: string
@@ -180,6 +186,11 @@ struct InitiateBINDRep:
     listening_port: uint32
     reason: uint32          # 0 = success/confirmed; non-zero = GONE (bind failed,
                             #   crashed, or torn down)
+
+struct CheckOutMessage:
+    # Empty payload. Server -> client only. Tells the client to tear down
+    # all forwarders and TCP clients, then return from main() without
+    # reconnecting.
 
 # ---------------------------------------------------------------------------
 # REMOTE PORT FORWARD (BIND) LIFECYCLE
@@ -225,6 +236,7 @@ class Client:
     tcp_clients: concurrent_dict<string, socket>
     remote_port_forwarders: list<RemotePortForwarder>
     encryption_key: bytes
+    killed: bool = false
 
     function handle_message(message):
         match message.type:
@@ -282,6 +294,17 @@ class Client:
                     message.destination_host,
                     message.destination_port
                 )
+
+            CheckOutMessage:
+                log("[!] Kill signal received")
+                for forwarder in list(remote_port_forwarders):
+                    forwarder.stop()
+                    forwarder.close_all_clients()
+                remote_port_forwarders.clear()
+                for client_id, socket in tcp_clients:
+                    close(socket)
+                tcp_clients.clear()
+                killed = true
 
 
     function handle_bind(bind_id, listening_host, listening_port, destination_host, destination_port):
@@ -519,6 +542,11 @@ class WSClient extends Client:
                 break
 
             messages = deserialize_messages(frame_bytes, encryption_key)
+
+            if any message is CheckOutMessage:
+                handle_message(CheckOutMessage)   // inline, not spawned
+                break
+
             for message in messages:
                 spawn handle_message(message)
                 // Each message dispatched independently so a slow
@@ -598,6 +626,11 @@ class HTTPClient extends Client:
 
             if response.body is not empty:
                 messages = deserialize_messages(response.body, encryption_key)
+
+                if any message is CheckOutMessage:
+                    handle_message(CheckOutMessage)   // inline, not spawned
+                    break
+
                 for message in messages:
                     spawn handle_message(message)
 
@@ -853,6 +886,9 @@ function main():
     catch error:
         log("[!] Disconnected: {error}")
 
+    if client.killed:
+        return
+
     # --- Reconnection ---
     if config.retry_attempts <= 0:
         return
@@ -895,3 +931,6 @@ function main():
             // Fatal: reconnecting cannot fix a wrong key. Stop the loop.
         catch error:
             log("[!] Reconnection failed: {error}")
+
+        if client.killed:
+            return

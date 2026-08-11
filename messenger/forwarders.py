@@ -375,7 +375,7 @@ class RemotePortForwarder(Forwarder):
         )
         await self.messenger.send_message_upstream(bind_req)
         self.update_cli.display(
-            f'Sent bind request to Messenger `{self.messenger.nickname}` for '
+            f'Queued bind request for Messenger `{self.messenger.nickname}` for '
             f'({self.listening_host}:{self.listening_port}) -> '
             f'({self.destination_host}:{self.destination_port}).',
             'information'
@@ -399,12 +399,6 @@ class RemotePortForwarder(Forwarder):
             'information'
         )
         self.close_all_clients()
-
-        self.update_cli.display(
-            f'Messenger `{self.messenger.nickname}` has stopped forwarding ({self.listening_host}:{self.listening_port}) -> ({self.destination_host}:{self.destination_port}).',
-            'success',
-            reprompt=False
-        )
 
 
 class InvalidConfigError(Exception):
