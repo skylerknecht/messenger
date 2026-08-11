@@ -534,8 +534,8 @@ class Manager:
                 # An orphan RPF (advertised by the client, no destination set
                 # yet) shows as unconfigured until the operator runs `remote`.
                 orphan = isinstance(forwarder, RemotePortForwarder) and forwarder.is_orphan
-                dest_host = '(unconfigured)' if orphan else forwarder.destination_host
-                dest_port = '' if orphan else forwarder.destination_port
+                dest_host = '•••' if orphan else forwarder.destination_host
+                dest_port = '•••' if orphan else forwarder.destination_port
 
                 items.append({
                     "Type": forwarder.NAME,

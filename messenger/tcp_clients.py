@@ -88,8 +88,8 @@ class LocalTcpClient(TcpClient):
     async def send_initiate_tcp_client_req(self):
         upstream_message = InitiateTCPClientReq(
             client_id=self.identifier,
-            ip_address=self.destination_host,
-            port=int(self.destination_port)
+            destination_host=self.destination_host,
+            destination_port=int(self.destination_port)
         )
         self.messenger.sent_bytes += 20
         await self.messenger.send_message_upstream(upstream_message)

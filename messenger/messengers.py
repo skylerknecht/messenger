@@ -116,7 +116,8 @@ class Messenger:
                 else:
                     self.update_cli.display(
                         f'Messenger `{self.nickname}` has no configured remote port forward '
-                        f'on {message.listening_host}:{message.listening_port}, denying forward!',
+                        f'for {message.listening_host}:{message.listening_port} -> '
+                        f'{message.destination_host}:{message.destination_port}, denying forward!',
                         'warning'
                     )
                     await self.send_message_upstream(
@@ -156,12 +157,10 @@ class Messenger:
 
             # 5) Initiate BIND Response (0x06)
             elif isinstance(message, InitiateBINDRep):
-                if message.listening_host == '':
+                if message.reason != 0:
                     # GONE — the RPF failed to bind, crashed, or was torn down.
                     # Claim the entry atomically (pop before any await), then RST
-                    # its connections. A stop we initiated lands here too, so this
-                    # branch must be checked FIRST — an empty host can never be a
-                    # re-advertisement.
+                    # its connections. A stop we initiated lands here too.
                     gone = None
                     for i, f in enumerate(self.forwarders):
                         if f.identifier == message.bind_id:
@@ -169,15 +168,23 @@ class Messenger:
                             break
                     if gone is not None:
                         gone.close_all_clients()
-                        self.update_cli.display(
-                            f'Messenger `{self.nickname}` remote port forward `{message.bind_id}` '
-                            f'is gone; removed and closed its connections.',
-                            'warning'
-                        )
+                        if not gone.seen_bind_rep:
+                            self.update_cli.display(
+                                f'Messenger `{self.nickname}` failed to bind '
+                                f'{message.listening_host}:{message.listening_port}.',
+                                'warning'
+                            )
+                        else:
+                            self.update_cli.display(
+                                f'Messenger `{self.nickname}` remote port forward `{message.bind_id}` '
+                                f'({message.listening_host}:{message.listening_port}) is gone; '
+                                f'removed and closed its connections.',
+                                'warning'
+                            )
                     else:
                         self.update_cli.display(
                             f'Messenger `{self.nickname}` remote port forward `{message.bind_id}` '
-                            f'is no longer bound.',
+                            f'({message.listening_host}:{message.listening_port}) is no longer bound.',
                             'status'
                         )
                 else:

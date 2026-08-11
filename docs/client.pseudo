@@ -147,8 +147,8 @@ struct CheckInMessage:
 
 struct InitiateTCPClientReq:
     client_id: string
-    ip_address: string
-    port: uint32
+    destination_host: string
+    destination_port: uint32
     listening_host: string  # optional — a remote port forwarder appends the
     listening_port: uint32  # listening endpoint it came through, so the server
                             # maps the connection to the exact RPF (not by dest).
@@ -176,12 +176,13 @@ struct InitiateBINDReq:
 
 struct InitiateBINDRep:
     bind_id: string
-    listening_host: string  # SENTINEL: "" (empty) = GONE (bind failed / crashed
-    listening_port: uint32  #   / torn down). A real host = listening/confirmed.
-    reason: uint32          # 0 = success; on GONE it just annotates the cause
+    listening_host: string  # always the real listening endpoint, even on failure
+    listening_port: uint32
+    reason: uint32          # 0 = success/confirmed; non-zero = GONE (bind failed,
+                            #   crashed, or torn down)
 
 # ---------------------------------------------------------------------------
-# REMOTE PORT FORWARD (BIND) LIFECYCLE — the empty-listening-host model
+# REMOTE PORT FORWARD (BIND) LIFECYCLE
 # ---------------------------------------------------------------------------
 # The client is the ground truth for what is actually listening (the listener
 # physically lives on it). The server keeps a per-connection cache and
@@ -192,18 +193,17 @@ struct InitiateBINDRep:
 #       listening_host = ""    -> STOP: tear down that bind_id (kill its
 #                                 forwarded connections + close the listener)
 #
-#   client -> server   InitiateBINDRep
-#       listening_host = real  -> "I'm listening": server confirms it, or (if
-#                                 the bind_id is unknown) stores an ORPHAN with
-#                                 an EMPTY destination — it never routes until
-#                                 the operator re-runs `remote` to set the dest.
-#                                 A real-host BindRep for a listening endpoint
-#                                 the server holds under a DIFFERENT bind_id
-#                                 replaces that stale entry (client wins).
-#       listening_host = ""    -> GONE: server removes the forwarder and RSTs
-#                                 its connections. Covers bind failure, listener
-#                                 crash, and the reply to a stop — checked FIRST,
-#                                 so an empty host can never be a re-advertise.
+#   client -> server   InitiateBINDRep  (always carries the real host:port)
+#       reason == 0  -> "I'm listening": server confirms it, or (if the
+#                       bind_id is unknown) stores an ORPHAN with an EMPTY
+#                       destination — it never routes until the operator
+#                       re-runs `remote` to set the dest. A reason-0 BindRep
+#                       for a listening endpoint the server holds under a
+#                       DIFFERENT bind_id replaces that stale entry (client
+#                       wins).
+#       reason != 0  -> GONE: server removes the forwarder and RSTs its
+#                       connections. Covers bind failure, listener crash,
+#                       and the reply to a stop.
 #
 # A forwarded connection carries its listening endpoint in InitiateTCPClientReq,
 # so the server routes it to the exact RPF and connects to that RPF's
@@ -232,8 +232,8 @@ class Client:
             InitiateTCPClientReq:
                 await handle_tcp_connect(
                     message.client_id,
-                    message.ip_address,
-                    message.port
+                    message.destination_host,
+                    message.destination_port
                 )
 
             InitiateTCPClientRep:
@@ -290,7 +290,7 @@ class Client:
         # Unambiguous — never mistaken for a new bind — so it works even if we
         # don't have this bind_id (just no-op). Close the listener and RST all
         # forwarded connections immediately; the accept-loop finally / close-event
-        # will fire report_gone() which sends the empty-host BindRep to the server.
+        # will fire report_gone() which sends the BindRep with reason!=0 to the server.
         if listening_host == "":
             existing = find remote_port_forwarders where identifier == bind_id
             if existing is not null:
@@ -315,9 +315,9 @@ class Client:
             )
             success = await forwarder.start()
             if not success:
-                # Bind failed → report GONE (empty host); reason annotates why.
                 await send_downstream_message(InitiateBINDRep(
-                    bind_id = bind_id, listening_host = "", listening_port = 0, reason = 1))
+                    bind_id = bind_id, listening_host = listening_host,
+                    listening_port = listening_port, reason = 1))
                 return
 
             remote_port_forwarders.append(forwarder)
@@ -327,7 +327,8 @@ class Client:
 
         catch error:
             await send_downstream_message(InitiateBINDRep(
-                bind_id = bind_id, listening_host = "", listening_port = 0, reason = 1))
+                bind_id = bind_id, listening_host = listening_host,
+                listening_port = listening_port, reason = 1))
 
 
     function handle_tcp_connect(client_id, ip, port):
@@ -663,7 +664,8 @@ class RemotePortForwarder:
         remote_port_forwarders.remove(self)
         self.close_all_clients()
         await send_downstream_message(InitiateBINDRep(
-            bind_id = self.identifier, listening_host = "", listening_port = 0, reason = 1))
+            bind_id = self.identifier, listening_host = self.listening_host,
+            listening_port = self.listening_port, reason = 1))
 
     function stop():
         if server is not null:
@@ -695,8 +697,8 @@ class RemotePortForwarder:
 
         request = InitiateTCPClientReq(
             client_id      = client_id,
-            ip_address     = destination_host,
-            port           = destination_port,
+            destination_host = destination_host,
+            destination_port = destination_port,
             listening_host = self.listening_host,   # so the server maps this
             listening_port = self.listening_port    # connection to THIS exact RPF
         )
