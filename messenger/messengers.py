@@ -44,16 +44,10 @@ class Messenger:
         self._nickname = value
 
     async def get_upstream_messages(self):
-        if time.time() - self.last_check_in > 60:
-            self.update_cli.display(
-                f'{self.transport_type} Messenger `{self.nickname}` has reconnected.',
-                'success'
-            )
-        self.last_check_in = time.time()
         upstream_messages = b''
         while not self.upstream_messages.empty():
-            upstream_messages += await self.upstream_messages.get()
-
+            message = await self.upstream_messages.get()
+            upstream_messages += self.serialize_messages([message])
         return upstream_messages
 
     @property
@@ -308,7 +302,7 @@ class HTTPMessenger(Messenger):
             'debug',
             debug_level = 5
         )
-        await self.upstream_messages.put(self.serialize_messages([message]))
+        await self.upstream_messages.put(message)
 
 
 class WebSocketMessenger(Messenger):
@@ -328,16 +322,8 @@ class WebSocketMessenger(Messenger):
             return color_text('connected', "green")
         return color_text('disconnected', 'red')
 
-    async def set_websocket(self, ws):
+    def set_websocket(self, ws):
         self.websocket = ws
-        self.update_cli.display(
-            f'{self.transport_type} Messenger `{self.nickname}` has reconnected.',
-            'success'
-        )
-        messages = await self.get_upstream_messages()
-        if not messages:
-            return
-        await self.websocket.send_bytes(messages)
 
     async def send_message_upstream(self, message):
         self.log_message('upstream', message)
@@ -346,7 +332,7 @@ class WebSocketMessenger(Messenger):
                 f'Messenger `{self.nickname}` queued a upstream message.',
                 'warning'
             )
-            await self.upstream_messages.put(self.serialize_messages([message]))
+            await self.upstream_messages.put(message)
             return
         self.update_cli.display(
             f'Messenger {self.nickname} sent a upstream message.',
@@ -365,4 +351,4 @@ class WebSocketMessenger(Messenger):
                 f'Messenger `{self.nickname}` queued a upstream message.',
                 'warning'
             )
-            await self.upstream_messages.put(self.serialize_messages([message]))
+            await self.upstream_messages.put(message)

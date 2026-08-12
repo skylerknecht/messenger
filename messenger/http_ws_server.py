@@ -1,4 +1,5 @@
 import ssl
+import time
 import traceback
 
 from aiohttp import web
@@ -74,7 +75,14 @@ class HTTPWSServer:
         try:
             messenger = self.messenger_engine.get_messenger(messenger_id)
             if messenger:
-                upstream_message_data += await self.messenger_engine.send_messages(messenger_id, messages[1:])
+                await self.messenger_engine.send_messages(messenger_id, messages[1:])
+                if time.time() - messenger.last_check_in > 60:
+                    self.update_cli.display(
+                        f'{messenger.transport_type} Messenger `{messenger.nickname}` has reconnected.',
+                        'success'
+                    )
+                messenger.last_check_in = time.time()
+                upstream_message_data += await messenger.get_upstream_messages()
             else:
                 http_messenger = HTTPMessenger(
                     ip,
@@ -120,7 +128,14 @@ class HTTPWSServer:
                 )
                 await ws.close()
                 return ws
-            await messenger.set_websocket(ws)
+            messenger.set_websocket(ws)
+            self.update_cli.display(
+                f'{messenger.transport_type} Messenger `{messenger.nickname}` has reconnected.',
+                'success'
+            )
+            while not messenger.upstream_messages.empty():
+                message = await messenger.upstream_messages.get()
+                await messenger.send_message_upstream(message)
         else:
             ws_messenger = WebSocketMessenger(
                 ws,
@@ -137,7 +152,9 @@ class HTTPWSServer:
 
             if not messenger_id:
                 await ws.send_bytes(check_in_msg)
+            messenger = ws_messenger
 
+        messenger.last_check_in = time.time()
 
         async for msg in ws:
             try:
@@ -155,4 +172,5 @@ class HTTPWSServer:
                 self.update_cli.display(f'Unknown error while processing check in: {e}', 'warning')
                 continue
 
+        messenger.last_check_in = time.time()
         return ws
