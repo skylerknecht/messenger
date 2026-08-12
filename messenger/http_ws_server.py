@@ -1,5 +1,4 @@
 import ssl
-import time
 import traceback
 
 from aiohttp import web
@@ -76,12 +75,12 @@ class HTTPWSServer:
             messenger = self.messenger_engine.get_messenger(messenger_id)
             if messenger:
                 await self.messenger_engine.send_messages(messenger_id, messages[1:])
-                if time.time() - messenger.last_check_in > 60:
+                messenger.check_in()
+                if messenger.check_in_delta > 60:
                     self.update_cli.display(
                         f'{messenger.transport_type} Messenger `{messenger.nickname}` has reconnected.',
                         'success'
                     )
-                messenger.last_check_in = time.time()
                 upstream_message_data += await messenger.get_upstream_messages()
             else:
                 http_messenger = HTTPMessenger(
@@ -154,7 +153,7 @@ class HTTPWSServer:
                 await ws.send_bytes(check_in_msg)
             messenger = ws_messenger
 
-        messenger.last_check_in = time.time()
+        messenger.check_in()
 
         async for msg in ws:
             try:
@@ -172,5 +171,5 @@ class HTTPWSServer:
                 self.update_cli.display(f'Unknown error while processing check in: {e}', 'warning')
                 continue
 
-        messenger.last_check_in = time.time()
+        messenger.check_in()
         return ws

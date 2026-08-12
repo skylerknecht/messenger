@@ -31,6 +31,12 @@ class Messenger:
 
         self.first_seen = time.time()
         self.last_check_in = self.first_seen
+        self.check_in_delta = 0
+
+    def check_in(self):
+        now = time.time()
+        self.check_in_delta = now - self.last_check_in
+        self.last_check_in = now
 
         self.sent_bytes = 0
         self.received_bytes = 0
@@ -280,7 +286,7 @@ class HTTPMessenger(Messenger):
 
     @property
     def status(self):
-        elapsed = time.time() - self.last_check_in
+        elapsed = self.check_in_delta
         if elapsed < 1:
             return color_text(f"{elapsed * 1000:.0f}ms delay", "green")
         elif elapsed < 60:
