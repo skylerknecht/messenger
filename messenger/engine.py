@@ -73,9 +73,7 @@ class Engine:
         return None
 
     async def send_messages(self, messenger_id: str, messages):
-        upstream_messages_data = b''
         for messenger in self.messengers:
             if messenger.identifier == messenger_id:
                 await messenger.send_messages_downstream(messages)
-                upstream_messages_data += await messenger.get_upstream_messages()
-        return upstream_messages_data
+                return
