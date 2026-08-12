@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.8.1] - 2026-08-12
 
+### Server
+
+#### Fixed
+
+- False "reconnected" messages for WebSocket messengers that never actually disconnected. Reconnect detection moved from the data path (`get_upstream_messages`) to the handler layer.
+- `rename` now rejects names that collide with existing command names.
+
+#### Changed
+
+- HTTP messenger status now shows the actual polling interval (delta between the last two check-ins) instead of time since the last check-in.
+- Reconnect detection and check-in bookkeeping consolidated into `Messenger.check_in()`.
+- WebSocket reconnect fires immediately; HTTP reconnect fires after 60 seconds of absence.
+- Upstream message queue stores message objects instead of pre-serialized bytes; WebSocket reconnect drains queued messages through `send_message_upstream` individually with error handling.
+- `set_websocket()` simplified to only set the websocket reference (sync, no side effects).
+- `send_messages()` no longer calls `get_upstream_messages()`; HTTP handler calls it directly.
+
 ## [0.8.0] - 2026-08-11
 
 ### Spec
