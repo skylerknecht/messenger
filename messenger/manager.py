@@ -1048,6 +1048,10 @@ class Manager:
             self.update_cli.display('Names may only contain letters, numbers, hyphens, and underscores.', 'error', reprompt=False)
             return
 
+        if name in self.commands:
+            self.update_cli.display(f'`{name}` is a command and cannot be used as a name.', 'error', reprompt=False)
+            return
+
         all_objects = list(self.messengers)
         for messenger in self.messengers:
             all_objects.extend(messenger.forwarders)
