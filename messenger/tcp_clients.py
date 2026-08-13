@@ -39,13 +39,11 @@ class TcpClient(ABC):
                 self.messenger.update_cli.display(
                     f'TCP Client {self.identifier} sent {len(upstream_message)} bytes.',
                     'debug',
-                    debug_level=3
-                )
+                    display_module='forwarders'                )
                 self.messenger.update_cli.display(
                     f'TCP Client {self.identifier} sent\n{upstream_message}.',
                     'debug',
-                    debug_level=6
-                )
+                    display_module='forwarders'                )
                 await self.messenger.send_message_upstream(
                     SendDataMessage(
                         client_id=self.identifier,
@@ -169,7 +167,7 @@ class SocksTcpClient(LocalTcpClient):
     async def negotiate_authentication_method(self) -> bool:
         version, number_of_methods = await self.reader.readexactly(2)
         if version != 5:
-            self.messenger.update_cli.display(f'SOCKSv{version} is not supported, please use SOCKSv5.', 'error')
+            self.messenger.update_cli.display(f'SOCKSv{version} is not supported, please use SOCKSv5.', 'error', display_module='forwarders')
             return False
         methods = [ord(await self.reader.readexactly(1)) for _ in range(number_of_methods)]
         if 0 not in methods:
