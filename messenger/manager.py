@@ -337,6 +337,8 @@ class Manager:
         examples:
           display                          Show all module status
           display off                      Reset all display filters
+          display debug                    Toggle debug for all modules
+          display warnings,errors          Toggle warnings and errors globally
           display handlers                 Show handler status
           display handlers debug           Toggle handler debug
           display handlers debug,warnings  Toggle handler debug and warnings
@@ -380,8 +382,20 @@ class Manager:
             return
 
         if module not in MODULES:
+            global_types = [t.strip() for t in module.split(',')]
+            if all(t in VALID_TYPES for t in global_types):
+                for mod in MODULES:
+                    filt = self.update_cli.display_filters.setdefault(mod, {})
+                    for t in global_types:
+                        if t == 'debug':
+                            filt['debug'] = not filt.get('debug', False)
+                        else:
+                            disabled = filt.setdefault('disabled', set())
+                            disabled.symmetric_difference_update({STATUS_MAP[t]})
+                show_table(MODULES)
+                return
             self.update_cli.display(
-                f'`{module}` is not a valid module. Valid modules: {", ".join(MODULES)}.', 'error', reprompt=False
+                f'`{module}` is not a valid module or type.', 'error', reprompt=False
             )
             return
 
