@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.8.1-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-0.9.0-blue" alt="Version">
   <img src="https://img.shields.io/pypi/v/messenger-proxy" alt="PyPI">
   <img src="https://img.shields.io/badge/python->3.8-blue" alt="Python">
   <img src="https://img.shields.io/github/license/skylerknecht/messenger" alt="License">

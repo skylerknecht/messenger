@@ -322,26 +322,25 @@ class Manager:
         """
         Change display levels per module.
 
-        Module     | Type     | Action  | Description
-        -----------|----------|---------|----------------------------
-        handlers   | debug    | 1,2,all,off | Request debug output
-        handlers   | warnings | on/off  | Handler warning messages
-        handlers   | errors   | on/off  | Handler error messages
-        handlers   | successes| on/off  | Handler success messages
-        handlers   | infos    | on/off  | Handler info messages
-        messengers | debug    | 1,2,all,off | Messenger debug output
-        forwarders | debug    | 1,2,all,off | Forwarder debug output
+        Module     | Type     | Action      | Description
+        -----------|----------|-------------|----------------------------
+        handlers   | debug    | 1,2,all,off | Toggle debug output
+        messengers | debug    | 1,2,all,off | Toggle debug output
+        forwarders | debug    | 1,2,all,off | Toggle debug output
+        <module>   | warnings |             | Toggle warning messages
+        <module>   | errors   |             | Toggle error messages
+        <module>   | successes|             | Toggle success messages
+        <module>   | infos    |             | Toggle info messages
 
         examples:
-          display                          Show all status
+          display                          Show all module status
           display off                      Reset all display filters
           display handlers                 Show handler status
-          display handlers debug 1         Enable handler debug level 1
+          display handlers debug 1         Toggle handler debug level 1
           display handlers debug all       Enable all handler debug
-          display handlers debug off       Disable handler debug
-          display messengers errors off    Suppress messenger errors
-          display messengers errors on     Re-enable messenger errors
-          display forwarders warnings off  Suppress forwarder warnings
+          display handlers debug off       Disable all handler debug
+          display messengers errors        Toggle messenger errors
+          display forwarders warnings      Toggle forwarder warnings
         """
         MODULES = ('handlers', 'messengers', 'forwarders')
         DEBUG_LEVELS = {1, 2}
@@ -431,16 +430,12 @@ class Manager:
             filt = get_filter(module)
             status_key = STATUS_MAP[type_name]
             disabled = filt.setdefault('disabled', set())
-            if action == 'off':
-                disabled.add(status_key)
-                self.update_cli.display(f'{module} {type_name} disabled.', 'success', reprompt=False)
-            elif action == 'on':
+            if status_key in disabled:
                 disabled.discard(status_key)
-                self.update_cli.display(f'{module} {type_name} enabled.', 'success', reprompt=False)
+                self.update_cli.display(f'{module} {type_name} enabled.', 'information', reprompt=False)
             else:
-                suppressed = status_key in disabled
-                state = color_text('off', 'red') if suppressed else color_text('on', 'green')
-                self.update_cli.display(f'{module} {type_name}: {state}', 'standard', reprompt=False)
+                disabled.add(status_key)
+                self.update_cli.display(f'{module} {type_name} disabled.', 'information', reprompt=False)
             return
 
         self.update_cli.display(
