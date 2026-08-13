@@ -6,6 +6,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-08-12
+
+### Server
+
+#### Added
+
+- `display` command replacing `debug` — per-module toggle for debug output and status types (warnings, successes, infos, errors) across three modules: handlers, messengers, forwarders.
+- All display calls carry a `display_module` parameter so per-module filtering works for both debug and status messages.
+- Table output for `display` status using the existing `create_table()` system.
+- Global type toggles: `display debug` toggles debug for all modules, `display warnings` toggles warnings globally.
+- Comma-separated type support: `display handlers debug,warnings` toggles multiple types in one command.
+
+#### Changed
+
+- `debug` command removed; replaced by `display`.
+- Debug is a single on/off toggle per module — no more numeric levels.
+- Status types (warnings, errors, successes, infos) toggle on each invocation instead of requiring explicit on/off arguments.
+- Handler warnings are off by default.
+
 ## [0.8.1] - 2026-08-12
 
 ### Server
