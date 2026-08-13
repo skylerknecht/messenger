@@ -39,13 +39,11 @@ class TcpClient(ABC):
                 self.messenger.update_cli.display(
                     f'TCP Client {self.identifier} sent {len(upstream_message)} bytes.',
                     'debug',
-                    display_module='forwarders', debug_level=1
-                )
+                    display_module='forwarders'                )
                 self.messenger.update_cli.display(
                     f'TCP Client {self.identifier} sent\n{upstream_message}.',
                     'debug',
-                    display_module='forwarders', debug_level=2
-                )
+                    display_module='forwarders'                )
                 await self.messenger.send_message_upstream(
                     SendDataMessage(
                         client_id=self.identifier,

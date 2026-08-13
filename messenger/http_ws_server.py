@@ -50,7 +50,7 @@ class HTTPWSServer:
 
         self.update_cli.display(
             f'The handler received a {request.method} from {ip}.',
-            'debug', display_module='handlers', debug_level=1,
+            'debug', display_module='handlers',
         )
 
         if is_websocket:
@@ -67,7 +67,7 @@ class HTTPWSServer:
         data = await request.read()
         self.update_cli.display(
             f'The handler received {len(data)} bytes from {ip}\n{data}.',
-            'debug', display_module='handlers', debug_level=2,
+            'debug', display_module='handlers',
         )
         messages = self.messenger_engine.deserialize_messages(data) if data else []
         messenger_id = self.messenger_engine.get_messenger_id(messages[0]) if messages else None
@@ -117,7 +117,7 @@ class HTTPWSServer:
             return ws
         self.update_cli.display(
             f'The handler received {len(msg.data)} bytes from {ip}\n{msg.data}.',
-            'debug', display_module='handlers', debug_level=2,
+            'debug', display_module='handlers',
         )
         messages = self.messenger_engine.deserialize_messages(msg.data) if msg.data else []
         messenger_id = self.messenger_engine.get_messenger_id(messages[0]) if messages else None
@@ -166,7 +166,7 @@ class HTTPWSServer:
             try:
                 self.update_cli.display(
                     f'The handler received {len(msg.data) if msg.data else 0} bytes from {ip}\n{msg.data}.',
-                    'debug', display_module='handlers', debug_level=2,
+                    'debug', display_module='handlers',
                 )
                 messages = self.messenger_engine.deserialize_messages(msg.data) if msg.data else []
                 if not messages:

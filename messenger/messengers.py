@@ -90,13 +90,11 @@ class Messenger:
         self.update_cli.display(
             f'Messenger {self.nickname} received downstream message(s).',
             'debug',
-            display_module='messengers', debug_level=1
-        )
+            display_module='messengers'        )
         self.update_cli.display(
             f'Messenger {self.nickname} received the following downstream message(s)\n{messages}.',
             'debug',
-            display_module='messengers', debug_level=2
-        )
+            display_module='messengers'        )
         for message in messages:
             self.log_message('downstream', message)
             # 1) Initiate TCP Client Request (0x01)
@@ -301,13 +299,11 @@ class HTTPMessenger(Messenger):
         self.update_cli.display(
             f'Messenger {self.nickname} queued a upstream message.',
             'debug',
-            display_module='messengers', debug_level=1
-        )
+            display_module='messengers'        )
         self.update_cli.display(
             f'Messenger {self.nickname} queued the following upstream message\n{message}.',
             'debug',
-            display_module='messengers', debug_level=2
-        )
+            display_module='messengers'        )
         await self.upstream_messages.put(message)
 
 
@@ -343,13 +339,11 @@ class WebSocketMessenger(Messenger):
         self.update_cli.display(
             f'Messenger {self.nickname} sent a upstream message.',
             'debug',
-            display_module='messengers', debug_level=1
-        )
+            display_module='messengers'        )
         self.update_cli.display(
             f'Messenger {self.nickname} sent the following upstream message\n{message}.',
             'debug',
-            display_module='messengers', debug_level=2
-        )
+            display_module='messengers'        )
         try:
             await self.websocket.send_bytes(self.serialize_messages([message]))
         except Exception:
