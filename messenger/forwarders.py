@@ -138,31 +138,31 @@ class LocalPortForwarder(Forwarder):
     async def start(self):
         self.update_cli.display(
             f'Attempting to forward ({self.listening_host}:{self.listening_port}) -> ({self.destination_host}:{self.destination_port}).',
-            'information', reprompt=False)
+            'information', reprompt=False, display_module='forwarders')
         try:
             self.server = await asyncio.start_server(self.handle_client, self.listening_host, int(self.listening_port))
             self.update_cli.display(
                 f'Messenger `{self.messenger.nickname}` now forwarding ({self.listening_host}:{self.listening_port}) -> ({self.destination_host}:{self.destination_port}).',
-                'success', reprompt=False)
+                'success', reprompt=False, display_module='forwarders')
             return True
         except OSError as e:
             if e.errno == errno.EADDRINUSE:
                 self.update_cli.display(
                     f"Port {self.listening_port} is already in use on {self.listening_host}.",
                     'error',
-                    reprompt=False
+                    reprompt=False, display_module='forwarders'
                 )
             elif e.errno == errno.EADDRNOTAVAIL:
                 self.update_cli.display(
                     f"Cannot bind to host '{self.listening_host}'—it may be invalid or unreachable.",
                     'error',
-                    reprompt=False
+                    reprompt=False, display_module='forwarders'
                 )
             else:
                 self.update_cli.display(
                     f"Failed to bind on {self.listening_host}:{self.listening_port}: {e}",
                     'error',
-                    reprompt=False
+                    reprompt=False, display_module='forwarders'
                 )
 
         return False
@@ -188,7 +188,7 @@ class LocalPortForwarder(Forwarder):
         self.update_cli.display(
             f'Messenger `{self.messenger.nickname}` has stopped forwarding ({self.listening_host}:{self.listening_port}) -> ({self.destination_host}:{self.destination_port}).',
             'success',
-            reprompt=False
+            reprompt=False, display_module='forwarders'
         )
 
 class SocksProxy(LocalPortForwarder):
@@ -223,7 +223,7 @@ class SocksProxy(LocalPortForwarder):
             raise InvalidConfigError(f'Invalid configuration `{config}`, cannot specify destination host without destination port.')
 
         elif len(parts) == 4:
-            self.update_cli.display(f'Invalid configuration `{config}`, cannot set a destination host and port for a {self.NAME}.', 'warning', reprompt=False)
+            self.update_cli.display(f'Invalid configuration `{config}`, cannot set a destination host and port for a {self.NAME}.', 'warning', reprompt=False, display_module='forwarders')
             listening_host, listening_port, _, _ = parts
 
         else:
@@ -378,7 +378,7 @@ class RemotePortForwarder(Forwarder):
             f'Queued bind request for Messenger `{self.messenger.nickname}` for '
             f'({self.listening_host}:{self.listening_port}) -> '
             f'({self.destination_host}:{self.destination_port}).',
-            'information'
+            'information', display_module='forwarders'
         )
 
     async def stop(self):
@@ -396,7 +396,7 @@ class RemotePortForwarder(Forwarder):
         self.update_cli.display(
             f'Sent stop to Messenger `{self.messenger.nickname}` for bind '
             f'`{self.identifier}` ({self.listening_host}:{self.listening_port}).',
-            'information'
+            'information', display_module='forwarders'
         )
         self.close_all_clients()
 

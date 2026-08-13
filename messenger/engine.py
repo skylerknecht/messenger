@@ -61,7 +61,7 @@ class Engine:
     def add_messenger(self, messenger: Messenger):
         self.messengers.append(messenger)
         self.update_cli.display(f'{messenger.transport_type} Messenger `{messenger.nickname}` is now connected.',
-                                'success')
+                                'success', display_module='messengers')
         upstream_message = CheckInMessage(messenger.identifier)
         upstream_messages = self.serialize_messages([upstream_message])
         return upstream_messages

@@ -35,7 +35,7 @@ class UpdateCLI:
     Status = namedtuple('Status', ['icon', 'color'])
 
     STATUS_LEVELS = {
-        'debug': Status('[DBG {}]', 'white'),
+        'debug': Status('[DBG {}:{}]', 'white'),
         'information': Status('[*]', 'cyan'),
         'warning': Status('[!]', 'yellow'),
         'error': Status('[-]', 'red'),
@@ -47,17 +47,21 @@ class UpdateCLI:
         self.prompt = prompt
         self.session = session
         self.logger = logger
-        self.debug_types = set()
+        self.display_filters = {}
         self.logging_types = set(logging_types) if logging_types else set()
 
-    def display(self, stdout, status='standard', reprompt=True, debug_level=0):
+    def display(self, stdout, status='standard', reprompt=True, display_module=None, debug_level=0):
         status_info = self.STATUS_LEVELS.get(status, self.STATUS_LEVELS['information'])
 
         if status == 'debug':
-            if debug_level not in self.debug_types:
+            if debug_level not in self.display_filters.get(display_module, {}).get('debug', set()):
                 return
-            icon_label = status_info.icon.format(debug_level)
+            icon_label = status_info.icon.format(display_module, debug_level)
             icon = color_text(icon_label, status_info.color)
+        elif display_module and display_module in self.display_filters:
+            if status in self.display_filters[display_module].get('disabled', set()):
+                return
+            icon = color_text(status_info.icon, status_info.color)
         else:
             icon = color_text(status_info.icon, status_info.color)
 
@@ -93,7 +97,7 @@ class Manager:
             ssl (bool): Indicates whether SSL is enabled.
         """
         self.server_commands = {
-            'debug': (self.debug, "Toggle debug output by type."),
+            'display': (self.display_settings, "Change display levels."),
             'logging': (self.logging, "Toggle message logging by type."),
             'forwarders': (self.print_forwarders, "Display a list of forwarders in a table format."),
             'messengers': (self.print_messengers, "Display a list of messengers in a table format."),
@@ -314,72 +318,134 @@ class Manager:
         """
         self.current_messenger = None
 
-    async def debug(self, types=None):
+    async def display_settings(self, module=None, type_name=None, action=None):
         """
-        Enable debug output by type. With no arguments, show current status.
+        Change display levels per module.
 
-        Type | Scope                           | Description
-        -----|---------------------------------|---------------------------------------------------------
-        0    | None                            | Disable all debug output
-        1    | Handler Messages                | Handler received/sent messages
-        2    | Messenger Messages              | Messenger received/sent messages
-        3    | TCP Clients Messages      | TCP clients received/sent messages
-        4    | Handler Data                    | Handler received/sent raw data
-        5    | Messenger Data                  | Messenger received/sent raw data
-        6    | TCP Clients Data          | TCP clients received/sent raw data
-
-        optional:
-          types        Comma-separated list of types to toggle (e.g. 1,4)
+        Module     | Type     | Action  | Description
+        -----------|----------|---------|----------------------------
+        handlers   | debug    | 1,2,all,off | Request debug output
+        handlers   | warnings | on/off  | Handler warning messages
+        handlers   | errors   | on/off  | Handler error messages
+        handlers   | successes| on/off  | Handler success messages
+        handlers   | infos    | on/off  | Handler info messages
+        messengers | debug    | 1,2,all,off | Messenger debug output
+        forwarders | debug    | 1,2,all,off | Forwarder debug output
 
         examples:
-          debug
-          debug 0
-          debug 1,4
-          debug 2,5
+          display                          Show all status
+          display off                      Reset all display filters
+          display handlers                 Show handler status
+          display handlers debug 1         Enable handler debug level 1
+          display handlers debug all       Enable all handler debug
+          display handlers debug off       Disable handler debug
+          display messengers errors off    Suppress messenger errors
+          display messengers errors on     Re-enable messenger errors
+          display forwarders warnings off  Suppress forwarder warnings
         """
-        VALID_TYPES = {1, 2, 3, 4, 5, 6}
-        LABELS = {
-            1: 'Handler Messages',
-            2: 'Messenger Messages',
-            3: 'TCP Clients Messages',
-            4: 'Handler Data',
-            5: 'Messenger Data',
-            6: 'TCP Clients Data',
+        MODULES = ('handlers', 'messengers', 'forwarders')
+        DEBUG_LEVELS = {1, 2}
+        DEBUG_LABELS = {1: 'messages', 2: 'data'}
+        STATUS_TYPES = ('warnings', 'successes', 'infos', 'errors')
+        STATUS_MAP = {
+            'warnings': 'warning',
+            'successes': 'success',
+            'infos': 'information',
+            'errors': 'error',
         }
-        if types is None:
-            if not self.update_cli.debug_types:
-                self.update_cli.display('All debug output disabled.', 'information', reprompt=False)
-            else:
-                for t in sorted(VALID_TYPES):
-                    state = color_text('on', 'green') if t in self.update_cli.debug_types else color_text('off', 'red')
-                    self.update_cli.display(f'{t} {LABELS[t]}: {state}', 'standard', reprompt=False)
+
+        def get_filter(mod):
+            return self.update_cli.display_filters.setdefault(mod, {})
+
+        def show_module_status(mod):
+            filt = self.update_cli.display_filters.get(mod, {})
+            for lvl in sorted(DEBUG_LEVELS):
+                enabled = lvl in filt.get('debug', set())
+                state = color_text('on', 'green') if enabled else color_text('off', 'red')
+                self.update_cli.display(f'{mod} debug:{lvl} {DEBUG_LABELS[lvl]}: {state}', 'standard', reprompt=False)
+            for name in STATUS_TYPES:
+                suppressed = STATUS_MAP[name] in filt.get('disabled', set())
+                state = color_text('off', 'red') if suppressed else color_text('on', 'green')
+                self.update_cli.display(f'{mod} {name}: {state}', 'standard', reprompt=False)
+
+        if module is None:
+            for mod in MODULES:
+                show_module_status(mod)
             return
 
-        raw = str(types).split(',')
-        parsed = set()
-        for token in raw:
-            token = token.strip()
-            try:
-                val = int(token)
-            except ValueError:
-                self.update_cli.display(f'`{token}` is not a valid debug type.', 'error', reprompt=False)
-                return
-            if val == 0:
-                self.update_cli.debug_types.clear()
-                self.update_cli.display('All debug output disabled.', 'success', reprompt=False)
-                return
-            if val not in VALID_TYPES:
-                self.update_cli.display(f'`{val}` is not a valid debug type. Valid types: 1-6.', 'error', reprompt=False)
-                return
-            parsed.add(val)
+        if module == 'off':
+            self.update_cli.display_filters.clear()
+            self.update_cli.display('All display filters reset.', 'success', reprompt=False)
+            return
 
-        for t in parsed:
-            if t in self.update_cli.debug_types:
-                self.update_cli.debug_types.discard(t)
-                self.update_cli.display(f'{LABELS[t]} disabled.', 'information', reprompt=False)
+        if module not in MODULES:
+            self.update_cli.display(
+                f'`{module}` is not a valid module. Valid modules: {", ".join(MODULES)}.', 'error', reprompt=False
+            )
+            return
+
+        if type_name is None:
+            show_module_status(module)
+            return
+
+        if type_name == 'debug':
+            filt = get_filter(module)
+            if action is None:
+                for lvl in sorted(DEBUG_LEVELS):
+                    enabled = lvl in filt.get('debug', set())
+                    state = color_text('on', 'green') if enabled else color_text('off', 'red')
+                    self.update_cli.display(f'{module} debug:{lvl} {DEBUG_LABELS[lvl]}: {state}', 'standard', reprompt=False)
+                return
+            if action == 'all':
+                filt['debug'] = set(DEBUG_LEVELS)
+                self.update_cli.display(f'{module} debug all levels enabled.', 'success', reprompt=False)
+                return
+            if action == 'off':
+                filt.pop('debug', None)
+                self.update_cli.display(f'{module} debug disabled.', 'success', reprompt=False)
+                return
+            raw = str(action).split(',')
+            parsed = set()
+            for token in raw:
+                token = token.strip()
+                try:
+                    val = int(token)
+                except ValueError:
+                    self.update_cli.display(f'`{token}` is not a valid level.', 'error', reprompt=False)
+                    return
+                if val not in DEBUG_LEVELS:
+                    self.update_cli.display(f'`{val}` is not a valid level. Valid levels: 1, 2.', 'error', reprompt=False)
+                    return
+                parsed.add(val)
+            debug_set = filt.setdefault('debug', set())
+            for lvl in sorted(parsed):
+                if lvl in debug_set:
+                    debug_set.discard(lvl)
+                    self.update_cli.display(f'{module} debug:{lvl} {DEBUG_LABELS[lvl]} disabled.', 'information', reprompt=False)
+                else:
+                    debug_set.add(lvl)
+                    self.update_cli.display(f'{module} debug:{lvl} {DEBUG_LABELS[lvl]} enabled.', 'information', reprompt=False)
+            return
+
+        if type_name in STATUS_TYPES:
+            filt = get_filter(module)
+            status_key = STATUS_MAP[type_name]
+            disabled = filt.setdefault('disabled', set())
+            if action == 'off':
+                disabled.add(status_key)
+                self.update_cli.display(f'{module} {type_name} disabled.', 'success', reprompt=False)
+            elif action == 'on':
+                disabled.discard(status_key)
+                self.update_cli.display(f'{module} {type_name} enabled.', 'success', reprompt=False)
             else:
-                self.update_cli.debug_types.add(t)
-                self.update_cli.display(f'{LABELS[t]} enabled.', 'information', reprompt=False)
+                suppressed = status_key in disabled
+                state = color_text('off', 'red') if suppressed else color_text('on', 'green')
+                self.update_cli.display(f'{module} {type_name}: {state}', 'standard', reprompt=False)
+            return
+
+        self.update_cli.display(
+            f'`{type_name}` is not a valid type. Valid types: debug, {", ".join(STATUS_TYPES)}.', 'error', reprompt=False
+        )
 
     async def logging(self, types=None):
         """
@@ -816,7 +882,7 @@ class Manager:
             f"{tb}\n{'-' * 80}\n"
         )
 
-        if self.update_cli.debug_types:
+        if any(f.get('debug') for f in self.update_cli.display_filters.values()):
             self.update_cli.display(log_entry, 'error', reprompt=False)
 
         with open(log_file, "a", encoding="utf-8") as f:

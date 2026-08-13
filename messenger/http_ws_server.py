@@ -34,9 +34,9 @@ class HTTPWSServer:
             else:
                 site = web.TCPSite(runner, self.ip, self.port)
                 await site.start()
-            self.update_cli.display(f"Waiting for messengers on http{'s' if self.ssl else ''}+ws{'s' if self.ssl else ''}://{self.ip}:{self.port}/", 'Information', reprompt=False)
+            self.update_cli.display(f"Waiting for messengers on http{'s' if self.ssl else ''}+ws{'s' if self.ssl else ''}://{self.ip}:{self.port}/", 'information', reprompt=False, display_module='handlers')
         except OSError:
-            self.update_cli.display(f'An error prevented the server from starting:\n{traceback.format_exc()}', 'error', reprompt=False)
+            self.update_cli.display(f'An error prevented the server from starting:\n{traceback.format_exc()}', 'error', reprompt=False, display_module='handlers')
 
     @staticmethod
     async def remove_server_header(_, response):
@@ -49,9 +49,8 @@ class HTTPWSServer:
         is_websocket = upgrade == 'websocket'
 
         self.update_cli.display(
-            f'The handler received a {request.method} from {ip} '
-            f'(upgrade={upgrade or "-"}).',
-            'debug', debug_level=1,
+            f'The handler received a {request.method} from {ip}.',
+            'debug', display_module='handlers', debug_level=1,
         )
 
         if is_websocket:
@@ -66,10 +65,14 @@ class HTTPWSServer:
 
         upstream_message_data = b''
         data = await request.read()
+        self.update_cli.display(
+            f'The handler received {len(data)} bytes from {ip}\n{data}.',
+            'debug', display_module='handlers', debug_level=2,
+        )
         messages = self.messenger_engine.deserialize_messages(data) if data else []
         messenger_id = self.messenger_engine.get_messenger_id(messages[0]) if messages else None
         if messenger_id is None:
-            self.update_cli.display('Unable to identify Messenger, the CheckIn message was not present', 'warning')
+            self.update_cli.display('Unable to identify Messenger, the CheckIn message was not present', 'warning', display_module='handlers')
             return web.Response(status=200, body=b'')
         try:
             messenger = self.messenger_engine.get_messenger(messenger_id)
@@ -79,7 +82,7 @@ class HTTPWSServer:
                 if messenger.check_in_delta > 60:
                     self.update_cli.display(
                         f'{messenger.transport_type} Messenger `{messenger.nickname}` has reconnected.',
-                        'success'
+                        'success', display_module='handlers'
                     )
                 upstream_message_data += await messenger.get_upstream_messages()
             else:
@@ -97,7 +100,7 @@ class HTTPWSServer:
                 if not messenger_id:
                     upstream_message_data += check_in_message
         except Exception as e:
-            self.update_cli.display(f'Unknown error while processing check in: {e}', 'warning')
+            self.update_cli.display(f'Unknown error while processing check in: {e}', 'warning', display_module='handlers')
             return web.Response(status=200, body=b'')
 
         return web.Response(status=200, body=upstream_message_data)
@@ -112,10 +115,14 @@ class HTTPWSServer:
         if msg.type != web.WSMsgType.BINARY:
             await ws.close()
             return ws
+        self.update_cli.display(
+            f'The handler received {len(msg.data)} bytes from {ip}\n{msg.data}.',
+            'debug', display_module='handlers', debug_level=2,
+        )
         messages = self.messenger_engine.deserialize_messages(msg.data) if msg.data else []
         messenger_id = self.messenger_engine.get_messenger_id(messages[0]) if messages else None
         if messenger_id is None:
-            self.update_cli.display('Unable to identify Messenger, the CheckIn message was not present', 'warning')
+            self.update_cli.display('Unable to identify Messenger, the CheckIn message was not present', 'warning', display_module='handlers')
             await ws.close()
             return ws
         messenger = self.messenger_engine.get_messenger(messenger_id)
@@ -123,14 +130,14 @@ class HTTPWSServer:
             if not isinstance(messenger, WebSocketMessenger):
                 self.update_cli.display(
                     f'Messenger `{messenger_id}` is not a WebSocket Messenger, closing connection.',
-                    'warning'
+                    'warning', display_module='handlers'
                 )
                 await ws.close()
                 return ws
             messenger.set_websocket(ws)
             self.update_cli.display(
                 f'{messenger.transport_type} Messenger `{messenger.nickname}` has reconnected.',
-                'success'
+                'success', display_module='handlers'
             )
             while not messenger.upstream_messages.empty():
                 message = await messenger.upstream_messages.get()
@@ -157,6 +164,10 @@ class HTTPWSServer:
 
         async for msg in ws:
             try:
+                self.update_cli.display(
+                    f'The handler received {len(msg.data) if msg.data else 0} bytes from {ip}\n{msg.data}.',
+                    'debug', display_module='handlers', debug_level=2,
+                )
                 messages = self.messenger_engine.deserialize_messages(msg.data) if msg.data else []
                 if not messages:
                     continue
@@ -168,7 +179,7 @@ class HTTPWSServer:
                     messages[1:]
                 )
             except Exception as e:
-                self.update_cli.display(f'Unknown error while processing check in: {e}', 'warning')
+                self.update_cli.display(f'Unknown error while processing check in: {e}', 'warning', display_module='handlers')
                 continue
 
         messenger.check_in()

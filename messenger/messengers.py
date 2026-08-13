@@ -90,12 +90,12 @@ class Messenger:
         self.update_cli.display(
             f'Messenger {self.nickname} received downstream message(s).',
             'debug',
-            debug_level = 2
+            display_module='messengers', debug_level=1
         )
         self.update_cli.display(
             f'Messenger {self.nickname} received the following downstream message(s)\n{messages}.',
             'debug',
-            debug_level = 5
+            display_module='messengers', debug_level=2
         )
         for message in messages:
             self.log_message('downstream', message)
@@ -119,7 +119,7 @@ class Messenger:
                         f'Messenger `{self.nickname}` has no configured remote port forward '
                         f'for {message.listening_host}:{message.listening_port} -> '
                         f'{message.destination_host}:{message.destination_port}, denying forward!',
-                        'warning'
+                        'warning', display_module='messengers'
                     )
                     await self.send_message_upstream(
                         InitiateTCPClientRep(
@@ -138,7 +138,7 @@ class Messenger:
                     self.ips.add(addr)
                     self.update_cli.display(
                         f'Messenger `{self.nickname}` has a new interface: {addr}',
-                        'success'
+                        'success', display_module='messengers'
                     )
                 for scanner in self.scanners:
                     await scanner.handle_initiate_tcp_client_rep(message)
@@ -173,19 +173,19 @@ class Messenger:
                             self.update_cli.display(
                                 f'Messenger `{self.nickname}` failed to bind '
                                 f'{message.listening_host}:{message.listening_port}.',
-                                'error'
+                                'error', display_module='messengers'
                             )
                         else:
                             self.update_cli.display(
                                 f'Messenger `{self.nickname}` remote port forward `{message.bind_id}` '
                                 f'({message.listening_host}:{message.listening_port}) is no longer bound.',
-                                'status'
+                                'status', display_module='messengers'
                             )
                     else:
                         self.update_cli.display(
                             f'Messenger `{self.nickname}` remote port forward `{message.bind_id}` '
                             f'({message.listening_host}:{message.listening_port}) is no longer bound.',
-                            'status'
+                            'status', display_module='messengers'
                         )
                 else:
                     # PRESENT — the client is listening. Reconcile to its claim.
@@ -197,7 +197,7 @@ class Messenger:
                         existing.seen_bind_rep = True
                         self.update_cli.display(
                             f'Messenger `{self.nickname}` bound {message.listening_host}:{message.listening_port}.',
-                            'success'
+                            'success', display_module='messengers'
                         )
                     else:
                         # Unknown bind_id. Any forwarder we hold on this listening
@@ -217,7 +217,7 @@ class Messenger:
                                 f'Messenger `{self.nickname}` claims bind `{message.bind_id}` on '
                                 f'{message.listening_host}:{message.listening_port}, which was tracked as '
                                 f'`{stale.identifier}`; replaced the stale entry.',
-                                'warning'
+                                'warning', display_module='messengers'
                             )
                         orphan = RemotePortForwarder.orphan(
                             self, message.bind_id, message.listening_host,
@@ -227,18 +227,18 @@ class Messenger:
                         self.update_cli.display(
                             f'Messenger `{self.nickname}` advertised remote port forward `{message.bind_id}` '
                             f'on {message.listening_host}:{message.listening_port}.',
-                            'warning'
+                            'warning', display_module='messengers'
                         )
                         self.update_cli.display(
                             f'Run `remote {message.listening_host}:{message.listening_port}:<destination_host>:<destination_port>` to configure it.',
-                            'warning'
+                            'warning', display_module='messengers'
                         )
 
             # Unknown / Unhandled
             else:
                 self.update_cli.display(
                     f"Unknown or unhandled message type: {type(message).__name__}",
-                    'information'
+                    'information', display_module='messengers'
                 )
 
     @staticmethod
@@ -301,12 +301,12 @@ class HTTPMessenger(Messenger):
         self.update_cli.display(
             f'Messenger {self.nickname} queued a upstream message.',
             'debug',
-            debug_level = 2
+            display_module='messengers', debug_level=1
         )
         self.update_cli.display(
             f'Messenger {self.nickname} queued the following upstream message\n{message}.',
             'debug',
-            debug_level = 5
+            display_module='messengers', debug_level=2
         )
         await self.upstream_messages.put(message)
 
@@ -336,25 +336,25 @@ class WebSocketMessenger(Messenger):
         if self.websocket.closed:
             self.update_cli.display(
                 f'Messenger `{self.nickname}` queued a upstream message.',
-                'warning'
+                'warning', display_module='messengers'
             )
             await self.upstream_messages.put(message)
             return
         self.update_cli.display(
             f'Messenger {self.nickname} sent a upstream message.',
             'debug',
-            debug_level = 2
+            display_module='messengers', debug_level=1
         )
         self.update_cli.display(
             f'Messenger {self.nickname} sent the following upstream message\n{message}.',
             'debug',
-            debug_level = 5
+            display_module='messengers', debug_level=2
         )
         try:
             await self.websocket.send_bytes(self.serialize_messages([message]))
         except Exception:
             self.update_cli.display(
                 f'Messenger `{self.nickname}` queued a upstream message.',
-                'warning'
+                'warning', display_module='messengers'
             )
             await self.upstream_messages.put(message)
