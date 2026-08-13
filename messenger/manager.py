@@ -320,31 +320,32 @@ class Manager:
 
     async def display_settings(self, module=None, type_name=None, action=None):
         """
-        Change display levels per module.
+        Toggle display filters per module.
 
-        Module     | Type     | Action      | Description
-        -----------|----------|-------------|----------------------------
-        handlers   | debug    | 1,2,all,off | Toggle debug output
-        messengers | debug    | 1,2,all,off | Toggle debug output
-        forwarders | debug    | 1,2,all,off | Toggle debug output
-        <module>   | warnings |             | Toggle warning messages
-        <module>   | errors   |             | Toggle error messages
-        <module>   | successes|             | Toggle success messages
-        <module>   | infos    |             | Toggle info messages
+        Type      | Action | Description
+        ----------|--------|-----------------------------------
+        debug     | 1,2    | Toggle debug levels (bare = all)
+        warnings  |        | Toggle warning messages
+        errors    |        | Toggle error messages
+        successes |        | Toggle success messages
+        infos     |        | Toggle info messages
+
+        optional:
+          module                   handlers, messengers, or forwarders
+          type_name                Comma-separated types to toggle
+          action                   Debug levels to toggle (1, 2, or 1,2)
 
         examples:
           display                          Show all module status
           display off                      Reset all display filters
           display handlers                 Show handler status
+          display handlers debug           Toggle all handler debug
           display handlers debug 1         Toggle handler debug level 1
-          display handlers debug all       Enable all handler debug
-          display handlers debug off       Disable all handler debug
+          display handlers debug,warnings  Toggle handler debug and warnings
           display messengers errors        Toggle messenger errors
-          display forwarders warnings      Toggle forwarder warnings
         """
         MODULES = ('handlers', 'messengers', 'forwarders')
         DEBUG_LEVELS = {1, 2}
-        DEBUG_LABELS = {1: 'messages', 2: 'data'}
         STATUS_TYPES = ('warnings', 'successes', 'infos', 'errors')
         STATUS_MAP = {
             'warnings': 'warning',
@@ -352,24 +353,35 @@ class Manager:
             'infos': 'information',
             'errors': 'error',
         }
+        VALID_TYPES = {'debug'} | set(STATUS_TYPES)
 
-        def get_filter(mod):
-            return self.update_cli.display_filters.setdefault(mod, {})
+        def format_debug(filt):
+            debug_set = filt.get('debug', set())
+            if not debug_set:
+                return color_text('off', 'red')
+            return color_text(','.join(str(l) for l in sorted(debug_set)), 'green')
 
-        def show_module_status(mod):
-            filt = self.update_cli.display_filters.get(mod, {})
-            for lvl in sorted(DEBUG_LEVELS):
-                enabled = lvl in filt.get('debug', set())
-                state = color_text('on', 'green') if enabled else color_text('off', 'red')
-                self.update_cli.display(f'{mod} debug:{lvl} {DEBUG_LABELS[lvl]}: {state}', 'standard', reprompt=False)
-            for name in STATUS_TYPES:
-                suppressed = STATUS_MAP[name] in filt.get('disabled', set())
-                state = color_text('off', 'red') if suppressed else color_text('on', 'green')
-                self.update_cli.display(f'{mod} {name}: {state}', 'standard', reprompt=False)
+        def format_status(filt, name):
+            suppressed = STATUS_MAP[name] in filt.get('disabled', set())
+            return color_text('off', 'red') if suppressed else color_text('on', 'green')
+
+        def show_table(modules):
+            columns = ['Module', 'Debug', 'Warnings', 'Successes', 'Infos', 'Errors']
+            items = []
+            for mod in modules:
+                filt = self.update_cli.display_filters.get(mod, {})
+                items.append({
+                    'Module': mod,
+                    'Debug': format_debug(filt),
+                    'Warnings': format_status(filt, 'warnings'),
+                    'Successes': format_status(filt, 'successes'),
+                    'Infos': format_status(filt, 'infos'),
+                    'Errors': format_status(filt, 'errors'),
+                })
+            print(self.create_table('Display', columns, items))
 
         if module is None:
-            for mod in MODULES:
-                show_module_status(mod)
+            show_table(MODULES)
             return
 
         if module == 'off':
@@ -384,63 +396,46 @@ class Manager:
             return
 
         if type_name is None:
-            show_module_status(module)
+            show_table((module,))
             return
 
-        if type_name == 'debug':
-            filt = get_filter(module)
-            if action is None:
-                for lvl in sorted(DEBUG_LEVELS):
-                    enabled = lvl in filt.get('debug', set())
-                    state = color_text('on', 'green') if enabled else color_text('off', 'red')
-                    self.update_cli.display(f'{module} debug:{lvl} {DEBUG_LABELS[lvl]}: {state}', 'standard', reprompt=False)
+        types = [t.strip() for t in type_name.split(',')]
+        for t in types:
+            if t not in VALID_TYPES:
+                self.update_cli.display(
+                    f'`{t}` is not a valid type. Valid types: {", ".join(sorted(VALID_TYPES))}.', 'error', reprompt=False
+                )
                 return
-            if action == 'all':
-                filt['debug'] = set(DEBUG_LEVELS)
-                self.update_cli.display(f'{module} debug all levels enabled.', 'success', reprompt=False)
-                return
-            if action == 'off':
-                filt.pop('debug', None)
-                self.update_cli.display(f'{module} debug disabled.', 'success', reprompt=False)
-                return
-            raw = str(action).split(',')
-            parsed = set()
-            for token in raw:
-                token = token.strip()
-                try:
-                    val = int(token)
-                except ValueError:
-                    self.update_cli.display(f'`{token}` is not a valid level.', 'error', reprompt=False)
-                    return
-                if val not in DEBUG_LEVELS:
-                    self.update_cli.display(f'`{val}` is not a valid level. Valid levels: 1, 2.', 'error', reprompt=False)
-                    return
-                parsed.add(val)
-            debug_set = filt.setdefault('debug', set())
-            for lvl in sorted(parsed):
-                if lvl in debug_set:
-                    debug_set.discard(lvl)
-                    self.update_cli.display(f'{module} debug:{lvl} {DEBUG_LABELS[lvl]} disabled.', 'information', reprompt=False)
+
+        filt = self.update_cli.display_filters.setdefault(module, {})
+
+        for t in types:
+            if t == 'debug':
+                debug_set = filt.setdefault('debug', set())
+                if action is not None:
+                    raw = str(action).split(',')
+                    for token in raw:
+                        token = token.strip()
+                        try:
+                            val = int(token)
+                        except ValueError:
+                            self.update_cli.display(f'`{token}` is not a valid level.', 'error', reprompt=False)
+                            return
+                        if val not in DEBUG_LEVELS:
+                            self.update_cli.display(f'`{val}` is not a valid level. Valid levels: 1, 2.', 'error', reprompt=False)
+                            return
+                        debug_set.symmetric_difference_update({val})
                 else:
-                    debug_set.add(lvl)
-                    self.update_cli.display(f'{module} debug:{lvl} {DEBUG_LABELS[lvl]} enabled.', 'information', reprompt=False)
-            return
-
-        if type_name in STATUS_TYPES:
-            filt = get_filter(module)
-            status_key = STATUS_MAP[type_name]
-            disabled = filt.setdefault('disabled', set())
-            if status_key in disabled:
-                disabled.discard(status_key)
-                self.update_cli.display(f'{module} {type_name} enabled.', 'information', reprompt=False)
+                    if debug_set:
+                        debug_set.clear()
+                    else:
+                        debug_set.update(DEBUG_LEVELS)
             else:
-                disabled.add(status_key)
-                self.update_cli.display(f'{module} {type_name} disabled.', 'information', reprompt=False)
-            return
+                status_key = STATUS_MAP[t]
+                disabled = filt.setdefault('disabled', set())
+                disabled.symmetric_difference_update({status_key})
 
-        self.update_cli.display(
-            f'`{type_name}` is not a valid type. Valid types: debug, {", ".join(STATUS_TYPES)}.', 'error', reprompt=False
-        )
+        show_table((module,))
 
     async def logging(self, types=None):
         """
