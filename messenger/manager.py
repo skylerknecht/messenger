@@ -47,7 +47,7 @@ class UpdateCLI:
         self.prompt = prompt
         self.session = session
         self.logger = logger
-        self.display_filters = {}
+        self.display_filters = {'handlers': {'disabled': {'warning'}}}
         self.logging_types = set(logging_types) if logging_types else set()
 
     def display(self, stdout, status='standard', reprompt=True, display_module=None):
