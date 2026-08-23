@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/messenger-logo.png" alt="Messenger" width="600">
+  <img src="docs/images/messenger-logo.png?v=2" alt="Messenger" width="600">
 </p>
 
 <p align="center">
