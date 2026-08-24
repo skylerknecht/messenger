@@ -3,10 +3,11 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.9.1-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-v0.9.1-orange" alt="Version">
   <img src="https://img.shields.io/pypi/v/messenger-proxy" alt="PyPI">
   <img src="https://img.shields.io/badge/python->3.8-blue" alt="Python">
   <img src="https://img.shields.io/github/license/skylerknecht/messenger" alt="License">
+  <img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fspecterops%2F.github%2Fmain%2Fconfig%2Fshield.json&style=flat" alt="Sponsored by SpecterOps">
 </p>
 
 Messenger is a tunneling toolkit that leverages a client-server infrastructure
