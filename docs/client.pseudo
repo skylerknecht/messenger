@@ -6,6 +6,8 @@
 #
 # Conventions:
 #   await  = asynchronous call
+#   _ = operation() = start an asynchronous operation without blocking message
+#                     dispatch; its returned task may be discarded
 #   ->     = returns
 #   //     = comment explaining WHY, not what
 #
@@ -31,6 +33,14 @@
 #     strings, not GUIDs/UUIDs.
 #   - Hostnames passed to bind_tcp or TcpListener must be resolved via DNS
 #     (e.g. Dns.GetHostAddresses, getaddrinfo) — do not require a numeric IP.
+#   - Transport frames and the messages inside them are dispatched in received
+#     order. Only request handlers that can wait on DNS/connect/bind are started
+#     in the background. Replies, data, close, check-in, and checkout are handled
+#     inline so Task/Thread scheduling cannot reorder them.
+#   - Background tasks do not require a global registry. Each operation owns and
+#     cleans up its resources in finally. Expected request failures are caught
+#     when the protocol requires a failure reply; other task faults may remain
+#     unobserved.
 
 
 # ============================================================================
@@ -99,7 +109,7 @@ function decrypt(key, data) -> bytes:
 function serialize_message(message, encryption_key) -> bytes:
     payload = build_payload(message)
 
-    if message.type != CHECK_IN:
+    if message.type not in (CHECK_IN, CHECK_OUT):
         payload = encrypt(encryption_key, payload)
 
     type_bytes  = uint32_to_bytes_be(message.type_id)
@@ -171,7 +181,7 @@ struct InitiateTCPClientRep:
 
 struct SendDataMessage:
     client_id: string
-    data: bytes             # empty data = close signal
+    data: bytes             # empty data = immediately RST this TCP client
 
 struct InitiateBINDReq:
     bind_id: string
@@ -231,63 +241,146 @@ struct CheckOutMessage:
 # 5. CLIENT (BASE CLASS)
 # ============================================================================
 
+class TcpConnection:
+    messenger: Client
+    client_id: string
+    bind_id: string | null
+    socket: socket
+    write_queue: ordered_async_queue<bytes>
+
+    function constructor(messenger, client_id, socket, bind_id=null):
+        self.messenger = messenger
+        self.client_id = client_id
+        self.bind_id = bind_id
+        self.socket = socket
+        self.write_queue = new ordered_async_queue()
+
+    function abort() -> bool:
+        if messenger.tcp_clients.remove(client_id, self) failed:
+            return false
+            // Dictionary removal is the once-only abort guard. Every other
+            // path becomes a no-op, so no separate closed flag is needed.
+
+        write_queue.complete()
+        abort_socket(socket)         // RST, never graceful FIN
+        return true
+
+    function abort_and_signal():
+        if abort() and not messenger.killed:
+            _ = messenger.send_upstream_message(
+                SendDataMessage(client_id=client_id, data=empty))
+
+    function send_data(data):
+        if data is empty:
+            abort()
+            // Empty SendData is the protocol command to RST this TCP client.
+        else:
+            write_queue.try_enqueue(data)
+            // Failure means abort() completed the queue after the dispatcher
+            // found this connection. The data is obsolete; ignore it.
+        // Data is enqueued inline in wire order. An empty message aborts
+        // immediately rather than waiting behind queued writes.
+
+    function write_loop():
+        try:
+            while true:
+                data = await write_queue.dequeue()
+                write(socket, data)
+                await drain(socket)
+        catch (QueueClosed):
+            pass
+        catch:
+            abort_and_signal()
+
+    function stream():
+        try:
+            while true:
+                data = await read(socket, max=4096)
+                if data is empty:
+                    break
+                await messenger.send_upstream_message(
+                    SendDataMessage(client_id=client_id, data=data))
+        catch (EOF, ConnectionReset, ConnectionAborted):
+            pass
+        catch:
+            pass
+        finally:
+            abort_and_signal()
+
+
 class Client:
     identifier: string = ""
-    tcp_clients: concurrent_dict<string, socket>
-    remote_port_forwarders: list<RemotePortForwarder>
+    tcp_clients: concurrent_dict<string, TcpConnection>
+    remote_port_forwarders: concurrent_list<RemotePortForwarder>
     encryption_key: bytes
     killed: bool = false
 
-    function handle_message(message):
+    function register_tcp_client(client_id, socket, bind_id=null) -> TcpConnection | null:
+        if killed:
+            abort_socket(socket)
+            return null
+
+        connection = new TcpConnection(self, client_id, socket, bind_id)
+        if tcp_clients.try_add(client_id, connection) failed:
+            abort_socket(socket)
+            return null
+
+        if killed:
+            connection.abort()
+            return null
+            // Closes the narrow race where checkout occurs between the first
+            // killed check and publication in the dictionary.
+
+        _ = connection.write_loop()
+        return connection
+
+    function close_connections_for_bind(bind_id):
+        for connection in snapshot(tcp_clients.values):
+            if connection.bind_id == bind_id:
+                connection.abort()
+        // Forwarder shutdown is rare, so a scan avoids maintaining a second
+        // connection collection that must stay synchronized with tcp_clients.
+
+    function dispatch_message(message):
+        # Called sequentially by the transport receive/poll loop. Do not wrap
+        # this whole function in Task.Run/spawn: that would discard wire order.
         match message.type:
 
             InitiateTCPClientReq:
-                await handle_tcp_connect(
+                # DNS and connect can take seconds, so this request is the one
+                # operation that must not hold up dispatch for other clients.
+                _ = handle_tcp_connect(
                     message.client_id,
                     message.destination_host,
                     message.destination_port
                 )
 
             InitiateTCPClientRep:
-                client = tcp_clients.get(message.client_id)
-                if client is null:
+                connection = tcp_clients.get(message.client_id)
+                if connection is null:
                     return
-                    // Server replied to a forwarder we don't have — probably
-                    // cleaned up during a race. Ignore.
 
                 if message.reason != 0:
-                    close(client)
-                    tcp_clients.remove(message.client_id)
+                    connection.abort()
                     return
 
-                resume(client)
-                // Un-pause the socket so data can flow.
-                // RPF sockets are paused on accept to prevent data arriving
-                // before the server has approved the connection.
-
-                await stream(message.client_id)
+                resume(connection.socket)
+                // The RPF socket was registered and paused before its request.
+                // A successful reply is the protocol gate that starts reading.
+                _ = connection.stream()
 
             SendDataMessage:
-                client = tcp_clients.get(message.client_id)
-                if client is null:
+                connection = tcp_clients.get(message.client_id)
+                if connection is null:
                     return
 
-                if message.data is empty:
-                    // CLOSE SIGNAL from server.
-                    // Use safe removal — the stream() task may have already
-                    // removed this entry.
-                    if tcp_clients.remove(message.client_id) succeeded:
-                        close(client)
-                    return
-
-                write(client, message.data)
-                await drain(client)
-                // drain() ensures TCP backpressure is respected.
-                // Without it, fast data from the server can overwhelm a slow
-                // local socket.
+                connection.send_data(message.data)
 
             InitiateBINDReq:
-                await handle_bind(
+                # DNS/bind is a request and may be slow. RemotePortForwarder.start
+                # returns after starting its owned accept loop; it never awaits
+                # the lifetime of that loop.
+                _ = handle_bind(
                     message.bind_id,
                     message.listening_host,
                     message.listening_port,
@@ -295,44 +388,48 @@ class Client:
                     message.destination_port
                 )
 
+            CheckInMessage:
+                identifier = message.messenger_id
+
             CheckOutMessage:
-                log("[!] Kill signal received")
-                killed = true
-                for forwarder in list(remote_port_forwarders):
-                    forwarder.stop()
-                    forwarder.close_all_clients()
-                remote_port_forwarders.clear()
-                for client_id, socket in tcp_clients:
-                    close(socket)
-                tcp_clients.clear()
+                handle_checkout()
+
+
+    function handle_checkout():
+        log("[!] Kill signal received")
+        killed = true
+        // This is an inline shutdown barrier. Once it is reached, the receive
+        // loop dispatches nothing after it. Closing listeners, sockets, and
+        // queues wakes their accept, read, write, and dequeue operations.
+
+        for forwarder in snapshot(remote_port_forwarders):
+            forwarder.stop()
+
+        for connection in snapshot(tcp_clients.values):
+            connection.abort()
+        // Checkout requests closure only. TcpConnection.abort owns dictionary
+        // removal/queue/socket cleanup; the forwarder's accept-loop finally
+        // owns forwarder removal and cleanup of its accepted clients.
 
 
     function handle_bind(bind_id, listening_host, listening_port, destination_host, destination_port):
-        if killed:                    // threaded implementations only
+        if killed:
             return
 
-        # --- STOP: empty listening host tears this bind down. ---
-        # Unambiguous — never mistaken for a new bind — so it works even if we
-        # don't have this bind_id (just no-op). Close the listener and RST all
-        # forwarded connections immediately; the accept-loop finally / close-event
-        # will fire report_gone() which sends the BindRep with reason!=0 to the server.
+        # Empty listening host is an unambiguous STOP request.
         if listening_host == "":
             existing = find remote_port_forwarders where identifier == bind_id
             if existing is not null:
                 existing.stop()
-                existing.close_all_clients()
-                remote_port_forwarders.remove(existing)
             return
 
-        # --- Idempotent: already holding this bind_id → just re-confirm. ---
-        # (A duplicate real BindReq is NOT a shutdown any more.)
+        # A duplicate real BindReq is idempotent, not a shutdown.
         if remote_port_forwarders has one where identifier == bind_id:
             await send_upstream_message(InitiateBINDRep(
                 bind_id = bind_id, listening_host = listening_host,
                 listening_port = listening_port, reason = 0))
             return
 
-        # --- Create + bind. ---
         try:
             forwarder = new RemotePortForwarder(
                 self, bind_id, listening_host, listening_port,
@@ -340,85 +437,98 @@ class Client:
             )
             success = await forwarder.start()
             if not success:
-                await send_upstream_message(InitiateBINDRep(
-                    bind_id = bind_id, listening_host = listening_host,
-                    listening_port = listening_port, reason = 1))
+                if not killed:
+                    await send_upstream_message(InitiateBINDRep(
+                        bind_id = bind_id, listening_host = listening_host,
+                        listening_port = listening_port, reason = 1))
                 return
 
-            remote_port_forwarders.append(forwarder)
+            if killed:
+                forwarder.stop()
+                return
+                // Checkout may have occurred while DNS/bind was in progress.
+                // Never publish a listener after the shutdown barrier.
+
             await send_upstream_message(InitiateBINDRep(
                 bind_id = bind_id, listening_host = listening_host,
                 listening_port = listening_port, reason = 0))
 
         catch error:
-            await send_upstream_message(InitiateBINDRep(
-                bind_id = bind_id, listening_host = listening_host,
-                listening_port = listening_port, reason = 1))
+            if not killed:
+                await send_upstream_message(InitiateBINDRep(
+                    bind_id = bind_id, listening_host = listening_host,
+                    listening_port = listening_port, reason = 1))
 
 
-    function handle_tcp_connect(client_id, ip, port):
-        # TCP connect to the target requested by the server.
-        # Maps OS-level socket errors to SOCKS5 reason codes.
-
-        if killed:                    // threaded implementations only
+    function handle_tcp_connect(client_id, host, port):
+        # Maps OS-level socket errors to SOCKS5 reason codes. This whole
+        # function is an owned background request task, so awaiting its stream
+        # does not block message dispatch.
+        if killed:
             return
 
         raw_socket = null
+        connection = null
 
         try:
-            raw_socket = new Socket(address_family_for(ip))
-            await connect(raw_socket, ip, port, timeout=5_seconds)
+            addresses = await resolve_hostname(host)
+            raw_socket = new Socket(address_family_for(addresses))
+            await connect(raw_socket, addresses, port, timeout=5_seconds)
 
-            client = wrap_socket_in_stream(raw_socket)
-            raw_socket = null
-            // Ownership transferred to client — prevents finally from
-            // disposing a socket that is now managed by the stream wrapper.
+            if killed:
+                abort_socket(raw_socket)
+                raw_socket = null
+                return
+                // A connect started before checkout must not publish afterward.
 
-            tcp_clients[client_id] = client
-            // Register BEFORE sending the reply.
-            // If the server responds with data before we register, the
-            // handle_message dispatch would silently drop it.
-
-            bind_address = client.local_address
-            bind_port    = client.local_port
-            remote_addr  = client.remote_address
-            remote_port  = client.remote_port
-            address_type = 1 if IPv4 else 4 if IPv6
+            connection = register_tcp_client(client_id, raw_socket)
+            if connection is null:
+                raw_socket = null     // register closed the duplicate socket
+                if not killed:
+                    await send_upstream_message(InitiateTCPClientRep(
+                        client_id = client_id,
+                        bind_address = "0.0.0.0", bind_port = 0,
+                        address_type = 1, reason = 1,
+                        remote_addr = "0.0.0.0", remote_port = 0
+                    ))
+                return
+            raw_socket = null         // ownership transferred to connection
 
             reply = InitiateTCPClientRep(
                 client_id    = client_id,
-                bind_address = bind_address,
-                bind_port    = bind_port,
-                address_type = address_type,
+                bind_address = connection.socket.local_address,
+                bind_port    = connection.socket.local_port,
+                address_type = 1 if IPv4 else 4 if IPv6,
                 reason       = 0,
-                remote_addr  = remote_addr,
-                remote_port  = remote_port
+                remote_addr  = connection.socket.remote_address,
+                remote_port  = connection.socket.remote_port
             )
             await send_upstream_message(reply)
-            await stream(client_id)
+            await connection.stream()
+            // This responder starts reading immediately. Any resulting data is
+            // enqueued after the reply, so the ordered transport delivers the
+            // reply before that data. The requester does not start its own read
+            // loop until it receives and processes the successful reply.
 
         catch error:
-            reason = map_socket_error(error)
-
-            reply = InitiateTCPClientRep(
-                client_id    = client_id,
-                bind_address = "0.0.0.0",
-                bind_port    = 0,
-                address_type = 1,
-                reason       = reason,
-                remote_addr  = "0.0.0.0",
-                remote_port  = 0
-            )
-            await send_upstream_message(reply)
-
+            if not killed:
+                await send_upstream_message(InitiateTCPClientRep(
+                    client_id = client_id,
+                    bind_address = "0.0.0.0", bind_port = 0,
+                    address_type = 1, reason = map_socket_error(error),
+                    remote_addr = "0.0.0.0", remote_port = 0
+                ))
         finally:
+            if connection is not null:
+                connection.abort()
+                // Handles failure after registration but before/during stream.
+                // If stream already cleaned up, dictionary removal makes this
+                // a harmless no-op.
             if raw_socket is not null:
-                dispose(raw_socket)
-                // Only reached if connect failed before ownership transfer.
+                abort_socket(raw_socket)
 
 
     # Error-to-SOCKS5-reason mapping:
-    #
     #   DNS failure / resolution error  -> 0x04 (host unreachable)
     #   Timeout                         -> 0x06 (TTL expired)
     #   Connection refused              -> 0x05
@@ -429,61 +539,9 @@ class Client:
     #   General / unknown               -> 0x01
 
 
-    function stream(client_id):
-        # Read loop: forwards data from a local socket to the server.
-        # The close signal ownership pattern ensures exactly one side
-        # sends the close signal, regardless of who disconnects first.
-
-        client = tcp_clients.get(client_id)
-        if client is null:
-            return
-
-        try:
-            while true:
-                data = await read(client, max=4096)
-                if data is empty:
-                    break   // EOF — remote closed the connection
-
-                message = SendDataMessage(
-                    client_id = client_id,
-                    data                = data
-                )
-                await send_upstream_message(message)
-
-        catch (EOF, ConnectionReset, ConnectionAborted):
-            pass    // Expected disconnection errors — fall through to cleanup.
-
-        catch:
-            pass    // Unexpected error — still clean up.
-
-        finally:
-            # CLOSE SIGNAL OWNERSHIP
-            #
-            # Only the side that successfully removes the entry from
-            # tcp_clients sends the close signal. This prevents:
-            #   1. Duplicate close signals (both sides send)
-            #   2. Close signal echo (server closes -> we echo back -> loop)
-            #   3. KeyError / crash from removing an already-removed entry
-            #
-            # The remove operation is atomic (ConcurrentDictionary.TryRemove,
-            # dict.pop with default, or Map.delete with has-check).
-
-            if tcp_clients.remove(client_id) succeeded:
-                close(client)
-                if not killed:
-                    close_signal = SendDataMessage(
-                        client_id = client_id,
-                        data                = empty
-                    )
-                    await send_upstream_message(close_signal)
-
-            // If remove returned false/null, the server-side close handler
-            // (handle_message for empty SendDataMessage) already cleaned up.
-            // Do nothing — no close signal, no double-free.
-
-
     function send_upstream_message(message):
-        # Abstract — implemented by WSClient and HTTPClient.
+        # Abstract — implemented by WSClient and HTTPClient. It enqueues; it
+        # does not wait for an HTTP response or write a WebSocket directly.
         raise NotImplemented
 
 
@@ -549,14 +607,17 @@ class WSClient extends Client:
 
             messages = deserialize_messages(frame_bytes, encryption_key)
 
-            if any message is CheckOutMessage:
-                handle_message(CheckOutMessage)   // inline, not spawned
+            // CheckOut overrides the entire frame. Do not dispatch messages
+            // that appeared before or after it in the same decoded batch.
+            if any message in messages is CheckOutMessage:
+                handle_checkout()
                 break
 
             for message in messages:
-                spawn handle_message(message)
-                // Each message dispatched independently so a slow
-                // handle_tcp_connect doesn't block the receive loop.
+                dispatch_message(message)
+                // dispatch_message starts only slow request work in the
+                // background. Replies, data, and close finish inline in the
+                // order they appeared in this frame.
 
         // On exit (close/error), signal the send_loop so it wakes and stops —
         // otherwise parallel() hangs on a send_loop parked waiting for a message.
@@ -640,12 +701,14 @@ class HTTPClient extends Client:
             if response.body is not empty:
                 messages = deserialize_messages(response.body, encryption_key)
 
-                if any message is CheckOutMessage:
-                    handle_message(CheckOutMessage)   // inline, not spawned
+                // CheckOut overrides the entire response batch. Discard every
+                // other message returned with it, regardless of position.
+                if any message in messages is CheckOutMessage:
+                    handle_checkout()
                     break
 
                 for message in messages:
-                    spawn handle_message(message)
+                    dispatch_message(message)
 
             await sleep(100ms)
             // Poll interval. Implementations may vary (100ms-1000ms).
@@ -667,7 +730,6 @@ class RemotePortForwarder:
     listening_port: int
     destination_host: string
     destination_port: int
-    client_ids: list<string>
 
     function constructor(messenger, identifier, listening_host, listening_port, destination_host, destination_port):
         self.messenger        = messenger
@@ -676,61 +738,73 @@ class RemotePortForwarder:
         self.listening_port   = listening_port
         self.destination_host = destination_host
         self.destination_port = destination_port
-        self.client_ids       = []
-
-    gone: bool = false   // guards report_gone so it fires at most once
 
     function start():
         try:
-            address = resolve_hostname(listening_host)
+            address = await resolve_hostname(listening_host)
             server = bind_tcp(address, listening_port)
         catch bind_error:
             log("[!] {host}:{port} is already in use or encountered an error")
             return false
-            // Do NOT crash the process. handle_bind reports this as GONE
-            // (empty-host BindRep) so the server drops its record.
 
-        while true:
-            accepted_socket = await server.accept()
-            spawn handle_client(accepted_socket)
-        // When the accept loop exits — whether from a deliberate stop or an
-        // unexpected crash — report_gone() sends the empty-host BindRep.
-        // handle_bind STOP already did cleanup (close_all_clients, remove from
-        // dict) so report_gone's cleanup calls are harmless no-ops in that case.
+        if messenger.killed:
+            server.close()
+            return false
+
+        messenger.remote_port_forwarders.append(self)
+        // Publish before starting the accept loop. From this point forward the
+        // forwarder owns its cleanup and list removal.
+        _ = accept_loop()
+        return true
+        // start() returns after the listener is live. It never waits for the
+        // lifetime of the accept loop, so handle_bind can send its BindRep.
+
+    function accept_loop():
+        try:
+            while server is open:
+                accepted_socket = await server.accept()
+                _ = handle_client(accepted_socket)
+        catch (ListenerClosed):
+            pass
         finally:
-            await report_gone()
+            await cleanup()
 
-    function report_gone():
-        # Notify the server this RPF is gone with an empty-host BindRep.
-        # Guarded by _gone so it fires at most once even if multiple
-        # close/error events race.
-        if self.gone:
+    function cleanup():
+        if messenger.remote_port_forwarders.remove(self) failed:
             return
-        self.gone = true
-        remote_port_forwarders.remove(self)
-        self.close_all_clients()
-        await send_upstream_message(InitiateBINDRep(
-            bind_id = self.identifier, listening_host = self.listening_host,
-            listening_port = self.listening_port, reason = 1))
+            // List removal is the once-only cleanup guard. stop() never removes
+            // the forwarder; it closes the listener and this finally owns the
+            // rest of the forwarder's cleanup.
+
+        messenger.close_connections_for_bind(identifier)
+
+        if not messenger.killed:
+            await messenger.send_upstream_message(InitiateBINDRep(
+                bind_id = self.identifier, listening_host = self.listening_host,
+                listening_port = self.listening_port, reason = 1))
 
     function stop():
         if server is not null:
             server.close()
 
-    function close_all_clients():
-        # RST every TCP client spawned by this forwarder.
-        # Without this, active stream() tasks hold open connections
-        # and block the check-in poll loop on shutdown.
-        for client_id in self.client_ids:
-            client = messenger.tcp_clients.remove(client_id)
-            if client is not null:
-                close(client)
-
     function handle_client(accepted_socket):
-        client_id = alphanumeric_identifier(10)
-        self.client_ids.append(client_id)
+        if messenger.killed OR self not in messenger.remote_port_forwarders:
+            abort_socket(accepted_socket)
+            return
 
-        messenger.tcp_clients[client_id] = accepted_socket
+        client_id = alphanumeric_identifier(10)
+
+        connection = messenger.register_tcp_client(
+            client_id,
+            accepted_socket,
+            bind_id = self.identifier
+        )
+        if connection is null:
+            return
+
+        if self not in messenger.remote_port_forwarders:
+            connection.abort()
+            return
         // Register BEFORE sending the request.
         // The server may respond before the send completes — the reply
         // handler needs the dictionary entry to exist.
@@ -750,24 +824,13 @@ class RemotePortForwarder:
         )
         await messenger.send_upstream_message(request)
 
-        // Stream is NOT started here. The handle_message dispatch for
+        // Stream is NOT started here. The dispatch_message handler for
         // InitiateTCPClientRep (reason=0) resumes the socket and
         // starts stream(). If the server denies (reason!=0), the socket
-        // is closed and removed there.
+        // is removed and RST there.
 
-        # Close signal handling for RPF sockets:
-        on accepted_socket.close:
-            if client_id still in messenger.tcp_clients:
-                messenger.tcp_clients.remove(client_id)
-                send SendDataMessage(client_id, data=empty)
-            // Same ownership pattern as stream() — only send close signal
-            // if WE are the first to remove the entry.
-
-        on accepted_socket.data(chunk):
-            send SendDataMessage(client_id, data=chunk)
-
-        on accepted_socket.error:
-            pass    // Prevent unhandled error from crashing the process.
+        // Messenger owns the connection in its global map. bind_id associates
+        // it with this RPF so cleanup can close the group without a second list.
 
 
 # ============================================================================
