@@ -36,7 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `RemotePortForwarder` catches `asyncio.TimeoutError` alongside `socket.timeout` for connect timeouts.
 - `generator.py` uses `secrets` module instead of `random` for all identifier generation — `random` is not cryptographically secure.
 - `messengers.py` byte counters (`sent_bytes`, `received_bytes`) moved from `check_in()` to `__init__` — previously reset to zero on every check-in, losing cumulative transfer stats.
-- `WebSocketMessenger.send_message_upstream` removed noisy debug/warning log calls that leaked transport internals.
 - `http_ws_server.py` WebSocket reconnect now drains queued messages atomically and processes the remaining batch — previously re-enqueued messages one at a time, risking reordering.
 - `logger.py` log file paths are now `@property` methods computing the date at call time — previously computed once at `__init__`, so logs after midnight wrote to yesterday's file.
 - `message.py` validates `payload_len >= 0` before reading payload bytes — a `message_length` less than 8 previously caused an underflow.
