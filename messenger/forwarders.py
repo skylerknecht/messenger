@@ -28,7 +28,12 @@ class Forwarder:
         self.identifier = alphanumeric_identifier()
         self._nickname = None
         self.clients = []
-        self.on_close = lambda c: self.clients.remove(c) if c in self.clients else None
+        def _remove_client(c):
+            if c in self.clients:
+                self.clients.remove(c)
+                return True
+            return False
+        self.on_close = _remove_client
 
     @property
     def nickname(self):
@@ -127,10 +132,10 @@ class LocalPortForwarder(Forwarder):
         #     raise InvalidConfigError(f'The destination host `{destination_host}` does not appear to be a valid ip or domain.')
 
         if not self.is_valid_port(listening_port):
-            raise InvalidConfigError(f'The listening host `{listening_port}` does not appear to be a valid port.')
+            raise InvalidConfigError(f'The listening port `{listening_port}` does not appear to be a valid port.')
 
         if not self.is_valid_port(destination_port):
-            raise InvalidConfigError(f'The destination host `{destination_port}` does not appear to be a valid port.')
+            raise InvalidConfigError(f'The destination port `{destination_port}` does not appear to be a valid port.')
 
         return listening_host, int(listening_port), destination_host, int(
             destination_port) if destination_port != '*' else destination_port
@@ -196,10 +201,7 @@ class SocksProxy(LocalPortForwarder):
     NAME = "Socks Proxy"
 
     def __init__(self, messenger, config, update_cli):
-        self.messenger = messenger
-        self.update_cli = update_cli
-        listening_host, listening_port, destination_host, destination_port = self.parse_config(config)
-        Forwarder.__init__(self, listening_host, listening_port, '*', '*', update_cli)
+        super().__init__(messenger, config, update_cli)
 
     async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         client = SocksTcpClient(reader, writer, self.messenger, self.on_close)
@@ -288,7 +290,6 @@ class RemotePortForwarder(Forwarder):
                     transport.abort()
             except Exception:
                 pass
-        self.clients = []
 
     async def handle_initiate_tcp_client_rep(self, message):
         pass
@@ -310,7 +311,6 @@ class RemotePortForwarder(Forwarder):
             )
 
             client = RemoteTcpClient(message.client_id, reader, writer, self.messenger, self.on_close)
-            await client.initiate_tcp_client()
             self.clients.append(client)
 
             upstream_message = InitiateTCPClientRep(
@@ -322,7 +322,7 @@ class RemotePortForwarder(Forwarder):
             )
         except socket.gaierror:
             reason = 4
-        except socket.timeout:
+        except (socket.timeout, asyncio.TimeoutError):
             reason = 6
         except ConnectionRefusedError:
             reason = 5
@@ -338,6 +338,7 @@ class RemotePortForwarder(Forwarder):
             reason = 1
         else:
             await self.messenger.send_message_upstream(upstream_message)
+            await client.initiate_tcp_client()
             return
 
         upstream_message = InitiateTCPClientRep(

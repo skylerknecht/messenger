@@ -139,9 +139,12 @@ class HTTPWSServer:
                 f'{messenger.transport_type} Messenger `{messenger.nickname}` has reconnected.',
                 'success', display_module='handlers'
             )
+            queued = []
             while not messenger.upstream_messages.empty():
-                message = await messenger.upstream_messages.get()
-                await messenger.send_message_upstream(message)
+                queued.append(messenger.upstream_messages.get_nowait())
+            if queued:
+                await ws.send_bytes(messenger.serialize_messages(queued))
+            await self.messenger_engine.send_messages(messenger_id, messages[1:])
         else:
             ws_messenger = WebSocketMessenger(
                 ws,

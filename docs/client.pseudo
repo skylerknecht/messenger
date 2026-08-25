@@ -234,9 +234,9 @@ struct CheckOutMessage:
 class Client:
     identifier: string = ""
     tcp_clients: concurrent_dict<string, socket>
-    remote_port_forwarders: list<RemotePortForwarder>
+    remote_port_forwarders: list<RemotePortForwarder>  // lock before read/write
     encryption_key: bytes
-    killed: bool = false
+    killed: volatile bool = false  // set first in CheckOut, checked after awaits
 
     function handle_message(message):
         match message.type:
@@ -297,6 +297,7 @@ class Client:
 
             CheckOutMessage:
                 log("[!] Kill signal received")
+                killed = true
                 for forwarder in list(remote_port_forwarders):
                     forwarder.stop()
                     forwarder.close_all_clients()
@@ -304,7 +305,6 @@ class Client:
                 for client_id, socket in tcp_clients:
                     close(socket)
                 tcp_clients.clear()
-                killed = true
 
 
     function handle_bind(bind_id, listening_host, listening_port, destination_host, destination_port):
@@ -325,7 +325,7 @@ class Client:
         # --- Idempotent: already holding this bind_id → just re-confirm. ---
         # (A duplicate real BindReq is NOT a shutdown any more.)
         if remote_port_forwarders has one where identifier == bind_id:
-            await send_downstream_message(InitiateBINDRep(
+            await send_upstream_message(InitiateBINDRep(
                 bind_id = bind_id, listening_host = listening_host,
                 listening_port = listening_port, reason = 0))
             return
@@ -338,18 +338,18 @@ class Client:
             )
             success = await forwarder.start()
             if not success:
-                await send_downstream_message(InitiateBINDRep(
+                await send_upstream_message(InitiateBINDRep(
                     bind_id = bind_id, listening_host = listening_host,
                     listening_port = listening_port, reason = 1))
                 return
 
             remote_port_forwarders.append(forwarder)
-            await send_downstream_message(InitiateBINDRep(
+            await send_upstream_message(InitiateBINDRep(
                 bind_id = bind_id, listening_host = listening_host,
                 listening_port = listening_port, reason = 0))
 
         catch error:
-            await send_downstream_message(InitiateBINDRep(
+            await send_upstream_message(InitiateBINDRep(
                 bind_id = bind_id, listening_host = listening_host,
                 listening_port = listening_port, reason = 1))
 
@@ -357,6 +357,9 @@ class Client:
     function handle_tcp_connect(client_id, ip, port):
         # TCP connect to the target requested by the server.
         # Maps OS-level socket errors to SOCKS5 reason codes.
+
+        if killed:
+            return
 
         raw_socket = null
 
@@ -389,7 +392,7 @@ class Client:
                 remote_addr  = remote_addr,
                 remote_port  = remote_port
             )
-            await send_downstream_message(reply)
+            await send_upstream_message(reply)
             await stream(client_id)
 
         catch error:
@@ -404,7 +407,7 @@ class Client:
                 remote_addr  = "0.0.0.0",
                 remote_port  = 0
             )
-            await send_downstream_message(reply)
+            await send_upstream_message(reply)
 
         finally:
             if raw_socket is not null:
@@ -443,7 +446,7 @@ class Client:
                     client_id = client_id,
                     data                = data
                 )
-                await send_downstream_message(message)
+                await send_upstream_message(message)
 
         catch (EOF, ConnectionReset, ConnectionAborted):
             pass    // Expected disconnection errors — fall through to cleanup.
@@ -465,18 +468,19 @@ class Client:
 
             if tcp_clients.remove(client_id) succeeded:
                 close(client)
-                close_signal = SendDataMessage(
-                    client_id = client_id,
-                    data                = empty
-                )
-                await send_downstream_message(close_signal)
+                if not killed:
+                    close_signal = SendDataMessage(
+                        client_id = client_id,
+                        data                = empty
+                    )
+                    await send_upstream_message(close_signal)
 
             // If remove returned false/null, the server-side close handler
             // (handle_message for empty SendDataMessage) already cleaned up.
             // Do nothing — no close signal, no double-free.
 
 
-    function send_downstream_message(message):
+    function send_upstream_message(message):
         # Abstract — implemented by WSClient and HTTPClient.
         raise NotImplemented
 
@@ -487,7 +491,7 @@ class Client:
 
 class WSClient extends Client:
     websocket: WebSocket
-    downstream_queue: concurrent_queue<message>
+    upstream_queue: concurrent_queue<message>
 
     function connect():
         websocket = await open_websocket(url, headers={User-Agent: user_agent}, tls_verify=false)
@@ -520,13 +524,13 @@ class WSClient extends Client:
         # overlapping sends corrupt the frame on the wire. Therefore EXACTLY ONE
         # task may ever write to the socket. All sends flow through a single
         # send_loop that drains a queue; producers only enqueue (see
-        # send_downstream_message). Never call send_binary from multiple tasks.
+        # send_upstream_message). Never call send_binary from multiple tasks.
         #
         # This is a correctness requirement, not an optimization:
         #   - C# ClientWebSocket ABORTS the socket on an overlapping SendAsync.
         #   - A raw async socket writer interleaves frame bytes silently.
         #   - Some libraries serialize internally (e.g. Node's `ws` buffers
-        #     sends); on those, sending immediately from send_downstream_message
+        #     sends); on those, sending immediately from send_upstream_message
         #     is equivalent and acceptable — the library IS the single writer.
         #
         # Messages queued while disconnected are drained by the send_loop on
@@ -568,8 +572,8 @@ class WSClient extends Client:
                 break
 
             batch = [CheckInMessage(messenger_id=self.identifier)]
-            while downstream_queue is not empty:
-                batch.append(downstream_queue.dequeue())
+            while upstream_queue is not empty:
+                batch.append(upstream_queue.dequeue())
                 // Coalesce everything queued right now into one frame.
 
             if batch contains only the CheckIn:
@@ -578,10 +582,10 @@ class WSClient extends Client:
             payload = serialize_messages(batch, encryption_key)
             await websocket.send_binary(payload)
 
-    function send_downstream_message(message):
+    function send_upstream_message(message):
         # Producer only — NEVER writes the socket. Enqueue and wake the loop.
         # (A library that serializes internally may instead send immediately.)
-        downstream_queue.enqueue(message)
+        upstream_queue.enqueue(message)
         signal_send_loop()
         // Drained by the send_loop while connected, or on the next reconnect.
 
@@ -592,7 +596,7 @@ class WSClient extends Client:
 
 class HTTPClient extends Client:
     http_client: HttpClient    # reuse a SINGLE client/agent — do not create per-request
-    downstream_queue: concurrent_queue<message>
+    upstream_queue: concurrent_queue<message>
 
     function connect():
         checkin = CheckInMessage(messenger_id=self.identifier)
@@ -608,12 +612,16 @@ class HTTPClient extends Client:
         assert messages[0] is CheckInMessage
         self.identifier = messages[0].messenger_id
 
+    pending: list<message>     # persists across reconnects — field, not local
+
     function start():
         # Polling loop — blocks until an error triggers reconnection.
         while true:
+            if pending is empty:
+                drain up to 5 messages from upstream_queue into pending
+
             batch = [CheckInMessage(messenger_id=self.identifier)]
-            drain up to 5 messages from downstream_queue into batch
-            // Batch size limits per-request overhead while keeping latency low.
+            batch.extend(pending)
 
             payload = serialize_messages(batch, encryption_key)
             response = await http_post(url, payload, timeout=15s)
@@ -623,6 +631,9 @@ class HTTPClient extends Client:
                 // MUST throw, not break.
                 // A break kills the poll loop permanently — no reconnection.
                 // A throw unwinds to the reconnection logic in main().
+                // pending is NOT cleared — retried on reconnect.
+
+            pending.clear()
 
             if response.body is not empty:
                 messages = deserialize_messages(response.body, encryption_key)
@@ -637,8 +648,8 @@ class HTTPClient extends Client:
             await sleep(100ms)
             // Poll interval. Implementations may vary (100ms-1000ms).
 
-    function send_downstream_message(message):
-        downstream_queue.enqueue(message)
+    function send_upstream_message(message):
+        upstream_queue.enqueue(message)
         // Never send immediately — the polling loop handles all sends.
 
 
@@ -696,7 +707,7 @@ class RemotePortForwarder:
         self.gone = true
         remote_port_forwarders.remove(self)
         self.close_all_clients()
-        await send_downstream_message(InitiateBINDRep(
+        await send_upstream_message(InitiateBINDRep(
             bind_id = self.identifier, listening_host = self.listening_host,
             listening_port = self.listening_port, reason = 1))
 
@@ -735,7 +746,7 @@ class RemotePortForwarder:
             listening_host = self.listening_host,   # so the server maps this
             listening_port = self.listening_port    # connection to THIS exact RPF
         )
-        await messenger.send_downstream_message(request)
+        await messenger.send_upstream_message(request)
 
         // Stream is NOT started here. The handle_message dispatch for
         // InitiateTCPClientRep (reason=0) resumes the socket and
@@ -914,7 +925,7 @@ function main():
             //   - client.identifier (server uses it to recognize us)
             //   - client.tcp_clients (tunnels may still be alive)
             //   - remote_port_forwarders (server-initiated RPF listeners)
-            //   - downstream message queue (messages queued during disconnect)
+            //   - upstream message queue (messages queued during disconnect)
 
             await client.connect()
             log("[+] Reconnected")

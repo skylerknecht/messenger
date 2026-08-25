@@ -19,11 +19,13 @@ class TcpClient(ABC):
         self.on_close = on_close
 
     def _cleanup(self, abort=False):
+        if not self.on_close(self):
+            return False
         if abort:
             self.writer.transport.abort()
         else:
             self.writer.close()
-        self.on_close(self)
+        return True
 
     @abstractmethod
     async def initiate_tcp_client(self):
@@ -52,13 +54,13 @@ class TcpClient(ABC):
                 )
             except Exception:
                 break
-        self._cleanup()
-        await self.messenger.send_message_upstream(
-            SendDataMessage(
-                client_id=self.identifier,
-                data=b''
+        if self._cleanup():
+            await self.messenger.send_message_upstream(
+                SendDataMessage(
+                    client_id=self.identifier,
+                    data=b''
+                )
             )
-        )
 
     async def send_data(self, data):
         if len(data) == 0:
@@ -69,7 +71,13 @@ class TcpClient(ABC):
             self.writer.write(data)
             await self.writer.drain()
         except Exception:
-            self._cleanup()
+            if self._cleanup():
+                await self.messenger.send_message_upstream(
+                    SendDataMessage(
+                        client_id=self.identifier,
+                        data=b''
+                    )
+                )
 
 class LocalTcpClient(TcpClient):
     def __init__(self, destination_host, destination_port, reader, writer, messenger, on_close):
@@ -188,7 +196,11 @@ class SocksTcpClient(LocalTcpClient):
 
     async def negotiate_transport(self) -> bool:
         version, cmd, reserved_bit = await self.reader.readexactly(3)
-        return cmd == 1
+        if cmd != 1:
+            self.writer.write(b'\x05\x07\x00\x01\x00\x00\x00\x00\x00\x00')
+            await self.writer.drain()
+            return False
+        return True
 
     async def negotiate_address(self) -> bool:
         self.address_type = int.from_bytes(await self.reader.readexactly(1), byteorder='big')
@@ -209,4 +221,6 @@ class SocksTcpClient(LocalTcpClient):
             self.destination_port = int.from_bytes(await self.reader.readexactly(2), byteorder='big')
             return True
 
+        self.writer.write(b'\x05\x08\x00\x01\x00\x00\x00\x00\x00\x00')
+        await self.writer.drain()
         return False

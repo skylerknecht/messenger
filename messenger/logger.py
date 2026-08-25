@@ -37,9 +37,16 @@ class Logger:
         self.log_dir = os.path.join(self.base_dir, 'logs')
         self.logs_created = not os.path.isdir(self.log_dir)
         os.makedirs(self.log_dir, exist_ok=True)
+
+    @property
+    def command_path(self):
         date = datetime.now(timezone.utc).strftime('%Y-%m-%d')
-        self.command_path = os.path.join(self.log_dir, f'{date}.commands.jsonl')
-        self.message_path = os.path.join(self.log_dir, f'{date}.messages.jsonl')
+        return os.path.join(self.log_dir, f'{date}.commands.jsonl')
+
+    @property
+    def message_path(self):
+        date = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+        return os.path.join(self.log_dir, f'{date}.messages.jsonl')
 
     @staticmethod
     def now():

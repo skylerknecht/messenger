@@ -6,7 +6,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.9.1] - 2026-08-23
+## [0.9.1] - 2026-08-25
+
+### Spec
+
+#### Changed
+
+- Renamed `send_downstream_message` to `send_upstream_message` and `downstream_queue` to `upstream_queue` across all transport classes — messages TO the server are upstream from the client's perspective.
+- `killed` flag marked `volatile` with annotation to set it first in CheckOut and check after awaits.
+- `remote_port_forwarders` annotated with lock-before-read/write requirement for threaded implementations.
+
+#### Fixed
+
+- HTTP polling loop now uses a persistent pending buffer — messages are drained into `pending` only when empty, and `pending` is cleared only after a successful POST. Previously, messages dequeued before a failed POST were lost permanently.
+- `killed = true` moved to the top of CheckOut handler — previously set last, allowing new handlers to spawn during teardown.
+- `handle_tcp_connect` guarded with `if killed: return` to prevent orphan TCP clients after CheckOut.
+- `stream()` finally block skips sending the upstream close signal when `killed` is set — transport is already torn down.
+
+### Server
+
+#### Fixed
+
+- `Forwarder.on_close` callback now returns a boolean indicating whether removal succeeded, preventing duplicate close signals when both sides race to clean up the same TCP client.
+- `TcpClient._cleanup` returns `False` when `on_close` reports the client was already removed; callers skip the redundant upstream close signal.
+- `TcpClient.send_data` now sends an upstream close signal on write failure — previously `_cleanup()` was called but no close signal was sent, leaving the server-side entry orphaned.
+- `SocksProxy.__init__` uses `super().__init__()` instead of manually duplicating parent constructor logic.
+- `RemotePortForwarder.close_all_clients` no longer resets `self.clients = []` — removal is handled by the `on_close` callback, and resetting the list races with in-flight cleanup.
+- `RemotePortForwarder.handle_initiate_tcp_client_req` now sends `InitiateTCPClientRep` and calls `client.initiate_tcp_client()` only after confirming success (reason=0) — previously the stream was started before the reply was sent.
+- `RemotePortForwarder` catches `asyncio.TimeoutError` alongside `socket.timeout` for connect timeouts.
+- `generator.py` uses `secrets` module instead of `random` for all identifier generation — `random` is not cryptographically secure.
+- `messengers.py` byte counters (`sent_bytes`, `received_bytes`) moved from `check_in()` to `__init__` — previously reset to zero on every check-in, losing cumulative transfer stats.
+- `WebSocketMessenger.send_message_upstream` removed noisy debug/warning log calls that leaked transport internals.
+- `http_ws_server.py` WebSocket reconnect now drains queued messages atomically and processes the remaining batch — previously re-enqueued messages one at a time, risking reordering.
+- `logger.py` log file paths are now `@property` methods computing the date at call time — previously computed once at `__init__`, so logs after midnight wrote to yesterday's file.
+- `message.py` validates `payload_len >= 0` before reading payload bytes — a `message_length` less than 8 previously caused an underflow.
+- `manager.py` error message for invalid logging types corrected from "Valid types: 1-4" to "Valid types: 1-7".
+- `manager.py` display calls changed from `'status'` to `'information'` for non-error informational messages.
+- `manager.py` `user_input.split(' ')` changed to `user_input.split()` to handle multiple spaces and leading/trailing whitespace.
+- `manager.py` bare `except:` clauses narrowed to `except (ValueError, TypeError):` in concurrency/port parsing.
+- `manager.py` scanner stop now removes the scanner from the list (`messenger.scanners.pop(i)`) before calling `stop()` — previously the stopped scanner remained in the list.
+- `SocksTcpClient.negotiate_transport` sends a proper SOCKS5 error reply (command not supported, 0x07) when the command is not CONNECT — previously returned `False` with no reply.
+- `SocksTcpClient.negotiate_address` sends a proper SOCKS5 error reply (address type not supported, 0x08) on unsupported address types — previously returned `False` with no reply.
+
+### Client
+
+#### Changed
+
+- All clients: renamed `send_downstream_message` to `send_upstream_message` and `downstream_queue`/`downstream_messages` to `upstream_queue`/`upstream_messages`.
+
+#### Fixed
+
+- **All clients**: HTTP polling loop now uses a persistent pending buffer (`_pending` field) — messages are drained from the queue only when pending is empty, and pending is cleared only after a successful POST. Failed requests retry the same messages on reconnect instead of losing them.
+- **All clients**: `killed` flag set first in CheckOut handler, before teardown — prevents new TCP client handlers from spawning during cleanup.
+- **All clients**: `handle_initiate_tcp_client_req` guarded with a `killed` check — prevents orphan TCP connections after CheckOut.
+- **All clients**: stream/socket-close finally blocks skip sending the upstream empty `SendDataMessage` close signal when `killed` is set — the transport is already torn down.
+- **C#**: concurrent `WriteAsync` calls on `NetworkStream` serialized through per-client `BlockingCollection<byte[]>` writer threads — concurrent writes from `Task.Run` handlers corrupted the forwarded TCP byte stream.
+- **C#**: WebSocket send loop replaced `SemaphoreSlim` + `ConcurrentQueue` with `BlockingCollection` — the semaphore accumulated excess permits on batch drains, causing spurious wake-ups and empty sends.
+- **C#**: `static Random` replaced with `RNGCryptoServiceProvider` for identifier generation — `Random` is not thread-safe and corrupts under concurrent `Task.Run` access, returning 0 indefinitely.
+- **C#**: `HttpResponseMessage` wrapped in `using` block — previously leaked the response on non-200 status, exhausting the 2-connection-per-host pool after two consecutive server errors.
+- **Node.js**: WebSocket `connect()` now closes the previous `ws` instance before creating a new one — previously leaked the old socket on reconnect.
+- **Python**: added missing `import sys` — `non_main_thread` builds crashed at startup.
 
 ## [0.9.0] - 2026-08-12
 

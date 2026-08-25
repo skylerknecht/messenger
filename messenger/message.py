@@ -159,6 +159,8 @@ class MessageParser:
         message_length, data = MessageParser.read_uint32(data)
 
         payload_len = message_length - 8
+        if payload_len < 0:
+            raise ValueError(f"Invalid message_length {message_length}, must be at least 8")
         if len(data) < payload_len:
             raise ValueError("Not enough bytes in data for the payload")
 

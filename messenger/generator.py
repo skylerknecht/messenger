@@ -1,51 +1,42 @@
-import random
 import secrets
 import string
 import hashlib
 
-# Populate alphabet with uppercase, lowercase characters, and digits
-alphanumeric = list(string.ascii_letters + string.digits)  # 'a-z', 'A-Z', and '0-9'
-alphabet = list(string.ascii_letters)
+alphanumeric = string.ascii_letters + string.digits
+alphabet = string.ascii_letters
 
 
 def digit_identifier(length: int = 10) -> str:
     """
-    Generate random integers from 1 to 9 and concatenate the digits
-    together for a length of zero to *length*.
+    Generate random digits (1-9) for a length of *length*.
 
     :param: int length: The amount of random digits to concatenate.
     :return: The generated digit identifier.
     :rtype: str
     """
-    _identifier = [str(random.randint(1, 9)) for _ in range(0, length)]
-    _identifier = ''.join(_identifier)
-    return _identifier
+    return ''.join(str(secrets.randbelow(9) + 1) for _ in range(length))
 
 
 def string_identifier(length: int = 10) -> str:
     """
-    Generate random alphanumeric characters and concatenate
-    them for a length of zero to *length*.
+    Generate random alphabetic characters for a length of *length*.
+
     :param: int length: The amount of random characters to concatenate.
     :return: The generated string identifier.
     :rtype: str
     """
-    _identifier = [alphabet[random.randint(0, len(alphabet) - 1)] for _ in range(0, length)]
-    _identifier = ''.join(_identifier)
-    return _identifier
+    return ''.join(secrets.choice(alphabet) for _ in range(length))
 
 
 def alphanumeric_identifier(length: int = 10) -> str:
     """
-    Generate random alphanumeric characters and concatenate
-    them for a length of zero to *length*.
+    Generate random alphanumeric characters for a length of *length*.
+
     :param: int length: The amount of random characters to concatenate.
     :return: The generated string identifier.
     :rtype: str
     """
-    _identifier = [alphanumeric[random.randint(0, len(alphanumeric) - 1)] for _ in range(0, length)]
-    _identifier = ''.join(_identifier)
-    return _identifier
+    return ''.join(secrets.choice(alphanumeric) for _ in range(length))
 
 
 def generate_encryption_key(min_len=10, max_len=20):

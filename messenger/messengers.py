@@ -33,13 +33,13 @@ class Messenger:
         self.last_check_in = self.first_seen
         self.check_in_delta = 0
 
+        self.sent_bytes = 0
+        self.received_bytes = 0
+
     def check_in(self):
         now = time.time()
         self.check_in_delta = now - self.last_check_in
         self.last_check_in = now
-
-        self.sent_bytes = 0
-        self.received_bytes = 0
 
     @property
     def nickname(self):
@@ -177,7 +177,7 @@ class Messenger:
                             self.update_cli.display(
                                 f'Messenger `{self.nickname}` remote port forward `{message.bind_id}` '
                                 f'({message.listening_host}:{message.listening_port}) is no longer bound.',
-                                'status', display_module='messengers'
+                                'information', display_module='messengers'
                             )
                     else:
                         self.update_cli.display(
@@ -330,25 +330,9 @@ class WebSocketMessenger(Messenger):
     async def send_message_upstream(self, message):
         self.log_message('upstream', message)
         if self.websocket.closed:
-            self.update_cli.display(
-                f'Messenger `{self.nickname}` queued a upstream message.',
-                'warning', display_module='messengers'
-            )
             await self.upstream_messages.put(message)
             return
-        self.update_cli.display(
-            f'Messenger {self.nickname} sent a upstream message.',
-            'debug',
-            display_module='messengers'        )
-        self.update_cli.display(
-            f'Messenger {self.nickname} sent the following upstream message\n{message}.',
-            'debug',
-            display_module='messengers'        )
         try:
             await self.websocket.send_bytes(self.serialize_messages([message]))
         except Exception:
-            self.update_cli.display(
-                f'Messenger `{self.nickname}` queued a upstream message.',
-                'warning', display_module='messengers'
-            )
             await self.upstream_messages.put(message)
