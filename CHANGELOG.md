@@ -43,7 +43,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `manager.py` display calls changed from `'status'` to `'information'` for non-error informational messages.
 - `manager.py` `user_input.split(' ')` changed to `user_input.split()` to handle multiple spaces and leading/trailing whitespace.
 - `manager.py` bare `except:` clauses narrowed to `except (ValueError, TypeError):` in concurrency/port parsing.
-- `manager.py` scanner stop now removes the scanner from the list (`messenger.scanners.pop(i)`) before calling `stop()` — previously the stopped scanner remained in the list.
 - `SocksTcpClient.negotiate_transport` sends a proper SOCKS5 error reply (command not supported, 0x07) when the command is not CONNECT — previously returned `False` with no reply.
 - `SocksTcpClient.negotiate_address` sends a proper SOCKS5 error reply (address type not supported, 0x08) on unsupported address types — previously returned `False` with no reply.
 

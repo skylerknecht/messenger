@@ -1018,10 +1018,9 @@ class Manager:
                         'information', reprompt=False
                     )
                 return
-            for i, scanner in enumerate(messenger.scanners):
+            for scanner in messenger.scanners:
                 if id not in (scanner.identifier, scanner.nickname):
                     continue
-                messenger.scanners.pop(i)
                 await scanner.stop()
                 return
         self.update_cli.display(f'`{id}` not found', 'error', reprompt=False)
