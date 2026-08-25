@@ -13,14 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Changed
 
 - Renamed `send_downstream_message` to `send_upstream_message` and `downstream_queue` to `upstream_queue` across all transport classes — messages TO the server are upstream from the client's perspective.
-- `killed` flag marked `volatile` with annotation to set it first in CheckOut and check after awaits.
-- `remote_port_forwarders` annotated with lock-before-read/write requirement for threaded implementations.
-
 #### Fixed
 
 - HTTP polling loop now uses a persistent pending buffer — messages are drained into `pending` only when empty, and `pending` is cleared only after a successful POST. Previously, messages dequeued before a failed POST were lost permanently.
 - `killed = true` moved to the top of CheckOut handler — previously set last, allowing new handlers to spawn during teardown.
-- `handle_tcp_connect` guarded with `if killed: return` to prevent orphan TCP clients after CheckOut.
+- `handle_tcp_connect` and `handle_bind` guarded with `if killed: return` for threaded implementations — prevents orphan connections/listeners after CheckOut.
 - `stream()` finally block skips sending the upstream close signal when `killed` is set — transport is already torn down.
 
 ### Server
@@ -57,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **All clients**: HTTP polling loop now uses a persistent pending buffer (`_pending` field) — messages are drained from the queue only when pending is empty, and pending is cleared only after a successful POST. Failed requests retry the same messages on reconnect instead of losing them.
 - **All clients**: `killed` flag set first in CheckOut handler, before teardown — prevents new TCP client handlers from spawning during cleanup.
 - **All clients**: `handle_initiate_tcp_client_req` guarded with a `killed` check — prevents orphan TCP connections after CheckOut.
+- **C#**: `HandleBindAsync` guarded with a `Killed` check — prevents orphan listeners when `Task.Run` dispatches the handler concurrently with CheckOut teardown.
 - **All clients**: stream/socket-close finally blocks skip sending the upstream empty `SendDataMessage` close signal when `killed` is set — the transport is already torn down.
 - **C#**: concurrent `WriteAsync` calls on `NetworkStream` serialized through per-client `BlockingCollection<byte[]>` writer threads — concurrent writes from `Task.Run` handlers corrupted the forwarded TCP byte stream.
 - **C#**: WebSocket send loop replaced `SemaphoreSlim` + `ConcurrentQueue` with `BlockingCollection` — the semaphore accumulated excess permits on batch drains, causing spurious wake-ups and empty sends.

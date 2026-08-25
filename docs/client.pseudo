@@ -234,9 +234,9 @@ struct CheckOutMessage:
 class Client:
     identifier: string = ""
     tcp_clients: concurrent_dict<string, socket>
-    remote_port_forwarders: list<RemotePortForwarder>  // lock before read/write
+    remote_port_forwarders: list<RemotePortForwarder>
     encryption_key: bytes
-    killed: volatile bool = false  // set first in CheckOut, checked after awaits
+    killed: bool = false
 
     function handle_message(message):
         match message.type:
@@ -308,6 +308,8 @@ class Client:
 
 
     function handle_bind(bind_id, listening_host, listening_port, destination_host, destination_port):
+        if killed:                    // threaded implementations only
+            return
 
         # --- STOP: empty listening host tears this bind down. ---
         # Unambiguous — never mistaken for a new bind — so it works even if we
@@ -358,7 +360,7 @@ class Client:
         # TCP connect to the target requested by the server.
         # Maps OS-level socket errors to SOCKS5 reason codes.
 
-        if killed:
+        if killed:                    // threaded implementations only
             return
 
         raw_socket = null
