@@ -53,8 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **All clients**: HTTP polling loop now uses a persistent pending buffer (`_pending` field) — messages are drained from the queue only when pending is empty, and pending is cleared only after a successful POST. Failed requests retry the same messages on reconnect instead of losing them.
 - **All clients**: `killed` flag set first in CheckOut handler, before teardown — prevents new TCP client handlers from spawning during cleanup.
-- **All clients**: `handle_initiate_tcp_client_req` guarded with a `killed` check — prevents orphan TCP connections after CheckOut.
-- **C#**: `HandleBindAsync` guarded with a `Killed` check — prevents orphan listeners when `Task.Run` dispatches the handler concurrently with CheckOut teardown.
+- **C#**: `HandleInitiateTCPClientReqAsync` and `HandleBindAsync` guarded with `Killed` checks — prevents orphan connections/listeners when `Task.Run` dispatches handlers concurrently with CheckOut teardown.
 - **All clients**: stream/socket-close finally blocks skip sending the upstream empty `SendDataMessage` close signal when `killed` is set — the transport is already torn down.
 - **C#**: concurrent `WriteAsync` calls on `NetworkStream` serialized through per-client `BlockingCollection<byte[]>` writer threads — concurrent writes from `Task.Run` handlers corrupted the forwarded TCP byte stream.
 - **C#**: WebSocket send loop replaced `SemaphoreSlim` + `ConcurrentQueue` with `BlockingCollection` — the semaphore accumulated excess permits on batch drains, causing spurious wake-ups and empty sends.
