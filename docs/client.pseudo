@@ -683,6 +683,15 @@ class HTTPClient extends Client:
         assert_http_success(response)
 
         if self.identifier is not empty:
+            // Reconnection — server already knows us. The response may
+            // contain messages queued while we were disconnected.
+            if response.body is not empty:
+                messages = deserialize_messages(response.body, encryption_key)
+                if any message in messages is CheckOutMessage:
+                    handle_checkout()
+                    return
+                for message in messages:
+                    dispatch_message(message)
             return
 
         messages = deserialize_messages(response.body, encryption_key)
