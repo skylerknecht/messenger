@@ -262,7 +262,7 @@ class TcpConnection:
             // path becomes a no-op, so no separate closed flag is needed.
 
         write_queue.complete()
-        abort_socket(socket)         // RST, never graceful FIN
+        close_socket(socket)         // close without blocking dispatch
         return true
 
     function abort_and_signal():
@@ -786,6 +786,15 @@ class RemotePortForwarder:
     function stop():
         if server is not null:
             server.close()
+            // If closing the listener causes the accept loop to exit
+            // immediately (e.g. C# AcceptTcpClientAsync throws, Python
+            // serve_forever returns), the accept loop's finally will
+            // trigger cleanup — do not call it here.
+            // If the runtime defers listener teardown until existing
+            // connections close on their own (e.g. Node.js server.close()),
+            // those connections will never close because cleanup is what
+            // closes them. In that case, call cleanup() explicitly here.
+        cleanup()              // omit if accept_loop's finally is immediate
 
     function handle_client(accepted_socket):
         if messenger.killed OR self not in messenger.remote_port_forwarders:
