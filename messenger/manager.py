@@ -149,7 +149,7 @@ class Manager:
                     f'Logging commands and no messages to: {self.logger.log_dir}',
                     'information', reprompt=False)
         self.messenger_engine = Engine(self.messengers, self.update_cli, generate_hash(self.encryption_key))
-        self.messenger_server = HTTPWSServer(self.update_cli, self.messenger_engine, ip=server_ip, port=server_port, ssl=ssl)
+        self.messenger_server = HTTPWSServer(self.update_cli, self.messenger_engine, ip=server_ip, port=server_port, ssl_cert=ssl)
 
     @staticmethod
     def strip_ansi_codes(text):
@@ -481,7 +481,7 @@ class Manager:
                 self.update_cli.display('All message logging disabled.', 'success', reprompt=False)
                 return
             if val not in VALID_TYPES:
-                self.update_cli.display(f'`{val}` is not a valid logging type. Valid types: 1-4.', 'error', reprompt=False)
+                self.update_cli.display(f'`{val}` is not a valid logging type. Valid types: 1-7.', 'error', reprompt=False)
                 return
             parsed.add(val)
 
@@ -566,11 +566,11 @@ class Manager:
         items = []
 
         if len(self.messengers) == 0:
-            self.update_cli.display('There are no connected Messengers, therefore, there cannot be any Forwarders. Idiot.', 'status', reprompt=False)
+            self.update_cli.display('There are no connected Messengers, therefore, there cannot be any Forwarders. Idiot.', 'information', reprompt=False)
             return
 
         if messenger_id and not any(messenger_id in (m.identifier, m.nickname) for m in self.messengers):
-            self.update_cli.display(f'Messenger `{messenger_id}` does not exist.', 'status', reprompt=False)
+            self.update_cli.display(f'Messenger `{messenger_id}` does not exist.', 'information', reprompt=False)
             return
 
         for messenger in self.messengers:
@@ -606,9 +606,9 @@ class Manager:
                 })
         if len(items) == 0:
             if messenger_id:
-                self.update_cli.display(f'There are no forwarders to display for messenger `{messenger_id}`.', 'status', reprompt=False)
+                self.update_cli.display(f'There are no forwarders to display for messenger `{messenger_id}`.', 'information', reprompt=False)
             else:
-                self.update_cli.display('There are no forwarders to display.', 'status', reprompt=False)
+                self.update_cli.display('There are no forwarders to display.', 'information', reprompt=False)
             return
         print(self.create_table('Forwarders', columns, items))
 
@@ -671,7 +671,7 @@ class Manager:
             items.append(item)
 
         if len(items) == 0:
-            self.update_cli.display('There are no messengers to display.', 'status', reprompt=False)
+            self.update_cli.display('There are no messengers to display.', 'information', reprompt=False)
             return
         print(self.create_table('Messengers', columns, items))
 
@@ -816,7 +816,7 @@ class Manager:
             output_path = None
             with self.logger.capture() as output:
                 try:
-                    parts = user_input.split(' ')
+                    parts = user_input.split()
                     command = parts[0]
                     for messenger in self.messengers:
                         if command in (messenger.identifier, messenger.nickname):
@@ -970,12 +970,12 @@ class Manager:
         """
         try:
             concurrency = int(concurrency)
-        except:
+        except (ValueError, TypeError):
             self.update_cli.display(f'{concurrency} is not a valid concurrency.', 'error', reprompt=False)
             return
         try:
             top_ports = int(top_ports)
-        except:
+        except (ValueError, TypeError):
             self.update_cli.display(f'{top_ports} is not a valid integer.', 'error', reprompt=False)
             return
 
@@ -1002,7 +1002,7 @@ class Manager:
                     target = messenger.forwarders.pop(i)
                     break
             if target is not None:
-                if isinstance(target, RemotePortForwarder) and not target.seen_bind_rep:
+                if isinstance(target, RemotePortForwarder) and not target.forwarding:
                     # Never confirmed by the client — just drop it, send no
                     # signal. Race-safe: a late BindRep for it simply comes back
                     # as an orphan we can re-adopt.
@@ -1052,7 +1052,7 @@ class Manager:
             if target is None:
                 self.update_cli.display(f'`{id}` not found.', 'error', reprompt=False)
                 return
-        await target.send_message_upstream(CheckOutMessage())
+        await target.send_message_downstream(CheckOutMessage())
         for forwarder in list(target.forwarders):
             forwarder.close_all_clients() if hasattr(forwarder, 'close_all_clients') else None
         self.update_cli.display(

@@ -162,7 +162,7 @@ class Scanner:
         self.semaphore.release()
 
         if message.reason == 0:
-            await self.messenger.send_message_upstream(
+            await self.messenger.send_message_downstream(
                 SendDataMessage(client_id=identifier, data=b'')
             )
 
@@ -190,7 +190,7 @@ class Scanner:
                 destination_host=ip,
                 destination_port=port
             )
-            await self.messenger.send_message_upstream(msg)
+            await self.messenger.send_message_downstream(msg)
             await asyncio.sleep(1)
 
     async def start(self):

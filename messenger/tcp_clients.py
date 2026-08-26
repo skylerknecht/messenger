@@ -19,11 +19,13 @@ class TcpClient(ABC):
         self.on_close = on_close
 
     def _cleanup(self, abort=False):
+        if not self.on_close(self):
+            return False
         if abort:
             self.writer.transport.abort()
         else:
             self.writer.close()
-        self.on_close(self)
+        return True
 
     @abstractmethod
     async def initiate_tcp_client(self):
@@ -32,44 +34,48 @@ class TcpClient(ABC):
     async def stream(self):
         while True:
             try:
-                upstream_message = await self.reader.read(4096)
-                if not upstream_message:
+                downstream_message = await self.reader.read(4096)
+                if not downstream_message:
                     break
-                self.messenger.sent_bytes += len(upstream_message)
                 self.messenger.update_cli.display(
-                    f'TCP Client {self.identifier} sent {len(upstream_message)} bytes.',
+                    f'TCP Client {self.identifier} sent {len(downstream_message)} bytes.',
                     'debug',
                     display_module='forwarders'                )
                 self.messenger.update_cli.display(
-                    f'TCP Client {self.identifier} sent\n{upstream_message}.',
+                    f'TCP Client {self.identifier} sent\n{downstream_message}.',
                     'debug',
                     display_module='forwarders'                )
-                await self.messenger.send_message_upstream(
+                await self.messenger.send_message_downstream(
                     SendDataMessage(
                         client_id=self.identifier,
-                        data=upstream_message
+                        data=downstream_message
                     )
                 )
             except Exception:
                 break
-        self._cleanup()
-        await self.messenger.send_message_upstream(
-            SendDataMessage(
-                client_id=self.identifier,
-                data=b''
+        if self._cleanup():
+            await self.messenger.send_message_downstream(
+                SendDataMessage(
+                    client_id=self.identifier,
+                    data=b''
+                )
             )
-        )
 
     async def send_data(self, data):
         if len(data) == 0:
             self._cleanup()
             return
-        self.messenger.received_bytes += len(data)
         try:
             self.writer.write(data)
             await self.writer.drain()
         except Exception:
-            self._cleanup()
+            if self._cleanup():
+                await self.messenger.send_message_downstream(
+                    SendDataMessage(
+                        client_id=self.identifier,
+                        data=b''
+                    )
+                )
 
 class LocalTcpClient(TcpClient):
     def __init__(self, destination_host, destination_port, reader, writer, messenger, on_close):
@@ -84,13 +90,12 @@ class LocalTcpClient(TcpClient):
             self._cleanup()
 
     async def send_initiate_tcp_client_req(self):
-        upstream_message = InitiateTCPClientReq(
+        downstream_message = InitiateTCPClientReq(
             client_id=self.identifier,
             destination_host=self.destination_host,
             destination_port=int(self.destination_port)
         )
-        self.messenger.sent_bytes += 20
-        await self.messenger.send_message_upstream(upstream_message)
+        await self.messenger.send_message_downstream(downstream_message)
 
     async def handle_initiate_tcp_client_rep(self, bind_addr, bind_port, atype, rep):
         if rep != 0:
@@ -124,7 +129,6 @@ class SocksTcpClient(LocalTcpClient):
 
     async def handle_initiate_tcp_client_rep(self, bind_addr, bind_port, atype, rep):
         socks_connect_results = self.create_socks_reply(rep, bind_addr, bind_port, atype)
-        self.messenger.received_bytes += len(socks_connect_results)
         try:
             self.writer.write(socks_connect_results)
             await self.writer.drain()
@@ -188,7 +192,11 @@ class SocksTcpClient(LocalTcpClient):
 
     async def negotiate_transport(self) -> bool:
         version, cmd, reserved_bit = await self.reader.readexactly(3)
-        return cmd == 1
+        if cmd != 1:
+            self.writer.write(b'\x05\x07\x00\x01\x00\x00\x00\x00\x00\x00')
+            await self.writer.drain()
+            return False
+        return True
 
     async def negotiate_address(self) -> bool:
         self.address_type = int.from_bytes(await self.reader.readexactly(1), byteorder='big')
@@ -209,4 +217,6 @@ class SocksTcpClient(LocalTcpClient):
             self.destination_port = int.from_bytes(await self.reader.readexactly(2), byteorder='big')
             return True
 
+        self.writer.write(b'\x05\x08\x00\x01\x00\x00\x00\x00\x00\x00')
+        await self.writer.drain()
         return False

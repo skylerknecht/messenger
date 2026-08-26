@@ -115,12 +115,17 @@
     border-bottom: 1px solid var(--border);
   }
   td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  td:target {
+    background: var(--fail-bg); box-shadow: inset 3px 0 0 var(--fail);
+  }
 
   .v-pass {
     font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 700;
     display: inline-block; line-height: 1.5; letter-spacing: 0.02em;
     background: var(--pass-bg); color: var(--pass); border: 1px solid var(--pass-border);
   }
+  a.v-pass { text-decoration: none; cursor: pointer; }
+  a.v-pass:hover { text-decoration: underline; }
   a.v-fail {
     font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 700;
     display: inline-block; line-height: 1.5; letter-spacing: 0.02em;
@@ -149,6 +154,9 @@
     background: var(--fail-bg); border-left: 3px solid var(--fail);
     padding-left: 13px; border-radius: 4px;
   }
+  .finding.lang-pass:target {
+    background: var(--pass-bg); border-left-color: var(--pass);
+  }
   @keyframes flash { 0%{opacity:1} 50%{opacity:.4} 100%{opacity:1} }
   .finding:target .f-client { animation: flash .6s ease-in-out; }
 
@@ -161,6 +169,31 @@
   .f-client.js { color: var(--js-accent); }
   .f-client.py { color: var(--py-accent); }
   .f-text { font-size: 13px; color: var(--text); line-height: 1.5; }
+  .f-back {
+    font-size: 11px; color: var(--text2); margin-left: 8px;
+    text-decoration: none; white-space: nowrap;
+  }
+  .f-back:hover { color: var(--text); text-decoration: underline; }
+
+  .severity-heading {
+    font-size: 13px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; margin: 20px 0 8px; color: var(--text2);
+  }
+  .severity-heading:first-of-type { margin-top: 8px; }
+  .f-severity {
+    font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.04em; padding: 1px 5px; border-radius: 3px;
+    margin-right: 4px;
+  }
+  .f-severity.high { background: var(--fail-bg); color: var(--fail); }
+  .f-severity.med { background: #f5e6c8; color: #a06800; }
+  .f-severity.low { background: var(--pass-bg); color: var(--pass); }
+  .f-severity.info { background: var(--hover); color: var(--text2); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .f-severity.med { background: #3d3018; color: #e0a830; }
+  }
+  :root[data-theme="dark"] .f-severity.med { background: #3d3018; color: #e0a830; }
 
   /* ── Responsive ── */
   @media (max-width: 640px) {
@@ -246,7 +279,7 @@
           <td>--retry-duration parsed as float</td>
           <td><span class="v-pass">Pass</span></td>
           <td><span class="v-pass">Pass</span></td>
-          <td><a class="v-fail" href="#f-py-retry-float">Fail</a></td>
+          <td id="r-py-retry-float"><a class="v-fail" href="#f-py-retry-float">Fail</a></td>
         </tr>
         <!-- N/A cell -->
         <tr>
@@ -255,17 +288,37 @@
           <td><span class="v-pass">Pass</span></td>
           <td><span class="v-pass">Pass</span></td>
         </tr>
+        <!-- LANGUAGE-EQUIVALENT PASS row: Pass* links to its explanation -->
+        <tr>
+          <td>Closing connections iterates a stable collection view</td>
+          <td><span class="v-pass">Pass</span></td>
+          <td id="r-js-map-iteration"><a class="v-pass v-lang-pass" href="#p-js-map-iteration">Pass*</a></td>
+          <td><span class="v-pass">Pass</span></td>
+        </tr>
       </tbody>
     </table>
   </div>
 
-  <!-- 4. FINDINGS (sentence-format, :target highlighting) -->
+  <!-- 4. FINDINGS grouped by severity (sentence-format, :target highlighting) -->
   <h2 class="findings-heading">Findings</h2>
+
+  <!-- Group by severity: High, Medium, Low, Info. Omit empty groups. -->
+  <h3 class="severity-heading">Low</h3>
 
   <!-- Each finding has id="f-{lang}-{slug}" matching the href in the table -->
   <div class="finding" id="f-py-retry-float">
+    <span class="f-severity low">Low</span>
     <span class="f-client py">Python</span>
     <span class="f-text">messenger-client.py:927 declares --retry-duration with type=int instead of type=float, so fractional retry durations like 2.5 seconds are rejected.</span>
+    <a class="f-back" href="#r-py-retry-float">Back to matrix</a>
+  </div>
+
+  <h2 class="findings-heading">Language-Equivalent Passes</h2>
+
+  <div class="finding lang-pass" id="p-js-map-iteration">
+    <span class="f-client js">Node.js</span>
+    <span class="f-text">Pass because of Node.js runtime semantics: the code omits a snapshot, but it deletes entries during one synchronous Map iteration with no callback or await boundary, so checkout cannot interleave and the stable-iteration invariant still holds.</span>
+    <a class="f-back" href="#r-js-map-iteration">Back to matrix</a>
   </div>
 
   <!-- If no failures: -->
