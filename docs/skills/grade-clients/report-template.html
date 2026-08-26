@@ -175,6 +175,26 @@
   }
   .f-back:hover { color: var(--text); text-decoration: underline; }
 
+  .severity-heading {
+    font-size: 13px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; margin: 20px 0 8px; color: var(--text2);
+  }
+  .severity-heading:first-of-type { margin-top: 8px; }
+  .f-severity {
+    font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.04em; padding: 1px 5px; border-radius: 3px;
+    margin-right: 4px;
+  }
+  .f-severity.high { background: var(--fail-bg); color: var(--fail); }
+  .f-severity.med { background: #f5e6c8; color: #a06800; }
+  .f-severity.low { background: var(--pass-bg); color: var(--pass); }
+  .f-severity.info { background: var(--hover); color: var(--text2); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .f-severity.med { background: #3d3018; color: #e0a830; }
+  }
+  :root[data-theme="dark"] .f-severity.med { background: #3d3018; color: #e0a830; }
+
   /* ── Responsive ── */
   @media (max-width: 640px) {
     .cards { grid-template-columns: 1fr; }
@@ -279,11 +299,15 @@
     </table>
   </div>
 
-  <!-- 4. FINDINGS (sentence-format, :target highlighting) -->
+  <!-- 4. FINDINGS grouped by severity (sentence-format, :target highlighting) -->
   <h2 class="findings-heading">Findings</h2>
+
+  <!-- Group by severity: High, Medium, Low, Info. Omit empty groups. -->
+  <h3 class="severity-heading">Low</h3>
 
   <!-- Each finding has id="f-{lang}-{slug}" matching the href in the table -->
   <div class="finding" id="f-py-retry-float">
+    <span class="f-severity low">Low</span>
     <span class="f-client py">Python</span>
     <span class="f-text">messenger-client.py:927 declares --retry-duration with type=int instead of type=float, so fractional retry durations like 2.5 seconds are rejected.</span>
     <a class="f-back" href="#r-py-retry-float">Back to matrix</a>

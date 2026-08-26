@@ -28,7 +28,6 @@
 #     retrying. Like decryption failure, this is a graceful return, not
 #     exit()/abort.
 #   - Status messages use bracketed prefixes: [+] success, [*] info, [!] error/warning.
-#     Do not print transport names, debug details, or verbose diagnostics.
 #   - Identifiers (client_id in RPF, etc.) must be 10-character alphanumeric
 #     strings, not GUIDs/UUIDs.
 #   - Hostnames passed to bind_tcp or TcpListener must be resolved via DNS
