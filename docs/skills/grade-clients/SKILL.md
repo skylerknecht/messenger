@@ -15,14 +15,14 @@ Grade every Messenger client implementation against `docs/client.pseudo`.
 ## Inputs
 
 The user may optionally specify:
-- A single client to grade (`csharp`, `nodejs`, `python`) â€” default is all three.
-- A single section to focus on â€” default is all sections.
+- A single client to grade (`csharp`, `nodejs`, `python`) — default is all three.
+- A single section to focus on — default is all sections.
 
 ## Workflow
 
 ### 1. Read the spec
 
-Read `docs/client.pseudo` in full. This is the golden standard â€” every
+Read `docs/client.pseudo` in full. This is the golden standard — every
 requirement in it is a grading criterion. Do not invent requirements that
 aren't in the spec and do not skip requirements that are.
 
@@ -35,7 +35,7 @@ Use the section structure below. Each requirement becomes a pass/fail check.
 
 For each client being graded, read the relevant source files:
 
-- **C#**: `builder/clients/csharp/templates/` â€” `Program.cs`, `MessengerClient.cs`,
+- **C#**: `builder/clients/csharp/templates/` — `Program.cs`, `MessengerClient.cs`,
   `HTTPMessengerClient.cs`, `WebSocketMessengerClient.cs`, `Message.cs`,
   `RemotePortForwarder.cs`, `Crypto.cs`
 - **Node.js**: `builder/clients/nodejs/templates/messenger-client.js`
@@ -52,17 +52,17 @@ Also read the builder for each client to check build-time configuration:
 For each requirement, check whether the client implements it correctly.
 Score as:
 
-- **PASS** â€” implements the requirement correctly
-- **FAIL** â€” missing or incorrect implementation
-- **N/A** â€” requirement does not apply to this client's platform (e.g.,
+- **PASS** — implements the requirement correctly
+- **FAIL** — missing or incorrect implementation
+- **N/A** — requirement does not apply to this client's platform (e.g.,
   User-Agent on C# WebSocket with net472)
 
 When grading, keep these platform-specific facts in mind:
-- C# `TcpClient` is pull-based â€” it does NOT need socket pause/resume. The
+- C# `TcpClient` is pull-based — it does NOT need socket pause/resume. The
   system buffer queues incoming data until `ReadAsync` is called. This is
   correct behavior, not a missing feature.
 - C# `ClientWebSocket` on .NET Framework 4.7.2 (net472) cannot set the
-  `User-Agent` header â€” it is a restricted header. This is an N/A, not a FAIL.
+  `User-Agent` header — it is a restricted header. This is an N/A, not a FAIL.
 - Node.js sockets are push-based and MUST be paused on accept and resumed
   on approval.
 - Python asyncio sockets are push-based and MUST be paused on accept and
@@ -114,10 +114,9 @@ Use precise terminology in the report:
 Explicitly verify these language-specific behaviors when the related spec rows
 exist:
 
-- An empty `SendDataMessage` represents TCP RST. A graceful close is not an
-  equivalent implementation. For current runtimes, check for C# abortive close
-  (for example zero linger), Node.js `socket.resetAndDestroy()` where supported,
-  and Python transport `abort()` rather than `StreamWriter.close()`.
+- An empty `SendDataMessage` closes the socket. The close must not block
+  dispatch — any non-blocking close primitive is acceptable (graceful or
+  abortive). Do not require RST or a specific close API.
 - Closing a listener is not assumed to close its accepted connections. In
   particular, Node.js `server.close()` stops accepting but waits for existing
   connections; cleanup must not depend on the resulting `close` event to close
@@ -180,10 +179,10 @@ Keep the requirement matrix row-based, but analyze findings by root cause:
 - Do not treat arbitrary local TCP read chunk sizes as protocol failures when
   framing accepts any valid chunk size and no peer maximum exists.
 
-### 5. Report â€” HTML Artifact
+### 5. Report — HTML Artifact
 
 Write the results to an HTML file and publish it with the Artifact tool.
-Do NOT load the `artifact-design` skill â€” use the reference template
+Do NOT load the `artifact-design` skill — use the reference template
 at `docs/skills/grade-clients/report-template.html` instead. Read
 that file and copy its exact `<style>` block and HTML structure. Only
 change the data (grades, requirements, pass/fail results, notes, file
@@ -193,13 +192,13 @@ add ring charts, or add accordions.
 **Rules:**
 - Copy the CSS verbatim from the template. Do not modify colors, fonts,
   spacing, or class names.
-- Keep every section visible on load â€” no accordions, no `display:none`,
+- Keep every section visible on load — no accordions, no `display:none`,
   no JavaScript toggling.
 - Every requirement gets its own `<tr>`. Do not roll up or summarize.
 - Fail cells contain ONLY an `<a class="v-fail" href="#f-{lang}-{slug}">Fail</a>`
   linking to the corresponding finding at the bottom. The containing cell gets
   `id="r-{lang}-{slug}"` so the finding can link back to that exact matrix cell.
-  No inline code, no file references, no `<div class="fail-detail">` â€” just
+  No inline code, no file references, no `<div class="fail-detail">` — just
   the hyperlinked pill. All detail lives in the finding.
 - Pass cells use `<span class="v-pass">Pass</span>`.
 - When a row passes specifically because the runtime provides an equivalent
@@ -214,17 +213,17 @@ add ring charts, or add accordions.
   `card py`. The grade color is driven by the per-client accent.
 
 **Layout (matches template exactly):**
-1. **Header** â€” `.eyebrow` ("Spec Compliance Audit"), `<h1>` title,
+1. **Header** — `.eyebrow` ("Spec Compliance Audit"), `<h1>` title,
    `.subtitle` with two `.pill` spans for spec file and branch.
-2. **Grade cards** â€” `.cards` grid, three `.card.{cs|js|py}` divs. Each
+2. **Grade cards** — `.cards` grid, three `.card.{cs|js|py}` divs. Each
    has: `.card-lang`, `.card-name`, `.card-grade` (letter, colored by
-   accent), `.card-pct` (pass/total Â· pct%), `.card-note` (1â€“2 sentences),
+   accent), `.card-pct` (pass/total · pct%), `.card-note` (1–2 sentences),
    `.severity-dots` with `.dot.high`, `.dot.med`, `.dot.low` + counts.
-3. **Requirement tables** â€” `.tables-heading` h2, then for each section:
+3. **Requirement tables** — `.tables-heading` h2, then for each section:
    `.section-label` div ("01 &ensp; Section Name"), then `<table>` inside
    `.table-wrap`. Columns: Requirement (46%), C# (18%), Node.js (18%),
    Python (18%).
-4. **Findings** â€” `.findings-heading` h2 ("Findings"), then `.finding`
+4. **Findings** — `.findings-heading` h2 ("Findings"), then `.finding`
    divs. Each finding has `id="f-{lang}-{slug}"` matching the `href` in
    the table's Fail link. Structure:
    `<div class="finding" id="f-py-retry-float">`
@@ -239,7 +238,7 @@ add ring charts, or add accordions.
    and `:target` CSS highlights it with a red left border and background.
    The finding's **Back to matrix** link returns to and highlights the exact
    Fail cell. Every Fail link and every backlink must resolve to a unique ID.
-5. **Language-equivalent passes** â€” only when at least one `Pass*` exists, add
+5. **Language-equivalent passes** — only when at least one `Pass*` exists, add
    `.findings-heading` h2 ("Language-Equivalent Passes"), then
    `.finding.lang-pass` notes. Each note uses `id="p-{lang}-{slug}"`, the same
    client and text spans as a finding, and a backlink to
@@ -248,8 +247,8 @@ add ring charts, or add accordions.
    observable invariant still holds. Start the sentence with
    `Pass because of {language/runtime} semantics:` so the reason is explicit.
 
-**Letter grade scale:** A+ (100), A (95â€“99), A- (90â€“94), B+ (85â€“89),
-B (80â€“84), B- (75â€“79), C+ (70â€“74), C (below 70).
+**Letter grade scale:** A+ (100), A (95–99), A- (90–94), B+ (85–89),
+B (80–84), B- (75–79), C+ (70–74), C (below 70).
 
 **Severity:** high = reachable protocol/data-loss/crash bugs, med = reachable
 behavioral or scalability deviations, low = cosmetic/minor/spec-only. Severity
@@ -260,7 +259,7 @@ dot counts represent distinct root causes, not the number of failed rows.
 Do NOT use a pre-written checklist. The spec is the checklist. Walk
 `docs/client.pseudo` line by line and extract every testable requirement
 directly from the spec text. Each requirement must match the spec's exact
-wording, types, values, control flow, and ordering â€” not a summary or
+wording, types, values, control flow, and ordering — not a summary or
 paraphrase. If the spec says `parse_float`, the client must parse a float.
 If the spec says `sleep` before `connect`, the client must sleep first.
 
@@ -275,7 +274,7 @@ literal guard or collection primitive from a different concurrency model.
 requirement in plain English, close to the spec's own wording.** The
 reader should understand exactly what is being checked without having to
 cross-reference the spec. Do NOT use terse shorthand labels like
-"handle_message SendDataMessage: close signal with atomic remove" â€” instead
+"handle_message SendDataMessage: close signal with atomic remove" — instead
 write "Empty SendDataMessage closes and removes the client using atomic
 remove; only the side that successfully removes the entry sends the close
 signal." Every requirement row should read like a sentence a human wrote,

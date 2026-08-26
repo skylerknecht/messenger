@@ -181,7 +181,7 @@ struct InitiateTCPClientRep:
 
 struct SendDataMessage:
     client_id: string
-    data: bytes             # empty data = immediately RST this TCP client
+    data: bytes             # empty data = immediately close this TCP client
 
 struct InitiateBINDReq:
     bind_id: string
@@ -222,7 +222,7 @@ struct CheckOutMessage:
 #                       for a listening endpoint the server holds under a
 #                       DIFFERENT bind_id replaces that stale entry (client
 #                       wins).
-#       reason != 0  -> GONE: server removes the forwarder and RSTs its
+#       reason != 0  -> GONE: server removes the forwarder and closes its
 #                       connections. Covers bind failure, listener crash,
 #                       and the reply to a stop.
 #
@@ -273,7 +273,7 @@ class TcpConnection:
     function send_data(data):
         if data is empty:
             abort()
-            // Empty SendData is the protocol command to RST this TCP client.
+            // Empty SendData is the protocol command to close this TCP client.
         else:
             write_queue.try_enqueue(data)
             // Failure means abort() completed the queue after the dispatcher
@@ -410,6 +410,22 @@ class Client:
         // Checkout requests closure only. TcpConnection.abort owns dictionary
         // removal/queue/socket cleanup; the forwarder's accept-loop finally
         // owns forwarder removal and cleanup of its accepted clients.
+
+
+    function cleanup():
+        // Terminal cleanup for non-checkout exits (retry exhaustion, fatal
+        // DecryptionError). handle_checkout sets killed and tears down
+        // resources inline; this function covers the paths where checkout
+        // never ran. Safe to call after checkout — the guards in stop(),
+        // abort(), and cleanup() make duplicate calls no-ops.
+        for forwarder in snapshot(remote_port_forwarders):
+            forwarder.stop()
+        for connection in snapshot(tcp_clients.values):
+            connection.abort()
+        close_transport()
+        // close_transport() is abstract — implemented by WSClient and
+        // HTTPClient to close the WebSocket/HTTP client, cancel send
+        // loops, and release pooled connections.
 
 
     function handle_bind(bind_id, listening_host, listening_port, destination_host, destination_port):
@@ -836,7 +852,7 @@ class RemotePortForwarder:
         // Stream is NOT started here. The dispatch_message handler for
         // InitiateTCPClientRep (reason=0) resumes the socket and
         // starts stream(). If the server denies (reason!=0), the socket
-        // is removed and RST there.
+        // is removed and closed there.
 
         // Messenger owns the connection in its global map. bind_id associates
         // it with this RPF so cleanup can close the group without a second list.
@@ -958,64 +974,71 @@ function main():
         log("[!] All connection attempts failed.")
         return
 
-    # --- Initial start ---
-    # start() blocks until disconnect. Separated from connect() so a
-    # start() failure falls through to the retry loop instead of
-    # being mistaken for a connection failure.
     try:
-        await client.start()
-    catch DecryptionError:
-        log("[!] Decryption failed — the encryption key is likely incorrect. "
-            "The messenger cannot decrypt server traffic and is stopping.")
-        return
-    catch error:
-        log("[!] Disconnected: {error}")
-
-    if client.killed:
-        return
-
-    # --- Reconnection ---
-    if config.retry_attempts <= 0:
-        return
-
-    sleep_interval = config.retry_duration / config.retry_attempts
-    consecutive_failures = 0
-
-    while consecutive_failures < config.retry_attempts:
-        consecutive_failures += 1
-        log("[*] Attempting to reconnect (attempt {consecutive_failures}/{config.retry_attempts})")
-        await sleep(sleep_interval)
-
+        # --- Initial start ---
+        # start() blocks until disconnect. Separated from connect() so a
+        # start() failure falls through to the retry loop instead of
+        # being mistaken for a connection failure.
         try:
-            cleanup_transport(client)
-            // Cancel send loops, dispose old WebSocket/HTTP client.
-            // Create fresh transport internals.
-            //
-            // What MUST be cleaned up:
-            //   - Cancel tokens / stop send loops
-            //   - Dispose old transport (WebSocket, HTTP client)
-            //
-            // What MUST persist across reconnect:
-            //   - client.identifier (server uses it to recognize us)
-            //   - client.tcp_clients (tunnels may still be alive)
-            //   - remote_port_forwarders (server-initiated RPF listeners)
-            //   - upstream message queue (messages queued during disconnect)
-
-            await client.connect()
-            log("[+] Reconnected")
-            consecutive_failures = 0
-            // Reset on success — allows infinite reconnections as long as
-            // each connection succeeds at least once.
-
-            await client.start()    # blocks until next disconnect
-
+            await client.start()
         catch DecryptionError:
             log("[!] Decryption failed — the encryption key is likely incorrect. "
                 "The messenger cannot decrypt server traffic and is stopping.")
             return
-            // Fatal: reconnecting cannot fix a wrong key. Stop the loop.
         catch error:
-            log("[!] Reconnection failed: {error}")
+            log("[!] Disconnected: {error}")
 
         if client.killed:
             return
+
+        # --- Reconnection ---
+        if config.retry_attempts <= 0:
+            return
+
+        sleep_interval = config.retry_duration / config.retry_attempts
+        consecutive_failures = 0
+
+        while consecutive_failures < config.retry_attempts:
+            consecutive_failures += 1
+            log("[*] Attempting to reconnect (attempt {consecutive_failures}/{config.retry_attempts})")
+            await sleep(sleep_interval)
+
+            try:
+                cleanup_transport(client)
+                // Cancel send loops, dispose old WebSocket/HTTP client.
+                // Create fresh transport internals.
+                //
+                // What MUST be cleaned up:
+                //   - Cancel tokens / stop send loops
+                //   - Dispose old transport (WebSocket, HTTP client)
+                //
+                // What MUST persist across reconnect:
+                //   - client.identifier (server uses it to recognize us)
+                //   - client.tcp_clients (tunnels may still be alive)
+                //   - remote_port_forwarders (server-initiated RPF listeners)
+                //   - upstream message queue (messages queued during disconnect)
+
+                await client.connect()
+                log("[+] Reconnected")
+                consecutive_failures = 0
+                // Reset on success — allows infinite reconnections as long as
+                // each connection succeeds at least once.
+
+                await client.start()    # blocks until next disconnect
+
+            catch DecryptionError:
+                log("[!] Decryption failed — the encryption key is likely incorrect. "
+                    "The messenger cannot decrypt server traffic and is stopping.")
+                return
+                // Fatal: reconnecting cannot fix a wrong key. Stop the loop.
+            catch error:
+                log("[!] Reconnection failed: {error}")
+
+            if client.killed:
+                return
+
+    finally:
+        client.cleanup()
+        // Terminal cleanup. Closes RPF listeners, aborts TCP connections,
+        // and releases transport resources (WebSocket, HTTP client, agent
+        // pools). Safe after checkout — all guards are idempotent.
