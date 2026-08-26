@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Changed
 
 - Renamed `send_downstream_message` to `send_upstream_message` and `downstream_queue` to `upstream_queue` across all transport classes — messages TO the server are upstream from the client's perspective.
+- WebSocket send loop catch block now specifies `upstream_queue.enqueue_front(message)` — a failed send must go back to the front of the queue, not the back, to preserve message ordering.
+
 #### Fixed
 
 - HTTP polling loop now uses a persistent pending buffer — messages are drained into `pending` only when empty, and `pending` is cleared only after a successful POST. Previously, messages dequeued before a failed POST were lost permanently.
@@ -42,6 +44,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `manager.py` bare `except:` clauses narrowed to `except (ValueError, TypeError):` in concurrency/port parsing.
 - `SocksTcpClient.negotiate_transport` sends a proper SOCKS5 error reply (command not supported, 0x07) when the command is not CONNECT — previously returned `False` with no reply.
 - `SocksTcpClient.negotiate_address` sends a proper SOCKS5 error reply (address type not supported, 0x08) on unsupported address types — previously returned `False` with no reply.
+- `WebSocketMessenger._send_loop` now re-enqueues a failed message at the front of the queue via drain-and-refill — previously the message was lost on send failure, and `CancelledError` (a `BaseException`) bypassed the `except Exception` handler entirely.
+- `http_ws_server.py` constructor parameter renamed from `ssl` to `ssl_cert` to avoid shadowing the `ssl` module import — `ssl.create_default_context()` would fail at runtime when an SSL cert was configured.
+- `sent_bytes` tracking centralized in `send_message_downstream` using serialized message size — previously scattered across `tcp_clients.py` with a hardcoded `+= 20` for headers that undercounted actual wire bytes.
+- `received_bytes` tracking centralized in the engine (`checkin_http` and `send_messages_upstream`) using raw `len(data)` — previously scattered across `tcp_clients.py` and counted deserialized payload length instead of wire bytes.
 
 ### Client
 
@@ -61,6 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **C#**: `HttpResponseMessage` wrapped in `using` block — previously leaked the response on non-200 status, exhausting the 2-connection-per-host pool after two consecutive server errors.
 - **Node.js**: WebSocket `connect()` now closes the previous `ws` instance before creating a new one — previously leaked the old socket on reconnect.
 - **Python**: added missing `import sys` — `non_main_thread` builds crashed at startup.
+- **Python and C#**: WebSocket send loop now re-enqueues a failed message at the front of the queue via drain-and-refill, catching both `Exception` (break) and `BaseException`/`OperationCanceledException` (raise) — previously a mid-flight failure lost the dequeued message or reordered it behind newer messages.
 
 ## [0.9.0] - 2026-08-12
 

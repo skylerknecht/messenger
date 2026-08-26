@@ -25,7 +25,7 @@ class Messenger:
         self.update_cli = update_cli
         self.forwarders = []
         self.scanners = []
-        self.upstream_messages = asyncio.Queue()
+        self.downstream_messages = asyncio.Queue()
         self.serialize_messages = serialize_messages
         self.ips = set()
 
@@ -48,13 +48,6 @@ class Messenger:
     @nickname.setter
     def nickname(self, value):
         self._nickname = value
-
-    async def get_upstream_messages(self):
-        upstream_messages = b''
-        while not self.upstream_messages.empty():
-            message = await self.upstream_messages.get()
-            upstream_messages += self.serialize_messages([message])
-        return upstream_messages
 
     @property
     def status(self):
@@ -82,162 +75,170 @@ class Messenger:
         logger.record_message(direction, self.identifier, message)
 
     @abstractmethod
-    async def send_message_upstream(self, message):
+    async def send_message_downstream(self, message):
         raise NotImplementedError
 
     @abstractmethod
-    async def send_messages_downstream(self, messages):
+    async def process_upstream_messages(self, messages):
         self.update_cli.display(
-            f'Messenger {self.nickname} received downstream message(s).',
-            'debug',
-            display_module='messengers'        )
+            f'Messenger {self.nickname} received upstream message(s).',
+            'debug', display_module='messengers'
+        )
         self.update_cli.display(
-            f'Messenger {self.nickname} received the following downstream message(s)\n{messages}.',
-            'debug',
-            display_module='messengers'        )
+            f'Messenger {self.nickname} received the following upstream message(s)\n{messages}.',
+            'debug', display_module='messengers'
+        )
         for message in messages:
-            self.log_message('downstream', message)
-            # 1) Initiate TCP Client Request (0x01)
+            self.log_message('upstream', message)
+
             if isinstance(message, InitiateTCPClientReq):
-                # A forwarded connection from a remote port forwarder carries the
-                # listening endpoint it came through, so map it to the EXACT RPF
-                # rather than guessing by destination. Snapshot the list before
-                # awaiting (don't iterate-and-await over shared state).
-                forwarder = next(
-                    (f for f in list(self.forwarders)
-                     if isinstance(f, RemotePortForwarder)
-                     and f.listening_host == message.listening_host
-                     and int(f.listening_port) == int(message.listening_port)),
-                    None
-                )
-                if forwarder is not None and not forwarder.is_orphan:
-                    await forwarder.handle_initiate_tcp_client_req(message)
-                else:
-                    self.update_cli.display(
-                        f'Messenger `{self.nickname}` has no configured remote port forward '
-                        f'for {message.listening_host}:{message.listening_port} -> '
-                        f'{message.destination_host}:{message.destination_port}, denying forward!',
-                        'warning', display_module='messengers'
-                    )
-                    await self.send_message_upstream(
-                        InitiateTCPClientRep(
-                            client_id=message.client_id,
-                            bind_address="0.0.0.0",
-                            bind_port=0,
-                            address_type=1,
-                            reason=2
-                        )
-                    )
+                await self._handle_tcp_client_req(message)
 
-            # 2) Initiate TCP Client Response (0x02)
             elif isinstance(message, InitiateTCPClientRep):
-                addr = message.bind_address
-                if addr and addr not in self.LOOPBACK_ADDRESSES and addr not in self.ips:
-                    self.ips.add(addr)
-                    self.update_cli.display(
-                        f'Messenger `{self.nickname}` has a new interface: {addr}',
-                        'success', display_module='messengers'
-                    )
-                for scanner in self.scanners:
-                    await scanner.handle_initiate_tcp_client_rep(message)
-                for forwarder in self.forwarders:
-                    await forwarder.handle_initiate_tcp_client_rep(message)
+                await self._handle_tcp_client_rep(message)
 
-            # 3) Send Data (0x03)
             elif isinstance(message, SendDataMessage):
-                client_id = message.client_id
-                data = message.data
+                await self._handle_send_data(message)
 
-                tcp_clients = [c for fw in self.forwarders for c in fw.clients]
-                for tcp_client in tcp_clients:
-                    if tcp_client.identifier == client_id:
-                        await tcp_client.send_data(data)
-                        break
-
-            # 5) Initiate BIND Response (0x06)
             elif isinstance(message, InitiateBINDRep):
-                if message.reason != 0:
-                    # GONE — the RPF failed to bind, crashed, or was torn down.
-                    # Claim the entry atomically (pop before any await), then RST
-                    # its connections. A stop we initiated lands here too.
-                    gone = None
-                    for i, f in enumerate(self.forwarders):
-                        if f.identifier == message.bind_id:
-                            gone = self.forwarders.pop(i)
-                            break
-                    if gone is not None:
-                        gone.close_all_clients()
-                        if not gone.seen_bind_rep:
-                            self.update_cli.display(
-                                f'Messenger `{self.nickname}` failed to bind '
-                                f'{message.listening_host}:{message.listening_port}.',
-                                'error', display_module='messengers'
-                            )
-                        else:
-                            self.update_cli.display(
-                                f'Messenger `{self.nickname}` remote port forward `{message.bind_id}` '
-                                f'({message.listening_host}:{message.listening_port}) is no longer bound.',
-                                'information', display_module='messengers'
-                            )
-                    else:
-                        self.update_cli.display(
-                            f'Messenger `{self.nickname}` remote port forward `{message.bind_id}` '
-                            f'({message.listening_host}:{message.listening_port}) is no longer bound.',
-                            'status', display_module='messengers'
-                        )
-                else:
-                    # PRESENT — the client is listening. Reconcile to its claim.
-                    existing = next(
-                        (f for f in self.forwarders if f.identifier == message.bind_id),
-                        None
-                    )
-                    if existing is not None:
-                        existing.seen_bind_rep = True
-                        self.update_cli.display(
-                            f'Messenger `{self.nickname}` bound {message.listening_host}:{message.listening_port}.',
-                            'success', display_module='messengers'
-                        )
-                    else:
-                        # Unknown bind_id. Any forwarder we hold on this listening
-                        # endpoint is stale (the client is ground truth for what's
-                        # actually listening) — replace it, then store an orphan
-                        # (empty dest) awaiting `remote` to configure it.
-                        stale = None
-                        for i, f in enumerate(self.forwarders):
-                            if (isinstance(f, RemotePortForwarder)
-                                    and f.listening_host == message.listening_host
-                                    and int(f.listening_port) == int(message.listening_port)):
-                                stale = self.forwarders.pop(i)
-                                break
-                        if stale is not None:
-                            stale.close_all_clients()
-                            self.update_cli.display(
-                                f'Messenger `{self.nickname}` claims bind `{message.bind_id}` on '
-                                f'{message.listening_host}:{message.listening_port}, which was tracked as '
-                                f'`{stale.identifier}`; replaced the stale entry.',
-                                'warning', display_module='messengers'
-                            )
-                        orphan = RemotePortForwarder.orphan(
-                            self, message.bind_id, message.listening_host,
-                            message.listening_port, self.update_cli
-                        )
-                        self.forwarders.append(orphan)
-                        self.update_cli.display(
-                            f'Messenger `{self.nickname}` advertised remote port forward `{message.bind_id}` '
-                            f'on {message.listening_host}:{message.listening_port}.',
-                            'warning', display_module='messengers'
-                        )
-                        self.update_cli.display(
-                            f'Run `remote {message.listening_host}:{message.listening_port}:<destination_host>:<destination_port>` to configure it.',
-                            'warning', display_module='messengers'
-                        )
+                await self._handle_bind_rep(message)
 
-            # Unknown / Unhandled
             else:
                 self.update_cli.display(
                     f"Unknown or unhandled message type: {type(message).__name__}",
                     'information', display_module='messengers'
                 )
+
+    async def _handle_tcp_client_req(self, message):
+        forwarder = next(
+            (candidate for candidate in list(self.forwarders)
+             if isinstance(candidate, RemotePortForwarder)
+             and candidate.listening_host == message.listening_host
+             and int(candidate.listening_port) == int(message.listening_port)),
+            None
+        )
+        if forwarder and not forwarder.is_orphan:
+            await forwarder.handle_initiate_tcp_client_req(message)
+            return
+        self.update_cli.display(
+            f'Messenger `{self.nickname}` has no configured remote port forward '
+            f'for {message.listening_host}:{message.listening_port} -> '
+            f'{message.destination_host}:{message.destination_port}, denying forward!',
+            'warning', display_module='messengers'
+        )
+        await self.send_message_downstream(
+            InitiateTCPClientRep(
+                client_id=message.client_id,
+                bind_address="0.0.0.0",
+                bind_port=0,
+                address_type=1,
+                reason=2
+            )
+        )
+
+    async def _handle_tcp_client_rep(self, message):
+        addr = message.bind_address
+        if addr and addr not in self.LOOPBACK_ADDRESSES and addr not in self.ips:
+            self.ips.add(addr)
+            self.update_cli.display(
+                f'Messenger `{self.nickname}` has a new interface: {addr}',
+                'success', display_module='messengers'
+            )
+        for scanner in list(self.scanners):
+            await scanner.handle_initiate_tcp_client_rep(message)
+        for forwarder in list(self.forwarders):
+            await forwarder.handle_initiate_tcp_client_rep(message)
+
+    async def _handle_send_data(self, message):
+        tcp_clients = [c for fw in self.forwarders for c in fw.clients]
+        for tcp_client in tcp_clients:
+            if tcp_client.identifier == message.client_id:
+                await tcp_client.send_data(message.data)
+                return
+
+    BIND_REASONS = {
+        1: 'general failure',
+        2: 'address already in use',
+        3: 'permission denied',
+        4: 'address resolution failed',
+        5: 'forwarder stopped',
+    }
+
+    async def _handle_bind_rep(self, message):
+        if message.reason == 0:
+            await self._handle_bind_success(message)
+        else:
+            await self._handle_bind_error(message)
+
+    async def _handle_bind_error(self, message):
+        reason_text = self.BIND_REASONS.get(message.reason, f'unknown reason ({message.reason})')
+        for i, forwarder in enumerate(self.forwarders):
+            if forwarder.identifier == message.bind_id:
+                remote_port_forwarder = self.forwarders.pop(i)
+                break
+        else:
+            self.update_cli.display(
+                f'Messenger `{self.nickname}` is no longer remote forwarding '
+                f'({message.listening_host}:{message.listening_port}): {reason_text}.',
+                'information', display_module='messengers'
+            )
+            return
+
+        remote_port_forwarder.close_all_clients()
+        severity = 'information' if message.reason == 5 else 'error'
+        self.update_cli.display(
+            f'Messenger `{self.nickname}` is no longer remote forwarding '
+            f'({message.listening_host}:{message.listening_port}): {reason_text}.',
+            severity, display_module='messengers'
+        )
+
+    async def _handle_bind_success(self, message):
+        remote_port_forwarder = next(
+            (forwarder for forwarder in self.forwarders if forwarder.identifier == message.bind_id),
+            None
+        )
+        if remote_port_forwarder:
+            remote_port_forwarder.forwarding = True
+            dest = f' -> ({remote_port_forwarder.destination_host}:{remote_port_forwarder.destination_port})' if not remote_port_forwarder.is_orphan else ''
+            self.update_cli.display(
+                f'Messenger `{self.nickname}` is now remote forwarding ({message.listening_host}:{message.listening_port}){dest}.',
+                'success', display_module='messengers'
+            )
+            return
+
+        # Unknown bind_id — the client is listening but the server has no record.
+        # Replace any stale entry tracking the same host:port under a different bind_id.
+        for i, forwarder in enumerate(self.forwarders):
+            if (isinstance(forwarder, RemotePortForwarder)
+                    and forwarder.listening_host == message.listening_host
+                    and int(forwarder.listening_port) == int(message.listening_port)):
+                old_remote_port_forwarder = self.forwarders.pop(i)
+                old_remote_port_forwarder.close_all_clients()
+                self.update_cli.display(
+                    f'Messenger `{self.nickname}` claims bind `{message.bind_id}` on '
+                    f'{message.listening_host}:{message.listening_port}, which was tracked as '
+                    f'`{old_remote_port_forwarder.identifier}`. Replacing the stale entry.',
+                    'warning', display_module='messengers'
+                )
+                break
+
+
+        # Store as an orphan with no destination — can't route until the operator
+        # runs `remote` to configure where traffic should go.
+        remote_port_forwarder = RemotePortForwarder.orphan(
+            self, message.bind_id, message.listening_host,
+            message.listening_port, self.update_cli
+        )
+        self.forwarders.append(remote_port_forwarder)
+        self.update_cli.display(
+            f'Messenger `{self.nickname}` advertised remote port forward `{message.bind_id}` '
+            f'on {message.listening_host}:{message.listening_port}.',
+            'warning', display_module='messengers'
+        )
+        self.update_cli.display(
+            f'Run `remote {message.listening_host}:{message.listening_port}:<destination_host>:<destination_port>` to configure it.',
+            'warning', display_module='messengers'
+        )
 
     @staticmethod
     def _format_bytes(size: int) -> str:
@@ -294,17 +295,19 @@ class HTTPMessenger(Messenger):
         else:
             return color_text(f"{elapsed / 3600:.0f}h delay", "red")
 
-    async def send_message_upstream(self, message):
-        self.log_message('upstream', message)
+    async def send_message_downstream(self, message):
+        self.log_message('downstream', message)
+        serialized = self.serialize_messages([message])
+        self.sent_bytes += len(serialized)
         self.update_cli.display(
-            f'Messenger {self.nickname} queued a upstream message.',
+            f'Messenger {self.nickname} queued a downstream message.',
             'debug',
             display_module='messengers'        )
         self.update_cli.display(
-            f'Messenger {self.nickname} queued the following upstream message\n{message}.',
+            f'Messenger {self.nickname} queued the following downstream message\n{message}.',
             'debug',
             display_module='messengers'        )
-        await self.upstream_messages.put(message)
+        await self.downstream_messages.put(message)
 
 
 class WebSocketMessenger(Messenger):
@@ -317,6 +320,7 @@ class WebSocketMessenger(Messenger):
         self.ips.add(ip)
         self.user_agent = user_agent
         self.websocket = websocket
+        self._send_task = None
 
     @property
     def status(self):
@@ -327,28 +331,36 @@ class WebSocketMessenger(Messenger):
     def set_websocket(self, ws):
         self.websocket = ws
 
-    async def send_message_upstream(self, message):
-        self.log_message('upstream', message)
-        if self.websocket.closed:
-            self.update_cli.display(
-                f'Messenger `{self.nickname}` queued a upstream message.',
-                'warning', display_module='messengers'
-            )
-            await self.upstream_messages.put(message)
-            return
+    def start_send_loop(self):
+        if self._send_task and not self._send_task.done():
+            self._send_task.cancel()
+        self._send_task = asyncio.create_task(self._send_loop())
+
+    async def send_message_downstream(self, message):
+        self.log_message('downstream', message)
+        serialized = self.serialize_messages([message])
+        self.sent_bytes += len(serialized)
         self.update_cli.display(
-            f'Messenger {self.nickname} sent a upstream message.',
+            f'Messenger {self.nickname} queued a downstream message.',
             'debug',
             display_module='messengers'        )
-        self.update_cli.display(
-            f'Messenger {self.nickname} sent the following upstream message\n{message}.',
-            'debug',
-            display_module='messengers'        )
-        try:
-            await self.websocket.send_bytes(self.serialize_messages([message]))
-        except Exception:
-            self.update_cli.display(
-                f'Messenger `{self.nickname}` queued a upstream message.',
-                'warning', display_module='messengers'
-            )
-            await self.upstream_messages.put(message)
+        await self.downstream_messages.put(message)
+
+    def _requeue_first(self, message):
+        remaining = [message]
+        while not self.downstream_messages.empty():
+            remaining.append(self.downstream_messages.get_nowait())
+        for m in remaining:
+            self.downstream_messages.put_nowait(m)
+
+    async def _send_loop(self):
+        while True:
+            message = await self.downstream_messages.get()
+            try:
+                await self.websocket.send_bytes(self.serialize_messages([message]))
+            except Exception:
+                self._requeue_first(message)
+                break
+            except BaseException:
+                self._requeue_first(message)
+                raise

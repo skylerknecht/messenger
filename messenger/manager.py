@@ -149,7 +149,7 @@ class Manager:
                     f'Logging commands and no messages to: {self.logger.log_dir}',
                     'information', reprompt=False)
         self.messenger_engine = Engine(self.messengers, self.update_cli, generate_hash(self.encryption_key))
-        self.messenger_server = HTTPWSServer(self.update_cli, self.messenger_engine, ip=server_ip, port=server_port, ssl=ssl)
+        self.messenger_server = HTTPWSServer(self.update_cli, self.messenger_engine, ip=server_ip, port=server_port, ssl_cert=ssl)
 
     @staticmethod
     def strip_ansi_codes(text):
@@ -1002,7 +1002,7 @@ class Manager:
                     target = messenger.forwarders.pop(i)
                     break
             if target is not None:
-                if isinstance(target, RemotePortForwarder) and not target.seen_bind_rep:
+                if isinstance(target, RemotePortForwarder) and not target.forwarding:
                     # Never confirmed by the client — just drop it, send no
                     # signal. Race-safe: a late BindRep for it simply comes back
                     # as an orphan we can re-adopt.
@@ -1052,7 +1052,7 @@ class Manager:
             if target is None:
                 self.update_cli.display(f'`{id}` not found.', 'error', reprompt=False)
                 return
-        await target.send_message_upstream(CheckOutMessage())
+        await target.send_message_downstream(CheckOutMessage())
         for forwarder in list(target.forwarders):
             forwarder.close_all_clients() if hasattr(forwarder, 'close_all_clients') else None
         self.update_cli.display(

@@ -142,33 +142,28 @@ class LocalPortForwarder(Forwarder):
 
     async def start(self):
         self.update_cli.display(
-            f'Attempting to forward ({self.listening_host}:{self.listening_port}) -> ({self.destination_host}:{self.destination_port}).',
+            f'Messenger `{self.messenger.nickname}` is attempting to local forward ({self.listening_host}:{self.listening_port}) -> ({self.destination_host}:{self.destination_port}).',
             'information', reprompt=False, display_module='forwarders')
         try:
             self.server = await asyncio.start_server(self.handle_client, self.listening_host, int(self.listening_port))
             self.update_cli.display(
-                f'Messenger `{self.messenger.nickname}` now forwarding ({self.listening_host}:{self.listening_port}) -> ({self.destination_host}:{self.destination_port}).',
+                f'Messenger `{self.messenger.nickname}` is now local forwarding ({self.listening_host}:{self.listening_port}) -> ({self.destination_host}:{self.destination_port}).',
                 'success', reprompt=False, display_module='forwarders')
             return True
         except OSError as e:
             if e.errno == errno.EADDRINUSE:
-                self.update_cli.display(
-                    f"Port {self.listening_port} is already in use on {self.listening_host}.",
-                    'error',
-                    reprompt=False, display_module='forwarders'
-                )
+                reason = 'address already in use'
             elif e.errno == errno.EADDRNOTAVAIL:
-                self.update_cli.display(
-                    f"Cannot bind to host '{self.listening_host}'—it may be invalid or unreachable.",
-                    'error',
-                    reprompt=False, display_module='forwarders'
-                )
+                reason = 'address not available'
+            elif e.errno == errno.EACCES:
+                reason = 'permission denied'
             else:
-                self.update_cli.display(
-                    f"Failed to bind on {self.listening_host}:{self.listening_port}: {e}",
-                    'error',
-                    reprompt=False, display_module='forwarders'
-                )
+                reason = str(e)
+            self.update_cli.display(
+                f'Messenger `{self.messenger.nickname}` failed to bind ({self.listening_host}:{self.listening_port}): {reason}.',
+                'error',
+                reprompt=False, display_module='forwarders'
+            )
 
         return False
 
@@ -191,7 +186,7 @@ class LocalPortForwarder(Forwarder):
             pass
 
         self.update_cli.display(
-            f'Messenger `{self.messenger.nickname}` has stopped forwarding ({self.listening_host}:{self.listening_port}) -> ({self.destination_host}:{self.destination_port}).',
+            f'Messenger `{self.messenger.nickname}` is no longer local forwarding ({self.listening_host}:{self.listening_port}) -> ({self.destination_host}:{self.destination_port}).',
             'success',
             reprompt=False, display_module='forwarders'
         )
@@ -256,23 +251,16 @@ class RemotePortForwarder(Forwarder):
         self.update_cli = update_cli
         listening_host, listening_port, destination_host, destination_port = self.parse_config(config)
         super().__init__(listening_host, listening_port, destination_host, destination_port, update_cli)
-        # True once the client has confirmed the bind (a real-host BindRep).
-        self.seen_bind_rep = False
+        self.forwarding = False
 
     @classmethod
     def orphan(cls, messenger, bind_id, listening_host, listening_port, update_cli):
-        # A remote port forward the client advertised (via a real-host BindRep)
-        # that this server has no destination for — e.g. after a restart, or a
-        # bind_id it minted before we knew about it. Stored with an EMPTY
-        # destination so it never routes until the operator re-runs `remote` to
-        # set the destination. seen_bind_rep is True because the client told us
-        # it's listening.
         self = cls.__new__(cls)
         self.messenger = messenger
         self.update_cli = update_cli
         Forwarder.__init__(self, listening_host, int(listening_port), '', 0, update_cli)
         self.identifier = bind_id
-        self.seen_bind_rep = True
+        self.forwarding = True
         return self
 
     @property
@@ -297,7 +285,7 @@ class RemotePortForwarder(Forwarder):
     async def handle_initiate_tcp_client_req(self, message):
         if self.is_orphan:
             # No destination set — deny; the operator must configure it first.
-            await self.messenger.send_message_upstream(
+            await self.messenger.send_message_downstream(
                 InitiateTCPClientRep(
                     client_id=message.client_id, bind_address="0.0.0.0",
                     bind_port=0, address_type=1, reason=2
@@ -313,7 +301,7 @@ class RemotePortForwarder(Forwarder):
             client = RemoteTcpClient(message.client_id, reader, writer, self.messenger, self.on_close)
             self.clients.append(client)
 
-            upstream_message = InitiateTCPClientRep(
+            downstream_message = InitiateTCPClientRep(
                 client_id=message.client_id,
                 bind_address="0.0.0.0",
                 bind_port=0,
@@ -337,18 +325,18 @@ class RemotePortForwarder(Forwarder):
         except Exception as e:
             reason = 1
         else:
-            await self.messenger.send_message_upstream(upstream_message)
+            await self.messenger.send_message_downstream(downstream_message)
             await client.initiate_tcp_client()
             return
 
-        upstream_message = InitiateTCPClientRep(
+        downstream_message = InitiateTCPClientRep(
             client_id=message.client_id,
             bind_address="0.0.0.0",
             bind_port=0,
             address_type=1,
             reason=reason
         )
-        await self.messenger.send_message_upstream(upstream_message)
+        await self.messenger.send_message_downstream(downstream_message)
 
     def parse_config(self, config):
         parts = config.split(':')
@@ -374,7 +362,7 @@ class RemotePortForwarder(Forwarder):
             destination_host=self.destination_host,
             destination_port=self.destination_port
         )
-        await self.messenger.send_message_upstream(bind_req)
+        await self.messenger.send_message_downstream(bind_req)
         self.update_cli.display(
             f'Queued bind request for Messenger `{self.messenger.nickname}` for '
             f'({self.listening_host}:{self.listening_port}) -> '
@@ -393,7 +381,7 @@ class RemotePortForwarder(Forwarder):
             destination_host='',
             destination_port=0
         )
-        await self.messenger.send_message_upstream(bind_req)
+        await self.messenger.send_message_downstream(bind_req)
         self.update_cli.display(
             f'Sent stop to Messenger `{self.messenger.nickname}` for bind '
             f'`{self.identifier}` ({self.listening_host}:{self.listening_port}).',

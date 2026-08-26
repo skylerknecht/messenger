@@ -193,8 +193,12 @@ struct InitiateBINDRep:
     bind_id: string
     listening_host: string  # always the real listening endpoint, even on failure
     listening_port: uint32
-    reason: uint32          # 0 = success/confirmed; non-zero = GONE (bind failed,
-                            #   crashed, or torn down)
+    reason: uint32          # 0 = forwarding
+                            # 1 = general failure
+                            # 2 = address already in use
+                            # 3 = permission denied
+                            # 4 = address resolution failed
+                            # 5 = forwarder stopped
 
 struct CheckOutMessage:
     # Empty payload. Server -> client only. Tells the client to tear down
@@ -221,9 +225,10 @@ struct CheckOutMessage:
 #                       for a listening endpoint the server holds under a
 #                       DIFFERENT bind_id replaces that stale entry (client
 #                       wins).
-#       reason != 0  -> GONE: server removes the forwarder and closes its
-#                       connections. Covers bind failure, listener crash,
-#                       and the reply to a stop.
+#       reason != 0  -> no longer forwarding: server removes the forwarder
+#                       and closes its connections. Reason codes distinguish
+#                       bind failure (1-4) and the reply to a
+#                       server-requested stop (5).
 #
 # A forwarded connection carries its listening endpoint in InitiateTCPClientReq,
 # so the server routes it to the exact RPF and connects to that RPF's
@@ -450,12 +455,12 @@ class Client:
                 self, bind_id, listening_host, listening_port,
                 destination_host, destination_port
             )
-            success = await forwarder.start()
-            if not success:
+            reason = await forwarder.start()
+            if reason != 0:
                 if not killed:
                     await send_upstream_message(InitiateBINDRep(
                         bind_id = bind_id, listening_host = listening_host,
-                        listening_port = listening_port, reason = 1))
+                        listening_port = listening_port, reason = reason))
                 return
 
             if killed:
@@ -634,38 +639,43 @@ class WSClient extends Client:
                 // background. Replies, data, and close finish inline in the
                 // order they appeared in this frame.
 
-        // On exit (close/error), signal the send_loop so it wakes and stops —
-        // otherwise parallel() hangs on a send_loop parked waiting for a message.
-        signal_send_loop_to_stop()
+        // On exit (close/error), cancel the send_loop so it wakes and stops —
+        // otherwise parallel() hangs on a send_loop parked on dequeue().
+        cancel_send_loop()
 
     function send_loop():
-        # THE single writer. Wake on a SIGNAL, not a poll: park until a message
-        # is enqueued (semaphore / channel / async queue). Parking costs no CPU
-        # when idle AND adds no latency when a message arrives. A fixed
-        # sleep(10ms) poll also works but taxes every send up to ~10ms — prefer
-        # the signal.
-        while not cancelled:
-            await wait_for_send_signal()      // parks until an enqueue or cancel
-            if cancelled or websocket is not open:
+        # THE single writer. Parks on a blocking dequeue — no CPU when idle,
+        # no latency when a message arrives. On send failure, re-queue the
+        # batch and break — the reconnect logic in main() will start a fresh
+        # send_loop that drains whatever accumulated while disconnected.
+        #
+        # INVARIANT: no queued message is ever lost. Every message dequeued
+        # must either be sent successfully or re-queued before the loop exits.
+        #
+        # Runtimes that lack a blocking dequeue (e.g. plain JS arrays) or
+        # whose send does not throw on a dead socket (e.g. Node's `ws`
+        # buffers silently) may use equivalent approaches — signal-based
+        # wake and a readyState guard before sending — as long as the
+        # invariant holds.
+        while true:
+            message = await upstream_queue.dequeue()   // parks until a message
+            try:
+                payload = serialize_messages(
+                    [CheckInMessage(messenger_id=self.identifier), message],
+                    encryption_key)
+                await websocket.send_binary(payload)
+            catch:
+                // Send failed — re-queue AT THE FRONT so it is sent first on
+                // the next connection. Back-of-queue re-enqueue reorders it
+                // behind messages that producers added after the dequeue,
+                // corrupting ordered streams.
+                upstream_queue.enqueue_front(message)
                 break
 
-            batch = [CheckInMessage(messenger_id=self.identifier)]
-            while upstream_queue is not empty:
-                batch.append(upstream_queue.dequeue())
-                // Coalesce everything queued right now into one frame.
-
-            if batch contains only the CheckIn:
-                continue                      // surplus wake — nothing to send
-
-            payload = serialize_messages(batch, encryption_key)
-            await websocket.send_binary(payload)
-
     function send_upstream_message(message):
-        # Producer only — NEVER writes the socket. Enqueue and wake the loop.
-        # (A library that serializes internally may instead send immediately.)
+        # Producer only — NEVER writes the socket. Enqueue; the send_loop
+        # drains. The queue persists across reconnects.
         upstream_queue.enqueue(message)
-        signal_send_loop()
-        // Drained by the send_loop while connected, or on the next reconnect.
 
 
 # ============================================================================
@@ -764,16 +774,19 @@ class RemotePortForwarder:
         self.destination_port = destination_port
 
     function start():
+        # Returns 0 on success, or a bind reason code (1-4) on failure.
         try:
             address = await resolve_hostname(listening_host)
             server = bind_tcp(address, listening_port)
         catch bind_error:
             log("[!] {host}:{port} is already in use or encountered an error")
-            return false
+            # Map OS error to reason: EADDRINUSE=2, EACCES=3,
+            # resolution failure=4, anything else=1.
+            return map_bind_error(bind_error)
 
         if messenger.killed:
             server.close()
-            return false
+            return 1
 
         messenger.remote_port_forwarders.append(self)
         // Publish before starting the accept loop. From this point forward the
@@ -805,7 +818,7 @@ class RemotePortForwarder:
         if not messenger.killed:
             await messenger.send_upstream_message(InitiateBINDRep(
                 bind_id = self.identifier, listening_host = self.listening_host,
-                listening_port = self.listening_port, reason = 1))
+                listening_port = self.listening_port, reason = 5))
 
     function stop():
         if server is not null:
