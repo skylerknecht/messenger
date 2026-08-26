@@ -80,7 +80,7 @@ jobs:
           errors = []
 
           readme = open('README.md').read()
-          badge_match = re.search(r'img\.shields\.io/badge/version-(.*)-blue', readme)
+          badge_match = re.search(r'img\.shields\.io/badge/version-v?(.*?)-\w+', readme)
           if not badge_match:
               errors.append('Could not find version badge in README.md')
           else:
