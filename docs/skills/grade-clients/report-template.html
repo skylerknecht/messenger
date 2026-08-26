@@ -115,12 +115,17 @@
     border-bottom: 1px solid var(--border);
   }
   td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  td:target {
+    background: var(--fail-bg); box-shadow: inset 3px 0 0 var(--fail);
+  }
 
   .v-pass {
     font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 700;
     display: inline-block; line-height: 1.5; letter-spacing: 0.02em;
     background: var(--pass-bg); color: var(--pass); border: 1px solid var(--pass-border);
   }
+  a.v-pass { text-decoration: none; cursor: pointer; }
+  a.v-pass:hover { text-decoration: underline; }
   a.v-fail {
     font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 700;
     display: inline-block; line-height: 1.5; letter-spacing: 0.02em;
@@ -149,6 +154,9 @@
     background: var(--fail-bg); border-left: 3px solid var(--fail);
     padding-left: 13px; border-radius: 4px;
   }
+  .finding.lang-pass:target {
+    background: var(--pass-bg); border-left-color: var(--pass);
+  }
   @keyframes flash { 0%{opacity:1} 50%{opacity:.4} 100%{opacity:1} }
   .finding:target .f-client { animation: flash .6s ease-in-out; }
 
@@ -161,6 +169,11 @@
   .f-client.js { color: var(--js-accent); }
   .f-client.py { color: var(--py-accent); }
   .f-text { font-size: 13px; color: var(--text); line-height: 1.5; }
+  .f-back {
+    font-size: 11px; color: var(--text2); margin-left: 8px;
+    text-decoration: none; white-space: nowrap;
+  }
+  .f-back:hover { color: var(--text); text-decoration: underline; }
 
   /* ── Responsive ── */
   @media (max-width: 640px) {
@@ -246,13 +259,20 @@
           <td>--retry-duration parsed as float</td>
           <td><span class="v-pass">Pass</span></td>
           <td><span class="v-pass">Pass</span></td>
-          <td><a class="v-fail" href="#f-py-retry-float">Fail</a></td>
+          <td id="r-py-retry-float"><a class="v-fail" href="#f-py-retry-float">Fail</a></td>
         </tr>
         <!-- N/A cell -->
         <tr>
           <td>Pause accepted socket on connect</td>
           <td><span class="v-na">N/A</span></td>
           <td><span class="v-pass">Pass</span></td>
+          <td><span class="v-pass">Pass</span></td>
+        </tr>
+        <!-- LANGUAGE-EQUIVALENT PASS row: Pass* links to its explanation -->
+        <tr>
+          <td>Closing connections iterates a stable collection view</td>
+          <td><span class="v-pass">Pass</span></td>
+          <td id="r-js-map-iteration"><a class="v-pass v-lang-pass" href="#p-js-map-iteration">Pass*</a></td>
           <td><span class="v-pass">Pass</span></td>
         </tr>
       </tbody>
@@ -266,6 +286,15 @@
   <div class="finding" id="f-py-retry-float">
     <span class="f-client py">Python</span>
     <span class="f-text">messenger-client.py:927 declares --retry-duration with type=int instead of type=float, so fractional retry durations like 2.5 seconds are rejected.</span>
+    <a class="f-back" href="#r-py-retry-float">Back to matrix</a>
+  </div>
+
+  <h2 class="findings-heading">Language-Equivalent Passes</h2>
+
+  <div class="finding lang-pass" id="p-js-map-iteration">
+    <span class="f-client js">Node.js</span>
+    <span class="f-text">Pass because of Node.js runtime semantics: the code omits a snapshot, but it deletes entries during one synchronous Map iteration with no callback or await boundary, so checkout cannot interleave and the stable-iteration invariant still holds.</span>
+    <a class="f-back" href="#r-js-map-iteration">Back to matrix</a>
   </div>
 
   <!-- If no failures: -->
