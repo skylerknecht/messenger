@@ -1054,7 +1054,11 @@ class Manager:
                 return
         await target.send_message_downstream(CheckOutMessage())
         for forwarder in list(target.forwarders):
-            forwarder.close_all_clients() if hasattr(forwarder, 'close_all_clients') else None
+            await forwarder.stop()
+        target.forwarders.clear()
+        for scanner in list(target.scanners):
+            await scanner.stop()
+        target.scanners.clear()
         self.update_cli.display(
             f'Queued kill signal for Messenger `{target.nickname}`.',
             'success', reprompt=False
