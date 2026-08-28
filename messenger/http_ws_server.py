@@ -72,9 +72,14 @@ class HTTPWSServer:
             await ws.close()
             return ws
 
-        messenger = await self.engine.checkin_ws(
-            msg.data, ws, request.remote, request.headers.get('User-Agent', '•••')
-        )
+        try:
+            messenger = await self.engine.checkin_ws(
+                msg.data, ws, request.remote, request.headers.get('User-Agent', '•••')
+            )
+        except Exception as e:
+            self.update_cli.display(f'Error processing WS check in: {e}', 'warning', display_module='handlers')
+            await ws.close()
+            return ws
         if not messenger:
             await ws.close()
             return ws

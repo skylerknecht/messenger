@@ -8,6 +8,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.9.2] - 2026-08-27
 
+### Spec
+
+#### Changed
+
+- WebSocket and HTTP send loops now use an instance-level `_pending` buffer that persists across reconnects — messages are drained from the queue into `_pending`, sent as a batch, and only cleared after confirmed delivery.
+- `connect()` now calls `close_transport()` before opening a new connection, eliminating the need for separate cleanup calls in the reconnect loop.
+- Removed `_requeue_first`/`enqueue_front` pattern entirely — messages never leave `_pending` until confirmed sent.
+- HTTP clients now drain all available messages instead of capping at 5 per poll.
+
+### Clients
+
+#### Changed
+
+- Python, C#, and Node.js WebSocket clients rewritten to use `_pending` buffer pattern for send loops.
+- Python, C#, and Node.js HTTP clients now drain all queued messages per poll cycle.
+- Python WebSocket client creates a fresh `aiohttp.ClientSession` on each `connect()` and closes both the websocket and session in `close_transport()`, fixing an unclosed connection leak on reconnect.
+- Removed `_requeue_first`, `RequeueFirst`, and `reset_transport` from all clients.
+
+### Server
+
+#### Fixed
+
+- `_handle_send_data` now logs a warning for unknown `client_id` instead of silently dropping.
+- `process_upstream_messages` wraps each message dispatch in try/except so a single handler failure no longer drops remaining messages in the batch.
+- `checkin_ws` in the HTTP/WS server now wrapped in try/except with a clean websocket close on failure, matching `checkin_http` behavior.
+- `sent_bytes` now counted after successful send instead of at queue time, fixing overcounting on WS send failures.
+- Removed unused `InitiateBINDReq` import.
+- Fixed `ssl_cert_cert` typo in `http_ws_server.py`.
+
+#### Changed
+
+- `Scanner.start_time` initialized to `time.time()` in `__init__` instead of `None`, preventing a potential `TypeError` in `formatted_runtime`.
 ## [0.9.1] - 2026-08-25
 
 ### Spec

@@ -7,7 +7,6 @@ from messenger.message import (
     InitiateTCPClientReq,
     InitiateTCPClientRep,
     SendDataMessage,
-    InitiateBINDReq,
     InitiateBINDRep
 )
 from messenger.forwarders import RemotePortForwarder
@@ -89,24 +88,30 @@ class Messenger:
             'debug', display_module='messengers'
         )
         for message in messages:
-            self.log_message('upstream', message)
+            try:
+                self.log_message('upstream', message)
 
-            if isinstance(message, InitiateTCPClientReq):
-                await self._handle_tcp_client_req(message)
+                if isinstance(message, InitiateTCPClientReq):
+                    await self._handle_tcp_client_req(message)
 
-            elif isinstance(message, InitiateTCPClientRep):
-                await self._handle_tcp_client_rep(message)
+                elif isinstance(message, InitiateTCPClientRep):
+                    await self._handle_tcp_client_rep(message)
 
-            elif isinstance(message, SendDataMessage):
-                await self._handle_send_data(message)
+                elif isinstance(message, SendDataMessage):
+                    await self._handle_send_data(message)
 
-            elif isinstance(message, InitiateBINDRep):
-                await self._handle_bind_rep(message)
+                elif isinstance(message, InitiateBINDRep):
+                    await self._handle_bind_rep(message)
 
-            else:
+                else:
+                    self.update_cli.display(
+                        f"Unknown or unhandled message type: {type(message).__name__}",
+                        'information', display_module='messengers'
+                    )
+            except Exception as e:
                 self.update_cli.display(
-                    f"Unknown or unhandled message type: {type(message).__name__}",
-                    'information', display_module='messengers'
+                    f'Messenger `{self.nickname}` failed to handle {type(message).__name__}: {e}',
+                    'warning', display_module='messengers'
                 )
 
     async def _handle_tcp_client_req(self, message):
@@ -155,6 +160,10 @@ class Messenger:
             if tcp_client.identifier == message.client_id:
                 await tcp_client.send_data(message.data)
                 return
+        self.update_cli.display(
+            f'Messenger `{self.nickname}` received data for unknown client `{message.client_id}`.',
+            'warning', display_module='messengers'
+        )
 
     BIND_REASONS = {
         1: 'general failure',
@@ -297,8 +306,6 @@ class HTTPMessenger(Messenger):
 
     async def send_message_downstream(self, message):
         self.log_message('downstream', message)
-        serialized = self.serialize_messages([message])
-        self.sent_bytes += len(serialized)
         self.update_cli.display(
             f'Messenger {self.nickname} queued a downstream message.',
             'debug',
@@ -338,8 +345,6 @@ class WebSocketMessenger(Messenger):
 
     async def send_message_downstream(self, message):
         self.log_message('downstream', message)
-        serialized = self.serialize_messages([message])
-        self.sent_bytes += len(serialized)
         self.update_cli.display(
             f'Messenger {self.nickname} queued a downstream message.',
             'debug',
@@ -357,7 +362,9 @@ class WebSocketMessenger(Messenger):
         while True:
             message = await self.downstream_messages.get()
             try:
-                await self.websocket.send_bytes(self.serialize_messages([message]))
+                serialized = self.serialize_messages([message])
+                await self.websocket.send_bytes(serialized)
+                self.sent_bytes += len(serialized)
             except Exception:
                 self._requeue_first(message)
                 break

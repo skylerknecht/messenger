@@ -21,7 +21,7 @@ class Scanner:
         self.targets = self._parse_ip_ranges(ip_ranges)
         self.ports = self._parse_port_ranges(port_ranges) if port_ranges else self._get_top_ports(top_ports)
         self.scans = {}
-        self.start_time = None
+        self.start_time = time.time()
         self.end_time = None
         self.semaphore = asyncio.Semaphore(concurrency)
         self._gen_lock = asyncio.Lock()

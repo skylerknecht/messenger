@@ -143,6 +143,8 @@ class Engine:
         result = b''
         while not messenger.downstream_messages.empty():
             message = await messenger.downstream_messages.get()
-            result += self._serialize([message])
+            serialized = self._serialize([message])
+            messenger.sent_bytes += len(serialized)
+            result += serialized
         return result
 
