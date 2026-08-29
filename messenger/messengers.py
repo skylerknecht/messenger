@@ -4,6 +4,7 @@ import time
 from abc import abstractmethod
 from messenger.generator import alphanumeric_identifier
 from messenger.message import (
+    CheckOutMessage,
     InitiateTCPClientReq,
     InitiateTCPClientRep,
     SendDataMessage,
@@ -21,6 +22,7 @@ class Messenger:
     def __init__(self, update_cli, serialize_messages):
         self.identifier = alphanumeric_identifier()
         self._nickname = None
+        self.checked_out = False
         self.update_cli = update_cli
         self.forwarders = []
         self.scanners = []
@@ -73,12 +75,23 @@ class Messenger:
                 return
         logger.record_message(direction, self.identifier, message)
 
-    @abstractmethod
     async def send_message_downstream(self, message):
-        raise NotImplementedError
+        if self.checked_out and not isinstance(message, CheckOutMessage):
+            return
+        if isinstance(message, CheckOutMessage):
+            while not self.downstream_messages.empty():
+                self.downstream_messages.get_nowait()
+        self.log_message('downstream', message)
+        self.update_cli.display(
+            f'Messenger {self.nickname} queued a downstream message.',
+            'debug', display_module='messengers'
+        )
+        await self.downstream_messages.put(message)
 
     @abstractmethod
     async def process_upstream_messages(self, messages):
+        if self.checked_out:
+            return
         self.update_cli.display(
             f'Messenger {self.nickname} received upstream message(s).',
             'debug', display_module='messengers'
@@ -294,6 +307,8 @@ class HTTPMessenger(Messenger):
 
     @property
     def status(self):
+        if self.checked_out:
+            return color_text('checked out', 'red')
         elapsed = self.check_in_delta
         if elapsed < 1:
             return color_text(f"{elapsed * 1000:.0f}ms delay", "green")
@@ -303,19 +318,6 @@ class HTTPMessenger(Messenger):
             return color_text(f"{elapsed / 60:.0f}m delay", "red")
         else:
             return color_text(f"{elapsed / 3600:.0f}h delay", "red")
-
-    async def send_message_downstream(self, message):
-        self.log_message('downstream', message)
-        self.update_cli.display(
-            f'Messenger {self.nickname} queued a downstream message.',
-            'debug',
-            display_module='messengers'        )
-        self.update_cli.display(
-            f'Messenger {self.nickname} queued the following downstream message\n{message}.',
-            'debug',
-            display_module='messengers'        )
-        await self.downstream_messages.put(message)
-
 
 class WebSocketMessenger(Messenger):
 
@@ -328,46 +330,44 @@ class WebSocketMessenger(Messenger):
         self.user_agent = user_agent
         self.websocket = websocket
         self._send_task = None
+        self._pending = []
 
     @property
     def status(self):
+        if self.checked_out:
+            return color_text('checked out', 'red')
         if not self.websocket.closed:
             return color_text('connected', "green")
         return color_text('disconnected', 'red')
 
-    def set_websocket(self, ws):
-        self.websocket = ws
-
-    def start_send_loop(self):
+    async def set_websocket(self, ws):
         if self._send_task and not self._send_task.done():
             self._send_task.cancel()
+            try:
+                await self._send_task
+            except asyncio.CancelledError:
+                pass
+        old_ws = self.websocket
+        self.websocket = ws
+        if old_ws and not old_ws.closed:
+            await old_ws.close()
+
+    def start_send_loop(self):
         self._send_task = asyncio.create_task(self._send_loop())
-
-    async def send_message_downstream(self, message):
-        self.log_message('downstream', message)
-        self.update_cli.display(
-            f'Messenger {self.nickname} queued a downstream message.',
-            'debug',
-            display_module='messengers'        )
-        await self.downstream_messages.put(message)
-
-    def _requeue_first(self, message):
-        remaining = [message]
-        while not self.downstream_messages.empty():
-            remaining.append(self.downstream_messages.get_nowait())
-        for m in remaining:
-            self.downstream_messages.put_nowait(m)
 
     async def _send_loop(self):
         while True:
-            message = await self.downstream_messages.get()
+            if not self._pending:
+                self._pending.append(await self.downstream_messages.get())
+                while not self.downstream_messages.empty():
+                    self._pending.append(self.downstream_messages.get_nowait())
             try:
-                serialized = self.serialize_messages([message])
+                serialized = self.serialize_messages(self._pending)
                 await self.websocket.send_bytes(serialized)
                 self.sent_bytes += len(serialized)
+                has_checkout = any(isinstance(m, CheckOutMessage) for m in self._pending)
+                self._pending.clear()
+                if has_checkout:
+                    break
             except Exception:
-                self._requeue_first(message)
                 break
-            except BaseException:
-                self._requeue_first(message)
-                raise

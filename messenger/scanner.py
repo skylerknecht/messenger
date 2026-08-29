@@ -175,6 +175,8 @@ class Scanner:
 
     async def _scan_worker(self):
         while True:
+            if self.messenger.checked_out:
+                return
             async with self._gen_lock:
                 try:
                     ip, port = next(self._scan_gen)

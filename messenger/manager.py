@@ -1052,13 +1052,8 @@ class Manager:
             if target is None:
                 self.update_cli.display(f'`{id}` not found.', 'error', reprompt=False)
                 return
+        target.checked_out = True
         await target.send_message_downstream(CheckOutMessage())
-        for forwarder in list(target.forwarders):
-            await forwarder.stop()
-        target.forwarders.clear()
-        for scanner in list(target.scanners):
-            await scanner.stop()
-        target.scanners.clear()
         self.update_cli.display(
             f'Queued kill signal for Messenger `{target.nickname}`.',
             'success', reprompt=False

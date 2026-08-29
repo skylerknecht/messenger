@@ -192,6 +192,14 @@ class SocksTcpClient(LocalTcpClient):
 
     async def negotiate_transport(self) -> bool:
         version, cmd, reserved_bit = await self.reader.readexactly(3)
+        if version != 5:
+            self.writer.write(b'\x05\x01\x00\x01\x00\x00\x00\x00\x00\x00')
+            await self.writer.drain()
+            return False
+        if reserved_bit != 0:
+            self.writer.write(b'\x05\x01\x00\x01\x00\x00\x00\x00\x00\x00')
+            await self.writer.drain()
+            return False
         if cmd != 1:
             self.writer.write(b'\x05\x07\x00\x01\x00\x00\x00\x00\x00\x00')
             await self.writer.drain()

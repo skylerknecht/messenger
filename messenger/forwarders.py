@@ -27,6 +27,7 @@ class Forwarder:
         self.update_cli = update_cli
         self.identifier = alphanumeric_identifier()
         self._nickname = None
+        self.stopped = False
         self.clients = []
         def _remove_client(c):
             if c in self.clients:
@@ -111,6 +112,9 @@ class LocalPortForwarder(Forwarder):
             break
 
     async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        if self.stopped or self.messenger.checked_out:
+            writer.close()
+            return
         client = LocalTcpClient(self.destination_host, self.destination_port, reader, writer, self.messenger, self.on_close)
         self.clients.append(client)
         await client.initiate_tcp_client()
@@ -170,20 +174,11 @@ class LocalPortForwarder(Forwarder):
     async def stop(self):
         if not self.server:
             return
+        self.stopped = True
         self.server.close()
 
-        for client in self.clients:
-            try:
-                transport = client.writer.transport
-                if transport:
-                    transport.abort()
-            except Exception:
-                pass
-
-        try:
-            await self.server.wait_closed()
-        except Exception:
-            pass
+        for client in list(self.clients):
+            client._cleanup(abort=True)
 
         self.update_cli.display(
             f'Messenger `{self.messenger.nickname}` is no longer local forwarding ({self.listening_host}:{self.listening_port}) -> ({self.destination_host}:{self.destination_port}).',
@@ -199,6 +194,9 @@ class SocksProxy(LocalPortForwarder):
         super().__init__(messenger, config, update_cli)
 
     async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        if self.stopped or self.messenger.checked_out:
+            writer.close()
+            return
         client = SocksTcpClient(reader, writer, self.messenger, self.on_close)
         self.clients.append(client)
         await client.initiate_tcp_client()
@@ -283,6 +281,8 @@ class RemotePortForwarder(Forwarder):
         pass
 
     async def handle_initiate_tcp_client_req(self, message):
+        if self.stopped or self.messenger.checked_out:
+            return
         if self.is_orphan:
             # No destination set — deny; the operator must configure it first.
             await self.messenger.send_message_downstream(
@@ -297,6 +297,10 @@ class RemotePortForwarder(Forwarder):
                 asyncio.open_connection(self.destination_host, self.destination_port),
                 timeout=5
             )
+
+            if self.stopped or self.messenger.checked_out:
+                writer.close()
+                return
 
             client = RemoteTcpClient(message.client_id, reader, writer, self.messenger, self.on_close)
             self.clients.append(client)
@@ -371,9 +375,7 @@ class RemotePortForwarder(Forwarder):
         )
 
     async def stop(self):
-        # Explicit teardown: an empty listening host is the STOP sentinel. The
-        # client can never mistake it for a new bind, so it just tears down the
-        # forwarder with this bind_id (or no-ops if it no longer has it).
+        self.stopped = True
         bind_req = InitiateBINDReq(
             bind_id=self.identifier,
             listening_host='',

@@ -107,7 +107,7 @@ class Engine:
             return None
 
         if messenger:
-            messenger.set_websocket(ws)
+            await messenger.set_websocket(ws)
             self.update_cli.display(
                 f'{messenger.transport_type} Messenger `{messenger.nickname}` has reconnected.',
                 'success', display_module='handlers'
