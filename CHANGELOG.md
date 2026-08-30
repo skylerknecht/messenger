@@ -6,6 +6,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Spec
+
+#### Changed
+
+- Removed `drain(socket)` from `write_loop` — max write is 4096 bytes, well within any kernel send buffer.
+
+### Server
+
+#### Fixed
+
+- `SocksTcpClient.handle_initiate_tcp_client_rep` now writes the SOCKS reply through `send_data`, so a write failure triggers downstream close notification instead of leaking the remote TCP connection.
+
+#### Changed
+
+- `TcpClient.send_data` accepts a `cleanup` flag — when set, calls `_cleanup()` after a successful write. Used by the SOCKS handler to write the error reply and close in one call.
+- Removed all `await writer.drain()` calls from `TcpClient` and `SocksTcpClient` — max write size is 4096 bytes, always fits in the kernel send buffer.
+
+### Clients
+
+#### Fixed
+
+- **Node.js**: Removed `async` from `dispatchMessage` and its caller in the receive loop — `await` on the synchronous function created microtask yields that allowed inter-frame message interleaving, violating wire order.
+- **C# HTTP**: `ConnectAsync` now uses `DeserializeMessages` (plural) with a `Count > 0` guard instead of `DeserializeMessage` (singular) — a truncated response previously threw `NullReferenceException`.
+- **C# WebSocket**: `ConnectAsync` checks `responseMessages.Count > 0` before accessing `responseMessages[0]` — an empty response previously threw `ArgumentOutOfRangeException`.
+- **Python**: `RemotePortForwarder.start()` catches `socket.gaierror` separately and maps it to reason 4 (host unreachable) — DNS failures previously fell through to reason 1 (general failure) because `EAI_*` errno values don't match `EADDRINUSE`/`EACCES`.
+
 ## [0.9.2] - 2026-08-27
 
 ### Spec

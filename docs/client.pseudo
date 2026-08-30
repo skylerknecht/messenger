@@ -29,7 +29,8 @@
 #     exit()/abort.
 #   - Status messages use bracketed prefixes: [+] success, [*] info, [!] error/warning.
 #   - Identifiers (client_id in RPF, etc.) must be 10-character alphanumeric
-#     strings, not GUIDs/UUIDs.
+#     strings generated with a cryptographically secure RNG (e.g. secrets,
+#     RNGCryptoServiceProvider, crypto.randomBytes), not Math.random/random.
 #   - Hostnames passed to bind_tcp or TcpListener must be resolved via DNS
 #     (e.g. Dns.GetHostAddresses, getaddrinfo) -- do not require a numeric IP.
 #   - Transport frames and the messages inside them are dispatched in received
@@ -290,7 +291,6 @@ class TcpConnection:
             while true:
                 data = await write_queue.dequeue()
                 write(socket, data)
-                await drain(socket)
         catch (QueueClosed):
             pass
         catch:
@@ -509,7 +509,7 @@ class Client:
                         client_id = client_id,
                         bind_address = "0.0.0.0", bind_port = 0,
                         address_type = 1, reason = 1,
-                        remote_addr = "0.0.0.0", remote_port = 0
+                        remote_addr = "", remote_port = 0
                     ))
                 return
             raw_socket = null         // ownership transferred to connection
@@ -536,7 +536,7 @@ class Client:
                     client_id = client_id,
                     bind_address = "0.0.0.0", bind_port = 0,
                     address_type = 1, reason = map_socket_error(error),
-                    remote_addr = "0.0.0.0", remote_port = 0
+                    remote_addr = "", remote_port = 0
                 ))
         finally:
             if connection is not null:
@@ -902,12 +902,19 @@ function parse_args(argv) -> dict:
     while i < length(argv):
         flag = argv[i]
         match flag:
-            "--server-url":       parsed.server_url      = argv[++i]
-            "--encryption-key":   parsed.encryption_key   = argv[++i]
-            "--user-agent":       parsed.user_agent       = argv[++i]
-            "--proxy":            parsed.proxy            = argv[++i]
-            "--retry-duration":   parsed.retry_duration   = parse_float(argv[++i])
-            "--retry-attempts":   parsed.retry_attempts   = parse_int(argv[++i])
+            "--server-url", "--encryption-key", "--user-agent",
+            "--proxy", "--retry-duration", "--retry-attempts":
+                if i + 1 >= length(argv):
+                    log("[!] {flag} requires a value.")
+                    break
+                i++
+                match flag:
+                    "--server-url":       parsed.server_url      = argv[i]
+                    "--encryption-key":   parsed.encryption_key   = argv[i]
+                    "--user-agent":       parsed.user_agent       = argv[i]
+                    "--proxy":            parsed.proxy            = argv[i]
+                    "--retry-duration":   parsed.retry_duration   = parse_float(argv[i])
+                    "--retry-attempts":   parsed.retry_attempts   = parse_int(argv[i])
             default:
                 log("[!] Could not find argument `{flag}`.")
         i++

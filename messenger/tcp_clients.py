@@ -58,13 +58,14 @@ class TcpClient(ABC):
                 SendDataMessage(client_id=self.identifier, data=b'')
             )
 
-    async def send_data(self, data):
+    async def send_data(self, data, cleanup=False):
         if len(data) == 0:
             self._cleanup()
             return
         try:
             self.writer.write(data)
-            await self.writer.drain()
+            if cleanup:
+                self._cleanup()
         except Exception:
             if self._cleanup():
                 await self.messenger.send_message_downstream(
@@ -123,16 +124,9 @@ class SocksTcpClient(LocalTcpClient):
 
     async def handle_initiate_tcp_client_rep(self, bind_addr, bind_port, atype, rep):
         socks_connect_results = self.create_socks_reply(rep, bind_addr, bind_port, atype)
-        try:
-            self.writer.write(socks_connect_results)
-            await self.writer.drain()
-        except Exception:
-            self._cleanup()
-            return
-        if rep != 0:
-            self._cleanup()
-            return
-        asyncio.create_task(self.stream())
+        await self.send_data(socks_connect_results, cleanup=(rep != 0))
+        if rep == 0:
+            asyncio.create_task(self.stream())
 
     @staticmethod
     def create_socks_reply(rep, bind_addr, bind_port, atype):
@@ -174,29 +168,24 @@ class SocksTcpClient(LocalTcpClient):
                 int('FF', 16)
             ])
             self.writer.write(disconnect_reply)
-            await self.writer.drain()
             return False
         connect_reply = bytes([
             5,
             0
         ])
         self.writer.write(connect_reply)
-        await self.writer.drain()
         return True
 
     async def negotiate_transport(self) -> bool:
         version, cmd, reserved_bit = await self.reader.readexactly(3)
         if version != 5:
             self.writer.write(b'\x05\x01\x00\x01\x00\x00\x00\x00\x00\x00')
-            await self.writer.drain()
             return False
         if reserved_bit != 0:
             self.writer.write(b'\x05\x01\x00\x01\x00\x00\x00\x00\x00\x00')
-            await self.writer.drain()
             return False
         if cmd != 1:
             self.writer.write(b'\x05\x07\x00\x01\x00\x00\x00\x00\x00\x00')
-            await self.writer.drain()
             return False
         return True
 
@@ -220,5 +209,4 @@ class SocksTcpClient(LocalTcpClient):
             return True
 
         self.writer.write(b'\x05\x08\x00\x01\x00\x00\x00\x00\x00\x00')
-        await self.writer.drain()
         return False
