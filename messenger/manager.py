@@ -112,9 +112,9 @@ class Manager:
         }
         self.messenger_commands = {
             'back': (self.back, "Return to the main menu."),
-            'local': (self.start_local_forwarder, "Start a local forwarder."),
-            'remote': (self.start_remote_forwarder, "Start a remote forwarder."),
-            'socks': (self.start_socks_proxy, "Start a socks proxy."),
+            'local': (self.start_local_forwarder, "Start a local port forwarder."),
+            'remote': (self.start_remote_forwarder, "Start a remote port forwarder."),
+            'socks': (self.start_socks_proxy, "Start a SOCKS server."),
             'portscan': (self.start_scanner, "Scan for open ports."),
         }
         self.commands = {**self.server_commands, **self.messenger_commands}
@@ -873,13 +873,15 @@ class Manager:
     @require_messenger
     async def start_local_forwarder(self, forwarder_config):
         """
-        Start a local forwarder.
+        Start a local port forwarder.
 
         required:
           forwarder_config         Format: listening_host:listening_port:destination_host:destination_port
+                                   IPv6 addresses must be wrapped in brackets.
 
         examples:
           local 127.0.0.1:8080:example.com:9090
+          local [::1]:8080:[::1]:80
         """
         messenger = self.current_messenger
         forwarder = LocalPortForwarder(messenger, forwarder_config, self.update_cli)
@@ -891,13 +893,15 @@ class Manager:
     @require_messenger
     async def start_remote_forwarder(self, forwarder_config):
         """
-        Start a remote forwarder.
+        Start a remote port forwarder.
 
         required:
           forwarder_config         Format: listening_host:listening_port:destination_host:destination_port
+                                   IPv6 addresses must be wrapped in brackets.
 
         examples:
           remote 0.0.0.0:8080:127.0.0.1:80
+          remote [::]:8080:[::1]:80
         """
         messenger = self.current_messenger
         forwarder = RemotePortForwarder(messenger, forwarder_config, self.update_cli)
@@ -939,14 +943,16 @@ class Manager:
     @require_messenger
     async def start_socks_proxy(self, forwarder_config):
         """
-        Start a SOCKS proxy.
+        Start a SOCKS server.
 
         required:
-          forwarder_config         Format: [listening_host:]listening_port
+          forwarder_config         Format: listening_port or listening_host:listening_port
+                                   IPv6 addresses must be wrapped in brackets.
 
         examples:
           socks 9050
           socks 127.0.0.1:9050
+          socks [::1]:9050
         """
         messenger = self.current_messenger
         forwarder = SocksProxy(messenger, forwarder_config, self.update_cli)
@@ -956,7 +962,7 @@ class Manager:
         return
 
     @require_messenger
-    async def start_scanner(self, ips, ports=None, concurrency=50, top_ports=100):
+    async def start_scanner(self, ips, ports=None, concurrency=50, top_ports=100, force_concurrency=False):
         """
         Start a scan against IPs and ports.
 
@@ -967,10 +973,12 @@ class Manager:
           ports                    Specific ports/ranges to scan (e.g., 80,443 or 1-1024).
           --concurrency            Max concurrent scan attempts (default: 50).
           --top-ports              Use top N ports if ports not specified (default: 100).
+          --force-concurrency      Bypass the 1000 concurrency cap.
 
         examples:
           portscan 192.168.1.10
           portscan 10.0.0.0/24 --top-ports 1000 --concurrency 100
+          portscan 10.0.0.0/16 --concurrency 2000 --force-concurrency
         """
         try:
             concurrency = int(concurrency)
@@ -979,6 +987,9 @@ class Manager:
             return
         if concurrency < 1:
             self.update_cli.display('Concurrency must be at least 1.', 'error', reprompt=False)
+            return
+        if concurrency > 1000 and not force_concurrency:
+            self.update_cli.display('Concurrency cannot exceed 1000. Use --force-concurrency to bypass.', 'error', reprompt=False)
             return
         try:
             top_ports = int(top_ports)

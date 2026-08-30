@@ -25,6 +25,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Python, C#, and Node.js HTTP clients now drain all queued messages per poll cycle.
 - Python WebSocket client creates a fresh `aiohttp.ClientSession` on each `connect()` and closes both the websocket and session in `close_transport()`, fixing an unclosed connection leak on reconnect.
 - Removed `_requeue_first`, `RequeueFirst`, and `reset_transport` from all clients.
+- **Node.js**: Removed `--messenger-id` builder option -- Python and C# clients don't have it.
+- **Node.js**: Removed redundant `this.identifier = ''` from `HTTPClient` constructor -- already set by `super()` in `Client`.
+
+#### Fixed
+
+- **C#**: `HandleInitiateTCPClientReqAsync` now iterates all resolved addresses (IPv4-first) with a shared 5-second deadline instead of connecting to only the first address.
+- **C#**: Timeout exceptions in the TCP connect loop now escape the inner `catch (SocketException)` via an exception filter, preventing a `NullReferenceException` on the already-disposed socket.
+- **C#**: Timed-out `ConnectAsync` tasks are now observed to prevent `UnobservedTaskException` on .NET Framework 4.7.2.
+- **C#**: `BuildInitiateTCPClientRep` conditionally serializes `remote_addr`/`remote_port` only when `remoteAddr` is non-empty, matching server-side behavior.
+- **C#**: `RemotePortForwarder.StartAsync` uses `Dns.GetHostAddressesAsync` instead of sync `Dns.GetHostAddresses`, and prefers IPv4 addresses for listen binding.
+- **C#**: `ParseArgs` bounds-checks flag values -- a trailing `--server-url` with no value now prints an error instead of crashing with `IndexOutOfRangeException`.
+- **Python**: `build_initiate_tcp_client_rep` conditionally serializes `remote_addr`/`remote_port` only when `remote_addr` is non-empty, matching server-side behavior.
+- **Python**: `alphanumeric_identifier` uses `secrets.choice` instead of `random.randint` -- `random` is not cryptographically secure.
 
 ### Server
 
@@ -43,10 +56,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Scanner uses `asyncio.Semaphore` instead of custom `AdmissionController`.
 - Scanner summary table now shows `State` column (running/stopped/completed) with color coding.
 - `checked_out` lifecycle flag on `Messenger` base class guards downstream sends, upstream processing, forwarder accepts, and scanner workers.
-- `TcpClient._cleanup` centralized with `notify_peer` parameter, eliminating duplicate close-signal logic.
+- `TcpClient._cleanup` callsite pattern: `_cleanup()` returns bool, callsite sends peer close signal via `send_message_downstream` -- eliminates the `notify_peer` parameter and synchronous queue put.
 - `cancel_send_task()` extracted from `set_websocket()` for reuse in WS handler cleanup.
 - WebSocket handler `finally` block uses ownership-aware sender cleanup.
 - Replaced non-ASCII characters (em dashes, arrows) with ASCII equivalents across all source files and client templates.
+- `_split_config` parser replaces `str.split(':')` for forwarder configuration, supporting bracketed IPv6 addresses (e.g., `[::1]:8080:[::1]:80`).
+- Removed `is_valid_domain` and `is_valid_ip` validators -- the forwarder passes the listening host directly to `asyncio.start_server` and the destination to the client, letting the OS validate.
+- `SocksProxy.NAME` renamed from "Socks Proxy" to "SOCKS Server".
+- Forwarder status messages now use `_endpoint_str()` and the forwarder's `NAME` constant.
+- `portscan` concurrency capped at 1000 unless `--force-concurrency` is passed.
 ## [0.9.1] - 2026-08-25
 
 ### Spec
