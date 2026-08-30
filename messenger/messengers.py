@@ -228,7 +228,7 @@ class Messenger:
             )
             return
 
-        # Unknown bind_id — the client is listening but the server has no record.
+        # Unknown bind_id -- the client is listening but the server has no record.
         # Replace any stale entry tracking the same host:port under a different bind_id.
         for i, forwarder in enumerate(self.forwarders):
             if (isinstance(forwarder, RemotePortForwarder)
@@ -245,7 +245,7 @@ class Messenger:
                 break
 
 
-        # Store as an orphan with no destination — can't route until the operator
+        # Store as an orphan with no destination -- can't route until the operator
         # runs `remote` to configure where traffic should go.
         remote_port_forwarder = RemotePortForwarder.orphan(
             self, message.bind_id, message.listening_host,
@@ -340,17 +340,25 @@ class WebSocketMessenger(Messenger):
             return color_text('connected', "green")
         return color_text('disconnected', 'red')
 
-    async def set_websocket(self, ws):
+    async def cancel_send_task(self):
         if self._send_task and not self._send_task.done():
             self._send_task.cancel()
             try:
                 await self._send_task
             except asyncio.CancelledError:
                 pass
+
+    async def set_websocket(self, ws):
+        await self.cancel_send_task()
         old_ws = self.websocket
         self.websocket = ws
         if old_ws and not old_ws.closed:
             await old_ws.close()
+
+    async def send_message_downstream(self, message):
+        if isinstance(message, CheckOutMessage):
+            self._pending.clear()
+        await super().send_message_downstream(message)
 
     def start_send_loop(self):
         self._send_task = asyncio.create_task(self._send_loop())

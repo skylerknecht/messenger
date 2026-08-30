@@ -723,7 +723,7 @@ class Manager:
                     cfg += f" {s.port_input}"
                 else:
                     cfg += f" top {len(s.ports)}"
-                lines.append(f"    {s.nickname} ({cfg}) — {s.progress_str} {s.open_count} open {s.closed_count} closed")
+                lines.append(f"    {s.nickname} ({cfg}) -- {s.progress_str} {s.open_count} open {s.closed_count} closed")
         else:
             lines.append(f"  Scanners:    •••")
 
@@ -749,21 +749,25 @@ class Manager:
             return
 
         if not identifier:
-            columns = ["Messenger", "Scanner", "Runtime", "Attempts", "Progress", "Open", "Closed"]
+            columns = ["Messenger", "Scanner", "State", "Runtime", "Concurrency", "Progress", "Open", "Closed"]
             items = []
+
+            STATE_COLORS = {'running': 'cyan', 'stopped': 'yellow', 'completed': 'green'}
 
             for scanner in scanners:
                 if not hasattr(scanner, 'scans'):
                     continue
 
+                state = scanner.state
                 items.append({
                     "Messenger": scanner.messenger.nickname,
                     "Scanner": scanner.nickname,
+                    "State": color_text(state, STATE_COLORS[state]),
                     "Runtime": scanner.formatted_runtime,
-                    "Attempts": scanner.attempts,
+                    "Concurrency": scanner.concurrency,
                     "Progress": scanner.progress_str,
                     "Open": scanner.open_count,
-                    "Closed": scanner.closed_count
+                    "Closed": scanner.closed_count,
                 })
 
             print(self.create_table('Scans', columns, items))
@@ -908,7 +912,7 @@ class Manager:
         )
         if existing is not None:
             if not existing.is_orphan:
-                # Already a configured forward here — don't make a duplicate.
+                # Already a configured forward here -- don't make a duplicate.
                 self.update_cli.display(
                     f'Messenger `{messenger.nickname}` is already forwarding on '
                     f'{forwarder.listening_host}:{forwarder.listening_port}.',
@@ -927,7 +931,7 @@ class Manager:
             )
             return
 
-        # Fresh forward — ask the client to bind.
+        # Fresh forward -- ask the client to bind.
         await forwarder.start()
         messenger.forwarders.append(forwarder)
         return
@@ -973,6 +977,9 @@ class Manager:
         except (ValueError, TypeError):
             self.update_cli.display(f'{concurrency} is not a valid concurrency.', 'error', reprompt=False)
             return
+        if concurrency < 1:
+            self.update_cli.display('Concurrency must be at least 1.', 'error', reprompt=False)
+            return
         try:
             top_ports = int(top_ports)
         except (ValueError, TypeError):
@@ -1003,7 +1010,7 @@ class Manager:
                     break
             if target is not None:
                 if isinstance(target, RemotePortForwarder) and not target.forwarding:
-                    # Never confirmed by the client — just drop it, send no
+                    # Never confirmed by the client -- just drop it, send no
                     # signal. Race-safe: a late BindRep for it simply comes back
                     # as an orphan we can re-adopt.
                     target.close_all_clients()

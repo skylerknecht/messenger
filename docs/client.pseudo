@@ -1,4 +1,4 @@
-# Messenger Client — Golden Standard
+# Messenger Client -- Golden Standard
 #
 # This pseudo-code defines the canonical behavior for all Messenger client
 # implementations. When implementing or fixing a client, compare your code
@@ -15,13 +15,13 @@
 #   - Clients must NEVER call exit() or terminate the process. All errors
 #     should be logged and handled gracefully. The client should always
 #     attempt to continue running.
-#     EXCEPTION 1 — decryption failure is fatal and non-recoverable. An AES
+#     EXCEPTION 1 -- decryption failure is fatal and non-recoverable. An AES
 #     decrypt/unpad failure almost always means the encryption key is wrong,
 #     so the client can never decrypt server traffic and is useless. On a
 #     decryption failure the client logs a single distinctive error and
-#     RETURNS from main() — a graceful stop, not exit()/abort — instead of
+#     RETURNS from main() -- a graceful stop, not exit()/abort -- instead of
 #     reconnecting in a loop that can never succeed.
-#     EXCEPTION 2 — a CheckOutMessage (0x07) from the server is a kill
+#     EXCEPTION 2 -- a CheckOutMessage (0x07) from the server is a kill
 #     signal. On receipt, the client tears down all forwarders and TCP
 #     clients, sets a `killed` flag, and lets start() return. The
 #     reconnect loop checks `killed` and returns from main() instead of
@@ -31,7 +31,7 @@
 #   - Identifiers (client_id in RPF, etc.) must be 10-character alphanumeric
 #     strings, not GUIDs/UUIDs.
 #   - Hostnames passed to bind_tcp or TcpListener must be resolved via DNS
-#     (e.g. Dns.GetHostAddresses, getaddrinfo) — do not require a numeric IP.
+#     (e.g. Dns.GetHostAddresses, getaddrinfo) -- do not require a numeric IP.
 #   - Transport frames and the messages inside them are dispatched in received
 #     order. Only request handlers that can wait on DNS/connect/bind are started
 #     in the background. Replies, data, close, check-in, and checkout are handled
@@ -50,7 +50,7 @@
 # Implementations should define them as module-level constants.
 
 const SERVER_URL       = "{{ server_url }}"         # default: "localhost:8080"
-const ENCRYPTION_KEY   = "{{ encryption_key }}"     # default: "" (empty — will error)
+const ENCRYPTION_KEY   = "{{ encryption_key }}"     # default: "" (empty -- will error)
 const USER_AGENT       = "{{ user_agent }}"         # default: browser-like UA string
 const PROXY            = "{{ proxy }}"              # default: "" (none)
 const RETRY_DURATION   = {{ retry_duration }}        # default: 60.0 (seconds)
@@ -63,7 +63,7 @@ const RETRY_ATTEMPTS   = {{ retry_attempts }}        # default: 5
 
 function hash(key_string) -> bytes:
     return SHA256(encode_utf8(key_string))
-    // Always produces 32 bytes — AES-256 key size
+    // Always produces 32 bytes -- AES-256 key size
 
 function encrypt(key, plaintext) -> bytes:
     iv = random_bytes(16)
@@ -77,11 +77,11 @@ function decrypt(key, data) -> bytes:
     padded = AES_CBC_decrypt(key, iv, ciphertext)
     return pkcs7_unpad(padded)
     // Any failure here (bad AES key, bad PKCS7 padding) must surface as a
-    // distinct DecryptionError type — NOT a generic parse/structural error —
+    // distinct DecryptionError type -- NOT a generic parse/structural error --
     // so main() can tell "wrong key" apart from a malformed frame and halt.
 
 // When encrypting an ArraySegment or Buffer slice, respect offset and count.
-// Do NOT encrypt the entire backing array — only the active region.
+// Do NOT encrypt the entire backing array -- only the active region.
 
 
 # ============================================================================
@@ -127,14 +127,14 @@ function deserialize_messages(raw_data, encryption_key) -> list[message]:
             // Prevents underflow when computing payload_length
 
         if message_length > length(raw_data):
-            break  // incomplete frame — wait for more data
+            break  // incomplete frame -- wait for more data
 
         payload  = raw_data[8 : message_length]
         raw_data = raw_data[message_length :]
 
         if message_type not in (CHECK_IN, CHECK_OUT):
             payload = decrypt(encryption_key, payload)
-            // decrypt() raises DecryptionError on a bad key — let it
+            // decrypt() raises DecryptionError on a bad key -- let it
             // propagate uncaught, past the receive/poll loop, out of
             // start(), all the way to main()'s DecryptionError handler.
             // Do NOT catch it here or swallow it as a generic parse error.
@@ -164,7 +164,7 @@ struct InitiateTCPClientReq:
     client_id: string
     destination_host: string
     destination_port: uint32
-    listening_host: string  # optional — a remote port forwarder appends the
+    listening_host: string  # optional -- a remote port forwarder appends the
     listening_port: uint32  # listening endpoint it came through, so the server
                             # maps the connection to the exact RPF (not by dest).
                             # Absent for server-initiated (SOCKS/local) requests.
@@ -175,8 +175,8 @@ struct InitiateTCPClientRep:
     bind_port: uint32
     address_type: uint32    # 1 = IPv4, 4 = IPv6
     reason: uint32          # 0 = success, see error mapping for others
-    remote_addr: string     # optional — absent in older implementations
-    remote_port: uint32     # optional — absent in older implementations
+    remote_addr: string     # optional -- absent in older implementations
+    remote_port: uint32     # optional -- absent in older implementations
 
 struct SendDataMessage:
     client_id: string
@@ -220,7 +220,7 @@ struct CheckOutMessage:
 #   client -> server   InitiateBINDRep  (always carries the real host:port)
 #       reason == 0  -> "I'm listening": server confirms it, or (if the
 #                       bind_id is unknown) stores an ORPHAN with an EMPTY
-#                       destination — it never routes until the operator
+#                       destination -- it never routes until the operator
 #                       re-runs `remote` to set the dest. A reason-0 BindRep
 #                       for a listening endpoint the server holds under a
 #                       DIFFERENT bind_id replaces that stale entry (client
@@ -420,14 +420,14 @@ class Client:
         // Terminal cleanup for non-checkout exits (retry exhaustion, fatal
         // DecryptionError). handle_checkout sets killed and tears down
         // resources inline; this function covers the paths where checkout
-        // never ran. Safe to call after checkout — the guards in stop(),
+        // never ran. Safe to call after checkout -- the guards in stop(),
         // abort(), and cleanup() make duplicate calls no-ops.
         for forwarder in snapshot(remote_port_forwarders):
             forwarder.stop()
         for connection in snapshot(tcp_clients.values):
             connection.abort()
         close_transport()
-        // close_transport() is abstract — implemented by WSClient and
+        // close_transport() is abstract -- implemented by WSClient and
         // HTTPClient to close the WebSocket/HTTP client, cancel send
         // loops, and release pooled connections.
 
@@ -560,7 +560,7 @@ class Client:
 
 
     function send_upstream_message(message):
-        # Abstract — implemented by WSClient and HTTPClient. It enqueues; it
+        # Abstract -- implemented by WSClient and HTTPClient. It enqueues; it
         # does not wait for an HTTP response or write a WebSocket directly.
         raise NotImplemented
 
@@ -572,7 +572,7 @@ class Client:
 class WSClient extends Client:
     websocket: WebSocket
     upstream_queue: concurrent_queue<message>
-    pending: list<message>     # persists across reconnects — field, not local
+    pending: list<message>     # persists across reconnects -- field, not local
 
     function connect():
         close_transport()
@@ -584,10 +584,10 @@ class WSClient extends Client:
 
         if self.identifier is not empty:
             return
-            // Reconnection — server already knows us. No need to wait
+            // Reconnection -- server already knows us. No need to wait
             // for a new ID assignment.
 
-        # First connect — read the server's ID assignment.
+        # First connect -- read the server's ID assignment.
         response_bytes = await receive_full_message(websocket)
         // Must handle fragmented WebSocket frames:
         //   loop { recv; append to buffer } until EndOfMessage flag is set
@@ -613,7 +613,7 @@ class WSClient extends Client:
         #   - A raw async socket writer interleaves frame bytes silently.
         #   - Some libraries serialize internally (e.g. Node's `ws` buffers
         #     sends); on those, sending immediately from send_upstream_message
-        #     is equivalent and acceptable — the library IS the single writer.
+        #     is equivalent and acceptable -- the library IS the single writer.
         #
         # Messages queued while disconnected are drained by the send_loop on
         # (re)connect, so no separate startup drain step is required.
@@ -641,13 +641,13 @@ class WSClient extends Client:
                 // background. Replies, data, and close finish inline in the
                 // order they appeared in this frame.
 
-        // On exit (close/error), cancel the send_loop so it wakes and stops —
+        // On exit (close/error), cancel the send_loop so it wakes and stops --
         // otherwise parallel() hangs on a send_loop parked on dequeue().
         cancel_send_loop()
 
     function send_loop():
-        # THE single writer. Parks on a blocking dequeue — no CPU when idle,
-        # no latency when a message arrives. On send failure, break — pending
+        # THE single writer. Parks on a blocking dequeue -- no CPU when idle,
+        # no latency when a message arrives. On send failure, break -- pending
         # retains unsent messages and the next start() picks them up.
         #
         # INVARIANT: no queued message is ever lost. Every message drained
@@ -655,8 +655,8 @@ class WSClient extends Client:
         #
         # Runtimes that lack a blocking dequeue (e.g. plain JS arrays) or
         # whose send does not throw on a dead socket (e.g. Node's `ws`
-        # buffers silently) may use equivalent approaches — signal-based
-        # wake and a readyState guard before sending — as long as the
+        # buffers silently) may use equivalent approaches -- signal-based
+        # wake and a readyState guard before sending -- as long as the
         # invariant holds.
         while true:
             if pending is empty:
@@ -673,10 +673,10 @@ class WSClient extends Client:
                 pending.clear()
             catch:
                 break
-                // pending is NOT cleared — retried on reconnect.
+                // pending is NOT cleared -- retried on reconnect.
 
     function send_upstream_message(message):
-        # Producer only — NEVER writes the socket. Enqueue; the send_loop
+        # Producer only -- NEVER writes the socket. Enqueue; the send_loop
         # drains. The queue persists across reconnects.
         upstream_queue.enqueue(message)
 
@@ -686,7 +686,7 @@ class WSClient extends Client:
 # ============================================================================
 
 class HTTPClient extends Client:
-    http_client: HttpClient    # reuse a SINGLE client/agent — do not create per-request
+    http_client: HttpClient    # reuse a SINGLE client/agent -- do not create per-request
     upstream_queue: concurrent_queue<message>
 
     function connect():
@@ -696,7 +696,7 @@ class HTTPClient extends Client:
         assert_http_success(response)
 
         if self.identifier is not empty:
-            // Reconnection — server already knows us. The response may
+            // Reconnection -- server already knows us. The response may
             // contain messages queued while we were disconnected.
             if response.body is not empty:
                 messages = deserialize_messages(response.body, encryption_key)
@@ -712,10 +712,10 @@ class HTTPClient extends Client:
         assert messages[0] is CheckInMessage
         self.identifier = messages[0].messenger_id
 
-    pending: list<message>     # persists across reconnects — field, not local
+    pending: list<message>     # persists across reconnects -- field, not local
 
     function start():
-        # Polling loop — blocks until an error triggers reconnection.
+        # Polling loop -- blocks until an error triggers reconnection.
         while true:
             if pending is empty:
                 drain all available messages from upstream_queue into pending
@@ -729,9 +729,9 @@ class HTTPClient extends Client:
             if response is not success:
                 throw HttpError(response.status)
                 // MUST throw, not break.
-                // A break kills the poll loop permanently — no reconnection.
+                // A break kills the poll loop permanently -- no reconnection.
                 // A throw unwinds to the reconnection logic in main().
-                // pending is NOT cleared — retried on reconnect.
+                // pending is NOT cleared -- retried on reconnect.
 
             pending.clear()
 
@@ -752,7 +752,7 @@ class HTTPClient extends Client:
 
     function send_upstream_message(message):
         upstream_queue.enqueue(message)
-        // Never send immediately — the polling loop handles all sends.
+        // Never send immediately -- the polling loop handles all sends.
 
 
 # ============================================================================
@@ -829,7 +829,7 @@ class RemotePortForwarder:
             // If closing the listener causes the accept loop to exit
             // immediately (e.g. C# AcceptTcpClientAsync throws, Python
             // serve_forever returns), the accept loop's finally will
-            // trigger cleanup — do not call it here.
+            // trigger cleanup -- do not call it here.
             // If the runtime defers listener teardown until existing
             // connections close on their own (e.g. Node.js server.close()),
             // those connections will never close because cleanup is what
@@ -855,7 +855,7 @@ class RemotePortForwarder:
             connection.abort()
             return
         // Register BEFORE sending the request.
-        // The server may respond before the send completes — the reply
+        // The server may respond before the send completes -- the reply
         // handler needs the dictionary entry to exist.
 
         pause(accepted_socket)
@@ -919,7 +919,7 @@ function apply_config(parsed) -> config:
     # CLI args override hardcoded values. Hardcoded values override defaults.
     #
     # IMPORTANT: For string values, use truthiness (empty string = use default).
-    # For numeric values, use IS NOT NULL (0 is a valid override — it disables retries).
+    # For numeric values, use IS NOT NULL (0 is a valid override -- it disables retries).
 
     config.server_url      = parsed.server_url      OR SERVER_URL
     config.encryption_key  = parsed.encryption_key  OR ENCRYPTION_KEY
@@ -952,7 +952,7 @@ function main():
     config = apply_config(args)
 
     disable_tls_certificate_validation()
-    // All transports accept self-signed certs. This is intentional —
+    // All transports accept self-signed certs. This is intentional --
     // Messenger is deployed in pentest environments where cert chains
     // are not available.
 
@@ -984,7 +984,7 @@ function main():
             log("[+] Connected to {candidate_url}")
             break
         catch DecryptionError:
-            log("[!] Decryption failed — the encryption key is likely incorrect. "
+            log("[!] Decryption failed -- the encryption key is likely incorrect. "
                 "The messenger cannot decrypt server traffic and is stopping.")
             return
             // Fatal: a wrong key fails identically on every scheme and every
@@ -1006,7 +1006,7 @@ function main():
         try:
             await client.start()
         catch DecryptionError:
-            log("[!] Decryption failed — the encryption key is likely incorrect. "
+            log("[!] Decryption failed -- the encryption key is likely incorrect. "
                 "The messenger cannot decrypt server traffic and is stopping.")
             return
         catch error:
@@ -1038,13 +1038,13 @@ function main():
                 //   - pending (unsent messages from the last connection)
                 log("[+] Reconnected")
                 consecutive_failures = 0
-                // Reset on success — allows infinite reconnections as long as
+                // Reset on success -- allows infinite reconnections as long as
                 // each connection succeeds at least once.
 
                 await client.start()    # blocks until next disconnect
 
             catch DecryptionError:
-                log("[!] Decryption failed — the encryption key is likely incorrect. "
+                log("[!] Decryption failed -- the encryption key is likely incorrect. "
                     "The messenger cannot decrypt server traffic and is stopping.")
                 return
                 // Fatal: reconnecting cannot fix a wrong key. Stop the loop.
@@ -1058,4 +1058,4 @@ function main():
         client.cleanup()
         // Terminal cleanup. Closes RPF listeners, aborts TCP connections,
         // and releases transport resources (WebSocket, HTTP client, agent
-        // pools). Safe after checkout — all guards are idempotent.
+        // pools). Safe after checkout -- all guards are idempotent.

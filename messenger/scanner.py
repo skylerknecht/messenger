@@ -9,6 +9,7 @@ from messenger.message import InitiateTCPClientReq, SendDataMessage
 
 ScanResult = namedtuple("ScanResult", ["identifier", "address", "port", "result"])
 
+
 class Scanner:
     def __init__(self, ip_ranges, port_ranges, top_ports, update_cli, messenger, concurrency):
         self.identifier = alphanumeric_identifier()
@@ -23,7 +24,7 @@ class Scanner:
         self.scans = {}
         self.start_time = time.time()
         self.end_time = None
-        self.semaphore = asyncio.Semaphore(concurrency)
+        self._semaphore = asyncio.Semaphore(concurrency)
         self._gen_lock = asyncio.Lock()
         self._scan_gen = self._generate_scans()
         self._workers = []
@@ -144,6 +145,14 @@ class Scanner:
         progress = self.open_count + self.closed_count
         return progress == self.total_scans
 
+    @property
+    def state(self) -> str:
+        if self.completed:
+            return 'completed'
+        if self.end_time is not None:
+            return 'stopped'
+        return 'running'
+
     async def handle_initiate_tcp_client_rep(self, message):
         identifier = message.client_id
         current = self.scans.get(identifier)
@@ -159,7 +168,7 @@ class Scanner:
             return
 
         self.scans[identifier] = ScanResult(identifier, current.address, current.port, message.reason)
-        self.semaphore.release()
+        self._semaphore.release()
 
         if message.reason == 0:
             await self.messenger.send_message_downstream(
@@ -183,7 +192,7 @@ class Scanner:
                 except StopIteration:
                     return
 
-            await self.semaphore.acquire()
+            await self._semaphore.acquire()
             identifier = alphanumeric_identifier()
             self.scans[identifier] = ScanResult(identifier, ip, port, None)
 

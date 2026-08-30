@@ -18,13 +18,17 @@ class TcpClient(ABC):
         self.messenger = messenger
         self.on_close = on_close
 
-    def _cleanup(self, abort=False):
+    def _cleanup(self, abort=False, notify_peer=False):
         if not self.on_close(self):
             return False
         if abort:
             self.writer.transport.abort()
         else:
             self.writer.close()
+        if notify_peer and not self.messenger.checked_out:
+            self.messenger.downstream_messages.put_nowait(
+                SendDataMessage(client_id=self.identifier, data=b'')
+            )
         return True
 
     @abstractmethod
@@ -53,13 +57,7 @@ class TcpClient(ABC):
                 )
             except Exception:
                 break
-        if self._cleanup():
-            await self.messenger.send_message_downstream(
-                SendDataMessage(
-                    client_id=self.identifier,
-                    data=b''
-                )
-            )
+        self._cleanup(notify_peer=True)
 
     async def send_data(self, data):
         if len(data) == 0:
@@ -69,13 +67,7 @@ class TcpClient(ABC):
             self.writer.write(data)
             await self.writer.drain()
         except Exception:
-            if self._cleanup():
-                await self.messenger.send_message_downstream(
-                    SendDataMessage(
-                        client_id=self.identifier,
-                        data=b''
-                    )
-                )
+            self._cleanup(notify_peer=True)
 
 class LocalTcpClient(TcpClient):
     def __init__(self, destination_host, destination_port, reader, writer, messenger, on_close):

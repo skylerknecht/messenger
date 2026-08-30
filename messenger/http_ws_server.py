@@ -84,11 +84,15 @@ class HTTPWSServer:
             await ws.close()
             return ws
 
-        async for msg in ws:
-            try:
-                await self.engine.send_messages_upstream(msg.data)
-            except Exception as e:
-                self.update_cli.display(f'Error processing message: {e}', 'warning', display_module='handlers')
-                continue
+        try:
+            async for msg in ws:
+                try:
+                    await self.engine.send_messages_upstream(msg.data)
+                except Exception as e:
+                    self.update_cli.display(f'Error processing message: {e}', 'warning', display_module='handlers')
+                    continue
+        finally:
+            if messenger.websocket is ws:
+                await messenger.cancel_send_task()
 
         return ws

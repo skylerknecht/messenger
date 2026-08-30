@@ -178,7 +178,7 @@ class LocalPortForwarder(Forwarder):
         self.server.close()
 
         for client in list(self.clients):
-            client._cleanup(abort=True)
+            client._cleanup(abort=True, notify_peer=True)
 
         self.update_cli.display(
             f'Messenger `{self.messenger.nickname}` is no longer local forwarding ({self.listening_host}:{self.listening_port}) -> ({self.destination_host}:{self.destination_port}).',
@@ -263,7 +263,7 @@ class RemotePortForwarder(Forwarder):
 
     @property
     def is_orphan(self):
-        # No destination configured yet → cannot route.
+        # No destination configured yet -> cannot route.
         return not self.destination_host
 
     def close_all_clients(self):
@@ -284,7 +284,7 @@ class RemotePortForwarder(Forwarder):
         if self.stopped or self.messenger.checked_out:
             return
         if self.is_orphan:
-            # No destination set — deny; the operator must configure it first.
+            # No destination set -- deny; the operator must configure it first.
             await self.messenger.send_message_downstream(
                 InitiateTCPClientRep(
                     client_id=message.client_id, bind_address="0.0.0.0",

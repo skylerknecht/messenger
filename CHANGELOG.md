@@ -40,6 +40,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Changed
 
 - `Scanner.start_time` initialized to `time.time()` in `__init__` instead of `None`, preventing a potential `TypeError` in `formatted_runtime`.
+- Scanner uses `asyncio.Semaphore` instead of custom `AdmissionController`.
+- Scanner summary table now shows `State` column (running/stopped/completed) with color coding.
+- `checked_out` lifecycle flag on `Messenger` base class guards downstream sends, upstream processing, forwarder accepts, and scanner workers.
+- `TcpClient._cleanup` centralized with `notify_peer` parameter, eliminating duplicate close-signal logic.
+- `cancel_send_task()` extracted from `set_websocket()` for reuse in WS handler cleanup.
+- WebSocket handler `finally` block uses ownership-aware sender cleanup.
+- Replaced non-ASCII characters (em dashes, arrows) with ASCII equivalents across all source files and client templates.
 ## [0.9.1] - 2026-08-25
 
 ### Spec
