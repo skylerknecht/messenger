@@ -1,3 +1,4 @@
 aiohttp
+jinja2
 prompt-toolkit
 pycryptodome

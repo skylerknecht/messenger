@@ -97,11 +97,16 @@ class Scanner:
             if '-' in entry:
                 lo, _, hi = entry.partition('-')
                 if lo.isdigit() and hi.isdigit() and int(lo) <= int(hi):
-                    ports.update(range(int(lo), int(hi) + 1))
+                    lo, hi = max(int(lo), 1), min(int(hi), 65535)
+                    ports.update(range(lo, hi + 1))
                 else:
                     self.update_cli.display(f'Skipping invalid port range `{entry}`.', 'warning', reprompt=False)
             elif entry.isdigit():
-                ports.add(int(entry))
+                port = int(entry)
+                if 1 <= port <= 65535:
+                    ports.add(port)
+                else:
+                    self.update_cli.display(f'Skipping out-of-range port `{entry}`.', 'warning', reprompt=False)
             else:
                 self.update_cli.display(f'Skipping invalid port `{entry}`.', 'warning', reprompt=False)
         return sorted(ports)

@@ -300,6 +300,10 @@ class Manager:
                 self.update_cli.display("Please interact with a messenger before using this command.", 'error',
                                         reprompt=False)
                 return
+            if self.current_messenger.checked_out:
+                self.update_cli.display(f"Messenger `{self.current_messenger.nickname}` is checked out.", 'error',
+                                        reprompt=False)
+                return
             return await func(self, *args, **kwargs)
 
         return wrapper
