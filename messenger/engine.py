@@ -69,6 +69,7 @@ class Engine:
             return None
 
         if messenger:
+            messenger.check_in()
             if messenger.check_in_delta > 60:
                 self.update_cli.display(
                     f'{messenger.transport_type} Messenger `{messenger.nickname}` has reconnected.',
@@ -84,7 +85,6 @@ class Engine:
 
         messenger.received_bytes += len(data)
         await messenger.process_upstream_messages(messages[1:])
-        messenger.check_in()
         return messenger
 
     async def checkin_ws(self, data, ws, ip, user_agent):
@@ -107,7 +107,7 @@ class Engine:
             return None
 
         if messenger:
-            messenger.set_websocket(ws)
+            await messenger.set_websocket(ws)
             self.update_cli.display(
                 f'{messenger.transport_type} Messenger `{messenger.nickname}` has reconnected.',
                 'success', display_module='handlers'
@@ -143,6 +143,8 @@ class Engine:
         result = b''
         while not messenger.downstream_messages.empty():
             message = await messenger.downstream_messages.get()
-            result += self._serialize([message])
+            serialized = self._serialize([message])
+            messenger.sent_bytes += len(serialized)
+            result += serialized
         return result
 

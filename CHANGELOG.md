@@ -6,6 +6,112 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Spec
+
+#### Changed
+
+- Removed `drain(socket)` from `write_loop` — max write is 4096 bytes, well within any kernel send buffer.
+
+### Server
+
+#### Fixed
+
+- `SocksTcpClient.handle_initiate_tcp_client_rep` now writes the SOCKS reply through `send_data`, so a write failure triggers downstream close notification instead of leaking the remote TCP connection.
+- `HTTPMessenger.status` now shows "disconnected" when no check-in received in the last 5 seconds — previously displayed the stale delta from the previous pair of check-ins, showing a healthy status for dead messengers.
+- HTTP reconnect detection in `checkin_http` now calls `check_in()` before testing `check_in_delta` — previously read the delta from the prior cycle, firing the reconnect message one poll late.
+- `@require_messenger` now blocks commands on checked-out messengers — previously allowed new forwarders and scanners on dead sessions.
+- Scanner port parser validates 1–65535 range — out-of-range ports are skipped with a warning instead of silently accepted.
+- `_handle_send_data` now checks scanner scan entries before warning about unknown client IDs — scanner-originated open ports that send banners no longer produce spurious warnings.
+
+#### Changed
+
+- Centralized unexpected error logging into `Logger.log_exception` and `UpdateCLI.log_unexpected_error` — all generic `except Exception` handlers now write tracebacks to `exceptions.log` and display a CLI warning.
+- `Logger._append` warns to stderr on write failure instead of silently swallowing the exception.
+- Added `jinja2` to `requirements.txt`.
+- `TcpClient.send_data` accepts a `cleanup` flag — when set, calls `_cleanup()` after a successful write. Used by the SOCKS handler to write the error reply and close in one call.
+- Removed all `await writer.drain()` calls from `TcpClient` and `SocksTcpClient` — max write size is 4096 bytes, always fits in the kernel send buffer.
+
+### Clients
+
+#### Fixed
+
+- **Node.js**: Removed `async` from `dispatchMessage` and its caller in the receive loop — `await` on the synchronous function created microtask yields that allowed inter-frame message interleaving, violating wire order.
+- **Node.js**: HTTP `connect()` and `start()` now let `DecryptionError` propagate instead of wrapping it in a generic `Error` — a wrong encryption key previously caused infinite retry loops instead of stopping.
+- **C# HTTP**: `ConnectAsync` now uses `DeserializeMessages` (plural) with a `Count > 0` guard instead of `DeserializeMessage` (singular) — a truncated response previously threw `NullReferenceException`.
+- **C# WebSocket**: `ConnectAsync` checks `responseMessages.Count > 0` before accessing `responseMessages[0]` — an empty response previously threw `ArgumentOutOfRangeException`.
+- **Python**: `RemotePortForwarder.start()` catches `socket.gaierror` separately with `return 4` — DNS failures previously fell through to the success path because the handler was missing a `return` statement.
+- **C#**: `RemotePortForwarder.StartAsync` maps `SocketError.HostNotFound` to reason 4 — DNS resolution failures previously fell through to reason 1 (general failure).
+
+#### Changed
+
+- **Node.js**: Removed `--messenger-id` from README options table and documentation.
+
+### Tests
+
+#### Added
+
+- Client conformance test suite — builders, protocol contracts (Python/Node.js/C#), runtime args, E2E CLI, and TCP stream oracle.
+- GitHub Actions workflow (`tests.yml`) with HTML report, badge JSON output, and percentage summary. Manual dispatch only.
+
+## [0.9.2] - 2026-08-27
+
+### Spec
+
+#### Changed
+
+- WebSocket and HTTP send loops now use an instance-level `_pending` buffer that persists across reconnects — messages are drained from the queue into `_pending`, sent as a batch, and only cleared after confirmed delivery.
+- `connect()` now calls `close_transport()` before opening a new connection, eliminating the need for separate cleanup calls in the reconnect loop.
+- Removed `_requeue_first`/`enqueue_front` pattern entirely — messages never leave `_pending` until confirmed sent.
+- HTTP clients now drain all available messages instead of capping at 5 per poll.
+
+### Clients
+
+#### Changed
+
+- Python, C#, and Node.js WebSocket clients rewritten to use `_pending` buffer pattern for send loops.
+- Python, C#, and Node.js HTTP clients now drain all queued messages per poll cycle.
+- Python WebSocket client creates a fresh `aiohttp.ClientSession` on each `connect()` and closes both the websocket and session in `close_transport()`, fixing an unclosed connection leak on reconnect.
+- Removed `_requeue_first`, `RequeueFirst`, and `reset_transport` from all clients.
+- **Node.js**: Removed `--messenger-id` builder option -- Python and C# clients don't have it.
+- **Node.js**: Removed redundant `this.identifier = ''` from `HTTPClient` constructor -- already set by `super()` in `Client`.
+
+#### Fixed
+
+- **C#**: `HandleInitiateTCPClientReqAsync` now iterates all resolved addresses (IPv4-first) with a shared 5-second deadline instead of connecting to only the first address.
+- **C#**: Timeout exceptions in the TCP connect loop now escape the inner `catch (SocketException)` via an exception filter, preventing a `NullReferenceException` on the already-disposed socket.
+- **C#**: Timed-out `ConnectAsync` tasks are now observed to prevent `UnobservedTaskException` on .NET Framework 4.7.2.
+- **C#**: `BuildInitiateTCPClientRep` conditionally serializes `remote_addr`/`remote_port` only when `remoteAddr` is non-empty, matching server-side behavior.
+- **C#**: `RemotePortForwarder.StartAsync` uses `Dns.GetHostAddressesAsync` instead of sync `Dns.GetHostAddresses`, and prefers IPv4 addresses for listen binding.
+- **C#**: `ParseArgs` bounds-checks flag values -- a trailing `--server-url` with no value now prints an error instead of crashing with `IndexOutOfRangeException`.
+- **Python**: `build_initiate_tcp_client_rep` conditionally serializes `remote_addr`/`remote_port` only when `remote_addr` is non-empty, matching server-side behavior.
+- **Python**: `alphanumeric_identifier` uses `secrets.choice` instead of `random.randint` -- `random` is not cryptographically secure.
+
+### Server
+
+#### Fixed
+
+- `_handle_send_data` now logs a warning for unknown `client_id` instead of silently dropping.
+- `process_upstream_messages` wraps each message dispatch in try/except so a single handler failure no longer drops remaining messages in the batch.
+- `checkin_ws` in the HTTP/WS server now wrapped in try/except with a clean websocket close on failure, matching `checkin_http` behavior.
+- `sent_bytes` now counted after successful send instead of at queue time, fixing overcounting on WS send failures.
+- Removed unused `InitiateBINDReq` import.
+- Fixed `ssl_cert_cert` typo in `http_ws_server.py`.
+
+#### Changed
+
+- `Scanner.start_time` initialized to `time.time()` in `__init__` instead of `None`, preventing a potential `TypeError` in `formatted_runtime`.
+- Scanner uses `asyncio.Semaphore` instead of custom `AdmissionController`.
+- Scanner summary table now shows `State` column (running/stopped/completed) with color coding.
+- `checked_out` lifecycle flag on `Messenger` base class guards downstream sends, upstream processing, forwarder accepts, and scanner workers.
+- `TcpClient._cleanup` callsite pattern: `_cleanup()` returns bool, callsite sends peer close signal via `send_message_downstream` -- eliminates the `notify_peer` parameter and synchronous queue put.
+- `cancel_send_task()` extracted from `set_websocket()` for reuse in WS handler cleanup.
+- WebSocket handler `finally` block uses ownership-aware sender cleanup.
+- Replaced non-ASCII characters (em dashes, arrows) with ASCII equivalents across all source files and client templates.
+- `_split_config` parser replaces `str.split(':')` for forwarder configuration, supporting bracketed IPv6 addresses (e.g., `[::1]:8080:[::1]:80`).
+- Removed `is_valid_domain` and `is_valid_ip` validators -- the forwarder passes the listening host directly to `asyncio.start_server` and the destination to the client, letting the OS validate.
+- `SocksProxy.NAME` renamed from "Socks Proxy" to "SOCKS Server".
+- Forwarder status messages now use `_endpoint_str()` and the forwarder's `NAME` constant.
+- `portscan` concurrency capped at 1000 unless `--force-concurrency` is passed.
 ## [0.9.1] - 2026-08-25
 
 ### Spec

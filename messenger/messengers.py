@@ -4,10 +4,10 @@ import time
 from abc import abstractmethod
 from messenger.generator import alphanumeric_identifier
 from messenger.message import (
+    CheckOutMessage,
     InitiateTCPClientReq,
     InitiateTCPClientRep,
     SendDataMessage,
-    InitiateBINDReq,
     InitiateBINDRep
 )
 from messenger.forwarders import RemotePortForwarder
@@ -22,6 +22,7 @@ class Messenger:
     def __init__(self, update_cli, serialize_messages):
         self.identifier = alphanumeric_identifier()
         self._nickname = None
+        self.checked_out = False
         self.update_cli = update_cli
         self.forwarders = []
         self.scanners = []
@@ -74,12 +75,23 @@ class Messenger:
                 return
         logger.record_message(direction, self.identifier, message)
 
-    @abstractmethod
     async def send_message_downstream(self, message):
-        raise NotImplementedError
+        if self.checked_out and not isinstance(message, CheckOutMessage):
+            return
+        if isinstance(message, CheckOutMessage):
+            while not self.downstream_messages.empty():
+                self.downstream_messages.get_nowait()
+        self.log_message('downstream', message)
+        self.update_cli.display(
+            f'Messenger {self.nickname} queued a downstream message.',
+            'debug', display_module='messengers'
+        )
+        await self.downstream_messages.put(message)
 
     @abstractmethod
     async def process_upstream_messages(self, messages):
+        if self.checked_out:
+            return
         self.update_cli.display(
             f'Messenger {self.nickname} received upstream message(s).',
             'debug', display_module='messengers'
@@ -89,25 +101,28 @@ class Messenger:
             'debug', display_module='messengers'
         )
         for message in messages:
-            self.log_message('upstream', message)
+            try:
+                self.log_message('upstream', message)
 
-            if isinstance(message, InitiateTCPClientReq):
-                await self._handle_tcp_client_req(message)
+                if isinstance(message, InitiateTCPClientReq):
+                    await self._handle_tcp_client_req(message)
 
-            elif isinstance(message, InitiateTCPClientRep):
-                await self._handle_tcp_client_rep(message)
+                elif isinstance(message, InitiateTCPClientRep):
+                    await self._handle_tcp_client_rep(message)
 
-            elif isinstance(message, SendDataMessage):
-                await self._handle_send_data(message)
+                elif isinstance(message, SendDataMessage):
+                    await self._handle_send_data(message)
 
-            elif isinstance(message, InitiateBINDRep):
-                await self._handle_bind_rep(message)
+                elif isinstance(message, InitiateBINDRep):
+                    await self._handle_bind_rep(message)
 
-            else:
-                self.update_cli.display(
-                    f"Unknown or unhandled message type: {type(message).__name__}",
-                    'information', display_module='messengers'
-                )
+                else:
+                    self.update_cli.display(
+                        f"Unknown or unhandled message type: {type(message).__name__}",
+                        'information', display_module='messengers'
+                    )
+            except Exception as e:
+                self.update_cli.log_unexpected_error(e)
 
     async def _handle_tcp_client_req(self, message):
         forwarder = next(
@@ -155,6 +170,13 @@ class Messenger:
             if tcp_client.identifier == message.client_id:
                 await tcp_client.send_data(message.data)
                 return
+        for scanner in self.scanners:
+            if message.client_id in scanner.scans:
+                return
+        self.update_cli.display(
+            f'Messenger `{self.nickname}` received data for unknown client `{message.client_id}`.',
+            'warning', display_module='messengers'
+        )
 
     BIND_REASONS = {
         1: 'general failure',
@@ -206,7 +228,7 @@ class Messenger:
             )
             return
 
-        # Unknown bind_id — the client is listening but the server has no record.
+        # Unknown bind_id -- the client is listening but the server has no record.
         # Replace any stale entry tracking the same host:port under a different bind_id.
         for i, forwarder in enumerate(self.forwarders):
             if (isinstance(forwarder, RemotePortForwarder)
@@ -223,7 +245,7 @@ class Messenger:
                 break
 
 
-        # Store as an orphan with no destination — can't route until the operator
+        # Store as an orphan with no destination -- can't route until the operator
         # runs `remote` to configure where traffic should go.
         remote_port_forwarder = RemotePortForwarder.orphan(
             self, message.bind_id, message.listening_host,
@@ -285,30 +307,15 @@ class HTTPMessenger(Messenger):
 
     @property
     def status(self):
+        if self.checked_out:
+            return color_text('checked out', 'red')
+        if time.time() - self.last_check_in > 5:
+            return color_text('disconnected', 'red')
         elapsed = self.check_in_delta
         if elapsed < 1:
             return color_text(f"{elapsed * 1000:.0f}ms delay", "green")
-        elif elapsed < 60:
-            return color_text(f"{elapsed:.0f}s delay", "yellow")
-        elif elapsed < 3600:
-            return color_text(f"{elapsed / 60:.0f}m delay", "red")
         else:
-            return color_text(f"{elapsed / 3600:.0f}h delay", "red")
-
-    async def send_message_downstream(self, message):
-        self.log_message('downstream', message)
-        serialized = self.serialize_messages([message])
-        self.sent_bytes += len(serialized)
-        self.update_cli.display(
-            f'Messenger {self.nickname} queued a downstream message.',
-            'debug',
-            display_module='messengers'        )
-        self.update_cli.display(
-            f'Messenger {self.nickname} queued the following downstream message\n{message}.',
-            'debug',
-            display_module='messengers'        )
-        await self.downstream_messages.put(message)
-
+            return color_text(f"{elapsed:.0f}s delay", "yellow")
 
 class WebSocketMessenger(Messenger):
 
@@ -321,46 +328,49 @@ class WebSocketMessenger(Messenger):
         self.user_agent = user_agent
         self.websocket = websocket
         self._send_task = None
+        self._pending = []
 
     @property
     def status(self):
+        if self.checked_out:
+            return color_text('checked out', 'red')
         if not self.websocket.closed:
             return color_text('connected', "green")
         return color_text('disconnected', 'red')
 
-    def set_websocket(self, ws):
-        self.websocket = ws
-
-    def start_send_loop(self):
+    async def cancel_send_task(self):
         if self._send_task and not self._send_task.done():
             self._send_task.cancel()
-        self._send_task = asyncio.create_task(self._send_loop())
+            try:
+                await self._send_task
+            except asyncio.CancelledError:
+                pass
+
+    async def set_websocket(self, ws):
+        await self.cancel_send_task()
+        old_ws = self.websocket
+        self.websocket = ws
+        if old_ws and not old_ws.closed:
+            await old_ws.close()
 
     async def send_message_downstream(self, message):
-        self.log_message('downstream', message)
-        serialized = self.serialize_messages([message])
-        self.sent_bytes += len(serialized)
-        self.update_cli.display(
-            f'Messenger {self.nickname} queued a downstream message.',
-            'debug',
-            display_module='messengers'        )
-        await self.downstream_messages.put(message)
+        if isinstance(message, CheckOutMessage):
+            self._pending.clear()
+        await super().send_message_downstream(message)
 
-    def _requeue_first(self, message):
-        remaining = [message]
-        while not self.downstream_messages.empty():
-            remaining.append(self.downstream_messages.get_nowait())
-        for m in remaining:
-            self.downstream_messages.put_nowait(m)
+    def start_send_loop(self):
+        self._send_task = asyncio.create_task(self._send_loop())
 
     async def _send_loop(self):
         while True:
-            message = await self.downstream_messages.get()
             try:
-                await self.websocket.send_bytes(self.serialize_messages([message]))
+                if not self._pending:
+                    self._pending.append(await self.downstream_messages.get())
+                    while not self.downstream_messages.empty():
+                        self._pending.append(self.downstream_messages.get_nowait())
+                serialized = self.serialize_messages(self._pending)
+                await self.websocket.send_bytes(serialized)
+                self.sent_bytes += len(serialized)
+                self._pending.clear()
             except Exception:
-                self._requeue_first(message)
                 break
-            except BaseException:
-                self._requeue_first(message)
-                raise

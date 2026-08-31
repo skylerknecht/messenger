@@ -1,0 +1,287 @@
+name: Tests
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: client-conformance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  generated-clients:
+    name: ${{ matrix.os-name }} / generated Python, Node.js, C#
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os-name: Linux
+            runner: ubuntu-latest
+            framework: net8.0
+          - os-name: Windows
+            runner: windows-latest
+            framework: net472
+
+    steps:
+      - name: Check out exact client submodules
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Record pinned revisions and tool versions
+        shell: bash
+        run: |
+          mkdir -p .conformance-results
+          {
+            echo "parent=$(git rev-parse HEAD)"
+            git submodule status --recursive
+            python --version
+            node --version
+            npm --version
+            dotnet --info
+          } | tee .conformance-results/environment.txt
+
+      - name: Install test and client dependencies
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check -r requirements.txt pexpect
+          npm install --no-save --no-package-lock ws
+
+      - name: Test aggregate and direct builders
+        id: builders
+        continue-on-error: true
+        run: python tests/test_builders.py
+
+      - name: Run Python protocol contract tests
+        id: protocol_python
+        continue-on-error: true
+        run: python tests/test_protocol_python.py
+
+      - name: Run Node.js protocol contract tests
+        id: protocol_node
+        continue-on-error: true
+        run: node tests/test_protocol_node.js
+
+      - name: Generate clients and compile C#
+        id: generate
+        continue-on-error: true
+        run: >-
+          python tests/build_generated_clients.py
+          --output-dir .conformance-artifacts
+          --target-framework ${{ matrix.framework }}
+
+      - name: Validate generated Python and Node.js syntax
+        id: syntax
+        continue-on-error: true
+        shell: bash
+        run: |
+          python -m py_compile .conformance-artifacts/messenger-client.py
+          node --check .conformance-artifacts/messenger-client.js
+
+      - name: Run compiled C# protocol contract tests
+        id: protocol_csharp
+        continue-on-error: true
+        run: dotnet run --project tests/csharp_contract/Contract.csproj -c Release --nologo
+
+      - name: Test generated-client runtime arguments
+        id: runtime_args
+        continue-on-error: true
+        run: python tests/test_runtime_args.py --manifest .conformance-artifacts/manifest.json
+
+      - name: Run real CLI and all generated clients
+        id: e2e
+        continue-on-error: true
+        run: >-
+          python tests/run_e2e.py
+          --manifest .conformance-artifacts/manifest.json
+          --output-dir .conformance-results/e2e
+
+      - name: Generate conformance report
+        if: always()
+        shell: python
+        run: |
+          import json, os, datetime
+
+          results = {
+              "Builders":           "${{ steps.builders.outcome }}",
+              "Protocol (Python)":  "${{ steps.protocol_python.outcome }}",
+              "Protocol (Node.js)": "${{ steps.protocol_node.outcome }}",
+              "Generate clients":   "${{ steps.generate.outcome }}",
+              "Syntax validation":  "${{ steps.syntax.outcome }}",
+              "Protocol (C#)":      "${{ steps.protocol_csharp.outcome }}",
+              "Runtime args":       "${{ steps.runtime_args.outcome }}",
+              "E2E CLI":            "${{ steps.e2e.outcome }}",
+          }
+
+          total = len(results)
+          passed = sum(1 for v in results.values() if v == "success")
+          failed = sum(1 for v in results.values() if v == "failure")
+          skipped = total - passed - failed
+          pct = int((passed / total) * 100) if total else 0
+
+          os_name = "${{ matrix.os-name }}"
+          timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+          commit = "${{ github.sha }}"[:8]
+
+          # -- Badge JSON --
+          if pct == 100:
+              color = "brightgreen"
+          elif pct >= 75:
+              color = "yellow"
+          else:
+              color = "red"
+
+          badge = {
+              "schemaVersion": 1,
+              "label": f"conformance ({os_name})",
+              "message": f"{pct}% ({passed}/{total})",
+              "color": color,
+          }
+
+          os.makedirs(".conformance-results", exist_ok=True)
+          badge_path = f".conformance-results/badge-{os_name.lower()}.json"
+          with open(badge_path, "w") as f:
+              json.dump(badge, f, indent=2)
+
+          # -- HTML report --
+          rows = ""
+          for name, outcome in results.items():
+              if outcome == "success":
+                  icon = "&#x2705;"
+                  cls = "pass"
+                  label = "PASS"
+              elif outcome == "failure":
+                  icon = "&#x274C;"
+                  cls = "fail"
+                  label = "FAIL"
+              else:
+                  icon = "&#x23ED;"
+                  cls = "skip"
+                  label = outcome.upper()
+              rows += f'<tr class="{cls}"><td>{icon}</td><td>{name}</td><td><span class="badge {cls}">{label}</span></td></tr>\n'
+
+          if pct == 100:
+              ring_color = "#22c55e"
+          elif pct >= 75:
+              ring_color = "#eab308"
+          else:
+              ring_color = "#ef4444"
+
+          # SVG ring: stroke-dasharray = circumference, stroke-dashoffset = circumference * (1 - pct/100)
+          circumference = 251.3  # 2 * pi * 40
+          offset = circumference * (1 - pct / 100)
+
+          html = f"""<!DOCTYPE html>
+          <html lang="en">
+          <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>Conformance Report — {os_name}</title>
+          <style>
+            * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+            body {{ font-family: system-ui, -apple-system, sans-serif; background: #0d1117; color: #e6edf3; padding: 2rem; }}
+            .container {{ max-width: 720px; margin: 0 auto; }}
+            header {{ text-align: center; margin-bottom: 2rem; }}
+            h1 {{ font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem; }}
+            .meta {{ color: #8b949e; font-size: 0.85rem; }}
+            .ring-wrap {{ display: flex; justify-content: center; margin: 1.5rem 0; }}
+            .ring-label {{ font-size: 1.6rem; font-weight: 700; fill: #e6edf3; }}
+            .ring-sub {{ font-size: 0.55rem; fill: #8b949e; }}
+            table {{ width: 100%; border-collapse: collapse; background: #161b22; border-radius: 8px; overflow: hidden; }}
+            th {{ text-align: left; padding: 0.6rem 1rem; background: #1c2128; color: #8b949e; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }}
+            td {{ padding: 0.7rem 1rem; border-top: 1px solid #21262d; font-size: 0.9rem; }}
+            tr.pass td {{ color: #e6edf3; }}
+            tr.fail td {{ color: #f85149; }}
+            tr.skip td {{ color: #8b949e; }}
+            .badge {{ display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }}
+            .badge.pass {{ background: #22c55e22; color: #22c55e; }}
+            .badge.fail {{ background: #ef444422; color: #ef4444; }}
+            .badge.skip {{ background: #8b949e22; color: #8b949e; }}
+            .summary {{ display: flex; gap: 1.5rem; justify-content: center; margin: 1.5rem 0; font-size: 0.9rem; }}
+            .summary span {{ padding: 0.3rem 0.8rem; border-radius: 6px; }}
+            .s-pass {{ background: #22c55e22; color: #22c55e; }}
+            .s-fail {{ background: #ef444422; color: #ef4444; }}
+            .s-skip {{ background: #8b949e22; color: #8b949e; }}
+          </style>
+          </head>
+          <body>
+          <div class="container">
+            <header>
+              <h1>Client Conformance — {os_name}</h1>
+              <div class="meta">{timestamp} &middot; {commit}</div>
+            </header>
+            <div class="ring-wrap">
+              <svg width="120" height="120" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#21262d" stroke-width="8"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="{ring_color}" stroke-width="8"
+                  stroke-dasharray="{circumference}" stroke-dashoffset="{offset}"
+                  stroke-linecap="round" transform="rotate(-90 50 50)"/>
+                <text x="50" y="48" text-anchor="middle" dominant-baseline="middle" class="ring-label">{pct}%</text>
+                <text x="50" y="62" text-anchor="middle" class="ring-sub">{passed}/{total} passed</text>
+              </svg>
+            </div>
+            <div class="summary">
+              <span class="s-pass">{passed} passed</span>
+              <span class="s-fail">{failed} failed</span>
+              <span class="s-skip">{skipped} skipped</span>
+            </div>
+            <table>
+              <thead><tr><th></th><th>Test</th><th>Result</th></tr></thead>
+              <tbody>
+                {rows}
+              </tbody>
+            </table>
+          </div>
+          </body>
+          </html>"""
+
+          report_path = f".conformance-results/report-{os_name.lower()}.html"
+          with open(report_path, "w") as f:
+              f.write(html)
+
+          # -- GitHub Step Summary (markdown) --
+          summary_path = os.environ.get("GITHUB_STEP_SUMMARY", "")
+          if summary_path:
+              with open(summary_path, "a") as f:
+                  f.write(f"## Conformance Report — {os_name}\n\n")
+                  f.write(f"**{pct}%** passed ({passed}/{total}) &middot; `{commit}` &middot; {timestamp}\n\n")
+                  f.write("| | Test | Result |\n|---|------|--------|\n")
+                  for name, outcome in results.items():
+                      icon = {"success": ":white_check_mark:", "failure": ":x:"}.get(outcome, ":fast_forward:")
+                      f.write(f"| {icon} | {name} | `{outcome}` |\n")
+                  f.write("\n")
+
+          print(f"Report: {report_path}")
+          print(f"Badge:  {badge_path}")
+          print(f"Result: {pct}% ({passed}/{total} passed, {failed} failed, {skipped} skipped)")
+
+      - name: Upload conformance artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-conformance-${{ matrix.os-name }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            .conformance-artifacts/
+            .conformance-results/

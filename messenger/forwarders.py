@@ -1,13 +1,13 @@
 import asyncio
 import errno
 import socket
-import re
 from abc import abstractmethod
 
 from messenger.generator import alphanumeric_identifier
 from messenger.message import (
     InitiateTCPClientRep,
     InitiateBINDReq,
+    SendDataMessage,
 )
 from messenger.tcp_clients import (
     LocalTcpClient,
@@ -27,6 +27,7 @@ class Forwarder:
         self.update_cli = update_cli
         self.identifier = alphanumeric_identifier()
         self._nickname = None
+        self.stopped = False
         self.clients = []
         def _remove_client(c):
             if c in self.clients:
@@ -52,38 +53,29 @@ class Forwarder:
         pass
 
     @staticmethod
-    def is_valid_domain(domain: str) -> bool:
-        DOMAIN_REGEX = re.compile(
-            r'^(?=^.{1,253}$)(?!-)([A-Za-z0-9-]{1,63}\.)+[A-Za-z]{2,63}$'
-        )
-        return bool(DOMAIN_REGEX.match(domain))
-
-    @staticmethod
-    def is_valid_ip(ip):
-        """
-        Validate if the given string is a valid IPv4 or IPv6 address.
-
-        :param ip: IP address as a string
-        :return: True if valid IP address, False otherwise
-        """
-        try:
-            socket.inet_aton(ip)  # Check for valid IPv4
-            return True
-        except socket.error:
-            try:
-                socket.inet_pton(socket.AF_INET6, ip)  # Check for valid IPv6
-                return True
-            except socket.error:
-                return False
+    def _split_config(config):
+        parts = []
+        i = 0
+        while i < len(config):
+            if config[i] == '[':
+                close = config.find(']', i)
+                if close == -1:
+                    raise InvalidConfigError(f'Invalid configuration `{config}`, unmatched `[`.')
+                if close + 1 < len(config) and config[close + 1] != ':':
+                    raise InvalidConfigError(f'Invalid configuration `{config}`, `]` must be followed by `:` or end of string.')
+                parts.append(config[i + 1:close])
+                i = close + 2
+            else:
+                colon = config.find(':', i)
+                if colon == -1:
+                    parts.append(config[i:])
+                    break
+                parts.append(config[i:colon])
+                i = colon + 1
+        return parts
 
     @staticmethod
     def is_valid_port(port):
-        """
-        Validate if the given port is a valid TCP port.
-
-        :param port: Port number as an integer or string
-        :return: True if valid TCP port, False otherwise
-        """
         try:
             port = int(port)
             return 1 <= port <= 65535
@@ -111,25 +103,20 @@ class LocalPortForwarder(Forwarder):
             break
 
     async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        if self.stopped or self.messenger.checked_out:
+            writer.close()
+            return
         client = LocalTcpClient(self.destination_host, self.destination_port, reader, writer, self.messenger, self.on_close)
         self.clients.append(client)
         await client.initiate_tcp_client()
 
     def parse_config(self, config):
-        parts = config.split(':')
+        parts = self._split_config(config)
 
-        if len(parts) <= 3:
-            raise InvalidConfigError(f'Invalid configuration `{config}`, a {self.NAME} requires a complete configuration.')
-        elif len(parts) == 4:
-            listening_host, listening_port, destination_host, destination_port = parts
-        else:
-            raise InvalidConfigError("Invalid configuration format for LocalPortForwarder.")
-        #
-        # if not self.is_valid_ip(listening_host) and not self.is_valid_domain(listening_host):
-        #     raise InvalidConfigError(f'The listening host `{listening_host}` does not appear to be a valid ip or domain.')
-        #
-        # if not self.is_valid_ip(destination_host) and not self.is_valid_domain(destination_host):
-        #     raise InvalidConfigError(f'The destination host `{destination_host}` does not appear to be a valid ip or domain.')
+        if len(parts) != 4:
+            raise InvalidConfigError(f'Invalid configuration `{config}`, a {self.NAME} requires listening_host:listening_port:destination_host:destination_port.')
+
+        listening_host, listening_port, destination_host, destination_port = parts
 
         if not self.is_valid_port(listening_port):
             raise InvalidConfigError(f'The listening port `{listening_port}` does not appear to be a valid port.')
@@ -137,17 +124,22 @@ class LocalPortForwarder(Forwarder):
         if not self.is_valid_port(destination_port):
             raise InvalidConfigError(f'The destination port `{destination_port}` does not appear to be a valid port.')
 
-        return listening_host, int(listening_port), destination_host, int(
-            destination_port) if destination_port != '*' else destination_port
+        return listening_host, int(listening_port), destination_host, int(destination_port)
+
+    def _endpoint_str(self):
+        listen = f'{self.listening_host}:{self.listening_port}'
+        if self.destination_host == '*':
+            return listen
+        return f'{listen} -> {self.destination_host}:{self.destination_port}'
 
     async def start(self):
         self.update_cli.display(
-            f'Messenger `{self.messenger.nickname}` is attempting to local forward ({self.listening_host}:{self.listening_port}) -> ({self.destination_host}:{self.destination_port}).',
+            f'Messenger `{self.messenger.nickname}` is attempting to start {self.NAME} ({self._endpoint_str()}).',
             'information', reprompt=False, display_module='forwarders')
         try:
             self.server = await asyncio.start_server(self.handle_client, self.listening_host, int(self.listening_port))
             self.update_cli.display(
-                f'Messenger `{self.messenger.nickname}` is now local forwarding ({self.listening_host}:{self.listening_port}) -> ({self.destination_host}:{self.destination_port}).',
+                f'Messenger `{self.messenger.nickname}` started {self.NAME} ({self._endpoint_str()}).',
                 'success', reprompt=False, display_module='forwarders')
             return True
         except OSError as e:
@@ -170,76 +162,53 @@ class LocalPortForwarder(Forwarder):
     async def stop(self):
         if not self.server:
             return
+        self.stopped = True
         self.server.close()
 
-        for client in self.clients:
-            try:
-                transport = client.writer.transport
-                if transport:
-                    transport.abort()
-            except Exception:
-                pass
-
-        try:
-            await self.server.wait_closed()
-        except Exception:
-            pass
+        for client in list(self.clients):
+            client_id = client.identifier
+            if client._cleanup(abort=True):
+                await self.messenger.send_message_downstream(
+                    SendDataMessage(client_id=client_id, data=b'')
+                )
 
         self.update_cli.display(
-            f'Messenger `{self.messenger.nickname}` is no longer local forwarding ({self.listening_host}:{self.listening_port}) -> ({self.destination_host}:{self.destination_port}).',
+            f'Messenger `{self.messenger.nickname}` stopped {self.NAME} ({self._endpoint_str()}).',
             'success',
             reprompt=False, display_module='forwarders'
         )
 
 class SocksProxy(LocalPortForwarder):
 
-    NAME = "Socks Proxy"
+    NAME = "SOCKS Server"
 
     def __init__(self, messenger, config, update_cli):
         super().__init__(messenger, config, update_cli)
 
     async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        if self.stopped or self.messenger.checked_out:
+            writer.close()
+            return
         client = SocksTcpClient(reader, writer, self.messenger, self.on_close)
         self.clients.append(client)
         await client.initiate_tcp_client()
 
     def parse_config(self, config):
-        parts = config.split(':')
+        parts = self._split_config(config)
 
         listening_host = '127.0.0.1'
-        destination_host = '*'
-        destination_port = '*'
 
         if len(parts) == 1:
             listening_port = parts[0]
-
         elif len(parts) == 2:
             listening_host, listening_port = parts
-
-        elif len(parts) == 3:
-            raise InvalidConfigError(f'Invalid configuration `{config}`, cannot specify destination host without destination port.')
-
-        elif len(parts) == 4:
-            self.update_cli.display(f'Invalid configuration `{config}`, cannot set a destination host and port for a {self.NAME}.', 'warning', reprompt=False, display_module='forwarders')
-            listening_host, listening_port, _, _ = parts
-
         else:
-            raise InvalidConfigError("Invalid configuration format for LocalPortForwarder.")
-
-        # if not self.is_valid_ip(listening_host) and not self.is_valid_domain(listening_host):
-        #     raise InvalidConfigError(f'The listening host `{listening_host}` does not appear to be a valid ip or domain.')
-
-        if destination_host != '*' and not (self.is_valid_ip(destination_host) or self.is_valid_domain(destination_host)):
-            raise InvalidConfigError(f'The destination host `{destination_host}` does not appear to be a valid ip or domain.')
+            raise InvalidConfigError(f'Invalid configuration `{config}`, a {self.NAME} requires listening_port or listening_host:listening_port.')
 
         if not self.is_valid_port(listening_port):
-            raise InvalidConfigError(f'The listening port `{listening_port}` does not appear to be a port.')
+            raise InvalidConfigError(f'The listening port `{listening_port}` does not appear to be a valid port.')
 
-        if destination_port != '*' and not self.is_valid_port(destination_port):
-            raise InvalidConfigError(f'The destination port `{destination_port}` does not appear to be a port.')
-
-        return listening_host, int(listening_port), destination_host, int(
-            destination_port) if destination_port != '*' else destination_port
+        return listening_host, int(listening_port), '*', '*'
 
 
 class RemotePortForwarder(Forwarder):
@@ -265,7 +234,7 @@ class RemotePortForwarder(Forwarder):
 
     @property
     def is_orphan(self):
-        # No destination configured yet → cannot route.
+        # No destination configured yet -> cannot route.
         return not self.destination_host
 
     def close_all_clients(self):
@@ -283,8 +252,10 @@ class RemotePortForwarder(Forwarder):
         pass
 
     async def handle_initiate_tcp_client_req(self, message):
+        if self.stopped or self.messenger.checked_out:
+            return
         if self.is_orphan:
-            # No destination set — deny; the operator must configure it first.
+            # No destination set -- deny; the operator must configure it first.
             await self.messenger.send_message_downstream(
                 InitiateTCPClientRep(
                     client_id=message.client_id, bind_address="0.0.0.0",
@@ -297,6 +268,10 @@ class RemotePortForwarder(Forwarder):
                 asyncio.open_connection(self.destination_host, self.destination_port),
                 timeout=5
             )
+
+            if self.stopped or self.messenger.checked_out:
+                writer.close()
+                return
 
             client = RemoteTcpClient(message.client_id, reader, writer, self.messenger, self.on_close)
             self.clients.append(client)
@@ -323,6 +298,7 @@ class RemotePortForwarder(Forwarder):
                 errno.EAFNOSUPPORT: 8
             }.get(e.errno, 1)
         except Exception as e:
+            self.update_cli.log_unexpected_error(e)
             reason = 1
         else:
             await self.messenger.send_message_downstream(downstream_message)
@@ -339,10 +315,10 @@ class RemotePortForwarder(Forwarder):
         await self.messenger.send_message_downstream(downstream_message)
 
     def parse_config(self, config):
-        parts = config.split(':')
+        parts = self._split_config(config)
 
         if len(parts) != 4:
-            raise InvalidConfigError(f'Invalid configuration `{config}`, a {self.NAME} expects listening_host:listening_port:destination_host:destination_port.')
+            raise InvalidConfigError(f'Invalid configuration `{config}`, a {self.NAME} requires listening_host:listening_port:destination_host:destination_port.')
 
         listening_host, listening_port, destination_host, destination_port = parts
 
@@ -371,9 +347,7 @@ class RemotePortForwarder(Forwarder):
         )
 
     async def stop(self):
-        # Explicit teardown: an empty listening host is the STOP sentinel. The
-        # client can never mistake it for a new bind, so it just tears down the
-        # forwarder with this bind_id (or no-ops if it no longer has it).
+        self.stopped = True
         bind_req = InitiateBINDReq(
             bind_id=self.identifier,
             listening_host='',
@@ -383,7 +357,7 @@ class RemotePortForwarder(Forwarder):
         )
         await self.messenger.send_message_downstream(bind_req)
         self.update_cli.display(
-            f'Sent stop to Messenger `{self.messenger.nickname}` for bind '
+            f'Sent stop to Messenger `{self.messenger.nickname}` for Remote Port Forwarder '
             f'`{self.identifier}` ({self.listening_host}:{self.listening_port}).',
             'information', display_module='forwarders'
         )

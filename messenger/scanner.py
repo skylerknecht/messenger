@@ -9,6 +9,7 @@ from messenger.message import InitiateTCPClientReq, SendDataMessage
 
 ScanResult = namedtuple("ScanResult", ["identifier", "address", "port", "result"])
 
+
 class Scanner:
     def __init__(self, ip_ranges, port_ranges, top_ports, update_cli, messenger, concurrency):
         self.identifier = alphanumeric_identifier()
@@ -21,9 +22,9 @@ class Scanner:
         self.targets = self._parse_ip_ranges(ip_ranges)
         self.ports = self._parse_port_ranges(port_ranges) if port_ranges else self._get_top_ports(top_ports)
         self.scans = {}
-        self.start_time = None
+        self.start_time = time.time()
         self.end_time = None
-        self.semaphore = asyncio.Semaphore(concurrency)
+        self._semaphore = asyncio.Semaphore(concurrency)
         self._gen_lock = asyncio.Lock()
         self._scan_gen = self._generate_scans()
         self._workers = []
@@ -96,11 +97,16 @@ class Scanner:
             if '-' in entry:
                 lo, _, hi = entry.partition('-')
                 if lo.isdigit() and hi.isdigit() and int(lo) <= int(hi):
-                    ports.update(range(int(lo), int(hi) + 1))
+                    lo, hi = max(int(lo), 1), min(int(hi), 65535)
+                    ports.update(range(lo, hi + 1))
                 else:
                     self.update_cli.display(f'Skipping invalid port range `{entry}`.', 'warning', reprompt=False)
             elif entry.isdigit():
-                ports.add(int(entry))
+                port = int(entry)
+                if 1 <= port <= 65535:
+                    ports.add(port)
+                else:
+                    self.update_cli.display(f'Skipping out-of-range port `{entry}`.', 'warning', reprompt=False)
             else:
                 self.update_cli.display(f'Skipping invalid port `{entry}`.', 'warning', reprompt=False)
         return sorted(ports)
@@ -144,6 +150,14 @@ class Scanner:
         progress = self.open_count + self.closed_count
         return progress == self.total_scans
 
+    @property
+    def state(self) -> str:
+        if self.completed:
+            return 'completed'
+        if self.end_time is not None:
+            return 'stopped'
+        return 'running'
+
     async def handle_initiate_tcp_client_rep(self, message):
         identifier = message.client_id
         current = self.scans.get(identifier)
@@ -159,7 +173,7 @@ class Scanner:
             return
 
         self.scans[identifier] = ScanResult(identifier, current.address, current.port, message.reason)
-        self.semaphore.release()
+        self._semaphore.release()
 
         if message.reason == 0:
             await self.messenger.send_message_downstream(
@@ -175,13 +189,15 @@ class Scanner:
 
     async def _scan_worker(self):
         while True:
+            if self.messenger.checked_out:
+                return
             async with self._gen_lock:
                 try:
                     ip, port = next(self._scan_gen)
                 except StopIteration:
                     return
 
-            await self.semaphore.acquire()
+            await self._semaphore.acquire()
             identifier = alphanumeric_identifier()
             self.scans[identifier] = ScanResult(identifier, ip, port, None)
 

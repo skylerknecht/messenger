@@ -57,6 +57,8 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
+.conformance-artifacts/
+.conformance-results/
 
 # Translations
 *.mo

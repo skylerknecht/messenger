@@ -2,7 +2,6 @@ import asyncio
 import inspect
 import sys
 import re
-import traceback
 import os
 from datetime import datetime
 from collections import namedtuple
@@ -71,6 +70,15 @@ class UpdateCLI:
             print(f'({self.prompt})~# ' + self.session.app.current_buffer.text, end='')
             sys.stdout.flush()
 
+    def log_unexpected_error(self, e):
+        log_file = self.logger.log_exception(e)
+        self.display(f'Caught unexpected error, logged to {log_file}', 'error', reprompt=False)
+        self.display(
+            'Please open an issue with the redacted error at '
+            'https://github.com/skylerknecht/messenger/issues/new',
+            'information', reprompt=False
+        )
+
 
 class Manager:
     """
@@ -112,9 +120,9 @@ class Manager:
         }
         self.messenger_commands = {
             'back': (self.back, "Return to the main menu."),
-            'local': (self.start_local_forwarder, "Start a local forwarder."),
-            'remote': (self.start_remote_forwarder, "Start a remote forwarder."),
-            'socks': (self.start_socks_proxy, "Start a socks proxy."),
+            'local': (self.start_local_forwarder, "Start a local port forwarder."),
+            'remote': (self.start_remote_forwarder, "Start a remote port forwarder."),
+            'socks': (self.start_socks_proxy, "Start a SOCKS server."),
             'portscan': (self.start_scanner, "Scan for open ports."),
         }
         self.commands = {**self.server_commands, **self.messenger_commands}
@@ -298,6 +306,10 @@ class Manager:
         async def wrapper(self, *args, **kwargs):
             if not self.current_messenger:
                 self.update_cli.display("Please interact with a messenger before using this command.", 'error',
+                                        reprompt=False)
+                return
+            if self.current_messenger.checked_out:
+                self.update_cli.display(f"Messenger `{self.current_messenger.nickname}` is checked out.", 'error',
                                         reprompt=False)
                 return
             return await func(self, *args, **kwargs)
@@ -723,7 +735,7 @@ class Manager:
                     cfg += f" {s.port_input}"
                 else:
                     cfg += f" top {len(s.ports)}"
-                lines.append(f"    {s.nickname} ({cfg}) — {s.progress_str} {s.open_count} open {s.closed_count} closed")
+                lines.append(f"    {s.nickname} ({cfg}) -- {s.progress_str} {s.open_count} open {s.closed_count} closed")
         else:
             lines.append(f"  Scanners:    •••")
 
@@ -749,21 +761,25 @@ class Manager:
             return
 
         if not identifier:
-            columns = ["Messenger", "Scanner", "Runtime", "Attempts", "Progress", "Open", "Closed"]
+            columns = ["Messenger", "Scanner", "State", "Runtime", "Concurrency", "Progress", "Open", "Closed"]
             items = []
+
+            STATE_COLORS = {'running': 'cyan', 'stopped': 'yellow', 'completed': 'green'}
 
             for scanner in scanners:
                 if not hasattr(scanner, 'scans'):
                     continue
 
+                state = scanner.state
                 items.append({
                     "Messenger": scanner.messenger.nickname,
                     "Scanner": scanner.nickname,
+                    "State": color_text(state, STATE_COLORS[state]),
                     "Runtime": scanner.formatted_runtime,
-                    "Attempts": scanner.attempts,
+                    "Concurrency": scanner.concurrency,
                     "Progress": scanner.progress_str,
                     "Open": scanner.open_count,
-                    "Closed": scanner.closed_count
+                    "Closed": scanner.closed_count,
                 })
 
             print(self.create_table('Scans', columns, items))
@@ -830,7 +846,7 @@ class Manager:
                     self.update_cli.display(f"CTRL+C caught, type `exit` to quit Messenger.", 'information',
                                             reprompt=False)
                 except Exception as e:
-                    self._log_unexpected_error(e)
+                    self.update_cli.log_unexpected_error(e)
 
             captured = strip_ansi(output.getvalue()).strip()
             self.logger.record_command(timestamp, user_input.strip(), captured)
@@ -848,34 +864,18 @@ class Manager:
         except OSError as e:
             self.update_cli.display(f'Could not write output to {path}: {e}', 'error', reprompt=False)
 
-    def _log_unexpected_error(self, e):
-        log_file = os.path.join(self.logger.base_dir, "exceptions.log")
-
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        tb = traceback.format_exc()
-        log_entry = (
-            f"[{timestamp}] Unexpected {type(e).__name__}: {e}\n"
-            f"{tb}\n{'-' * 80}\n"
-        )
-
-        if any(f.get('debug') for f in self.update_cli.display_filters.values()):
-            self.update_cli.display(log_entry, 'error', reprompt=False)
-
-        with open(log_file, "a", encoding="utf-8") as f:
-            f.write(log_entry)
-        self.update_cli.display(f'Captured unexpected error and wrote to {log_file}', 'error', reprompt=False)
-        self.update_cli.display(f'Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new', 'information', reprompt=False)
-
     @require_messenger
     async def start_local_forwarder(self, forwarder_config):
         """
-        Start a local forwarder.
+        Start a local port forwarder.
 
         required:
           forwarder_config         Format: listening_host:listening_port:destination_host:destination_port
+                                   IPv6 addresses must be wrapped in brackets.
 
         examples:
           local 127.0.0.1:8080:example.com:9090
+          local [::1]:8080:[::1]:80
         """
         messenger = self.current_messenger
         forwarder = LocalPortForwarder(messenger, forwarder_config, self.update_cli)
@@ -887,13 +887,15 @@ class Manager:
     @require_messenger
     async def start_remote_forwarder(self, forwarder_config):
         """
-        Start a remote forwarder.
+        Start a remote port forwarder.
 
         required:
           forwarder_config         Format: listening_host:listening_port:destination_host:destination_port
+                                   IPv6 addresses must be wrapped in brackets.
 
         examples:
           remote 0.0.0.0:8080:127.0.0.1:80
+          remote [::]:8080:[::1]:80
         """
         messenger = self.current_messenger
         forwarder = RemotePortForwarder(messenger, forwarder_config, self.update_cli)
@@ -908,7 +910,7 @@ class Manager:
         )
         if existing is not None:
             if not existing.is_orphan:
-                # Already a configured forward here — don't make a duplicate.
+                # Already a configured forward here -- don't make a duplicate.
                 self.update_cli.display(
                     f'Messenger `{messenger.nickname}` is already forwarding on '
                     f'{forwarder.listening_host}:{forwarder.listening_port}.',
@@ -927,7 +929,7 @@ class Manager:
             )
             return
 
-        # Fresh forward — ask the client to bind.
+        # Fresh forward -- ask the client to bind.
         await forwarder.start()
         messenger.forwarders.append(forwarder)
         return
@@ -935,14 +937,16 @@ class Manager:
     @require_messenger
     async def start_socks_proxy(self, forwarder_config):
         """
-        Start a SOCKS proxy.
+        Start a SOCKS server.
 
         required:
-          forwarder_config         Format: [listening_host:]listening_port
+          forwarder_config         Format: listening_port or listening_host:listening_port
+                                   IPv6 addresses must be wrapped in brackets.
 
         examples:
           socks 9050
           socks 127.0.0.1:9050
+          socks [::1]:9050
         """
         messenger = self.current_messenger
         forwarder = SocksProxy(messenger, forwarder_config, self.update_cli)
@@ -952,7 +956,7 @@ class Manager:
         return
 
     @require_messenger
-    async def start_scanner(self, ips, ports=None, concurrency=50, top_ports=100):
+    async def start_scanner(self, ips, ports=None, concurrency=50, top_ports=100, force_concurrency=False):
         """
         Start a scan against IPs and ports.
 
@@ -963,15 +967,23 @@ class Manager:
           ports                    Specific ports/ranges to scan (e.g., 80,443 or 1-1024).
           --concurrency            Max concurrent scan attempts (default: 50).
           --top-ports              Use top N ports if ports not specified (default: 100).
+          --force-concurrency      Bypass the 1000 concurrency cap.
 
         examples:
           portscan 192.168.1.10
           portscan 10.0.0.0/24 --top-ports 1000 --concurrency 100
+          portscan 10.0.0.0/16 --concurrency 2000 --force-concurrency
         """
         try:
             concurrency = int(concurrency)
         except (ValueError, TypeError):
             self.update_cli.display(f'{concurrency} is not a valid concurrency.', 'error', reprompt=False)
+            return
+        if concurrency < 1:
+            self.update_cli.display('Concurrency must be at least 1.', 'error', reprompt=False)
+            return
+        if concurrency > 1000 and not force_concurrency:
+            self.update_cli.display('Concurrency cannot exceed 1000. Use --force-concurrency to bypass.', 'error', reprompt=False)
             return
         try:
             top_ports = int(top_ports)
@@ -1003,7 +1015,7 @@ class Manager:
                     break
             if target is not None:
                 if isinstance(target, RemotePortForwarder) and not target.forwarding:
-                    # Never confirmed by the client — just drop it, send no
+                    # Never confirmed by the client -- just drop it, send no
                     # signal. Race-safe: a late BindRep for it simply comes back
                     # as an orphan we can re-adopt.
                     target.close_all_clients()
@@ -1052,9 +1064,8 @@ class Manager:
             if target is None:
                 self.update_cli.display(f'`{id}` not found.', 'error', reprompt=False)
                 return
+        target.checked_out = True
         await target.send_message_downstream(CheckOutMessage())
-        for forwarder in list(target.forwarders):
-            forwarder.close_all_clients() if hasattr(forwarder, 'close_all_clients') else None
         self.update_cli.display(
             f'Queued kill signal for Messenger `{target.nickname}`.',
             'success', reprompt=False
