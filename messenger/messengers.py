@@ -122,10 +122,7 @@ class Messenger:
                         'information', display_module='messengers'
                     )
             except Exception as e:
-                self.update_cli.display(
-                    f'Messenger `{self.nickname}` failed to handle {type(message).__name__}: {e}',
-                    'warning', display_module='messengers'
-                )
+                self.update_cli.log_unexpected_error(e)
 
     async def _handle_tcp_client_req(self, message):
         forwarder = next(
@@ -363,17 +360,14 @@ class WebSocketMessenger(Messenger):
 
     async def _send_loop(self):
         while True:
-            if not self._pending:
-                self._pending.append(await self.downstream_messages.get())
-                while not self.downstream_messages.empty():
-                    self._pending.append(self.downstream_messages.get_nowait())
             try:
+                if not self._pending:
+                    self._pending.append(await self.downstream_messages.get())
+                    while not self.downstream_messages.empty():
+                        self._pending.append(self.downstream_messages.get_nowait())
                 serialized = self.serialize_messages(self._pending)
                 await self.websocket.send_bytes(serialized)
                 self.sent_bytes += len(serialized)
-                has_checkout = any(isinstance(m, CheckOutMessage) for m in self._pending)
                 self._pending.clear()
-                if has_checkout:
-                    break
             except Exception:
                 break

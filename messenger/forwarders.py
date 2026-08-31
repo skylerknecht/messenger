@@ -298,6 +298,7 @@ class RemotePortForwarder(Forwarder):
                 errno.EAFNOSUPPORT: 8
             }.get(e.errno, 1)
         except Exception as e:
+            self.update_cli.log_unexpected_error(e)
             reason = 1
         else:
             await self.messenger.send_message_downstream(downstream_message)
@@ -356,7 +357,7 @@ class RemotePortForwarder(Forwarder):
         )
         await self.messenger.send_message_downstream(bind_req)
         self.update_cli.display(
-            f'Sent stop to Messenger `{self.messenger.nickname}` for bind '
+            f'Sent stop to Messenger `{self.messenger.nickname}` for Remote Port Forwarder '
             f'`{self.identifier}` ({self.listening_host}:{self.listening_port}).',
             'information', display_module='forwarders'
         )

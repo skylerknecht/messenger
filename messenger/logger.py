@@ -3,6 +3,7 @@ import io
 import json
 import os
 import sys
+import traceback
 from datetime import datetime, timezone
 
 
@@ -82,13 +83,28 @@ class Logger:
             'values': values,
         })
 
+    def log_exception(self, e):
+        log_file = os.path.join(self.base_dir, 'exceptions.log')
+        timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+        tb = traceback.format_exc()
+        log_entry = (
+            f"[{timestamp}] Unexpected {type(e).__name__}: {e}\n"
+            f"{tb}\n{'-' * 80}\n"
+        )
+        try:
+            with open(log_file, 'a', encoding='utf-8') as f:
+                f.write(log_entry)
+        except OSError:
+            print(f'\x1b[2K\r[-] Failed to write exception log to {log_file}', file=sys.stderr)
+        return log_file
+
     @staticmethod
     def _append(path, entry):
         try:
             with open(path, 'a', encoding='utf-8') as f:
                 f.write(json.dumps(entry, default=str) + '\n')
-        except Exception:
-            pass
+        except Exception as e:
+            print(f'\x1b[2K\r[!] Failed to write log to {path}: {e}', file=sys.stderr)
 
 
 class _Capture:

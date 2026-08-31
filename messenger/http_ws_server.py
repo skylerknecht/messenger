@@ -57,7 +57,7 @@ class HTTPWSServer:
                 data, request.remote, request.headers.get('User-Agent', '•••')
             )
         except Exception as e:
-            self.update_cli.display(f'Error processing check in: {e}', 'warning', display_module='handlers')
+            self.update_cli.log_unexpected_error(e)
             return web.Response(status=200, body=b'')
         if not messenger:
             return web.Response(status=200, body=b'')
@@ -77,7 +77,7 @@ class HTTPWSServer:
                 msg.data, ws, request.remote, request.headers.get('User-Agent', '•••')
             )
         except Exception as e:
-            self.update_cli.display(f'Error processing WS check in: {e}', 'warning', display_module='handlers')
+            self.update_cli.log_unexpected_error(e)
             await ws.close()
             return ws
         if not messenger:
@@ -89,7 +89,7 @@ class HTTPWSServer:
                 try:
                     await self.engine.send_messages_upstream(msg.data)
                 except Exception as e:
-                    self.update_cli.display(f'Error processing message: {e}', 'warning', display_module='handlers')
+                    self.update_cli.log_unexpected_error(e)
                     continue
         finally:
             if messenger.websocket is ws:

@@ -2,7 +2,6 @@ import asyncio
 import inspect
 import sys
 import re
-import traceback
 import os
 from datetime import datetime
 from collections import namedtuple
@@ -70,6 +69,15 @@ class UpdateCLI:
         if reprompt:
             print(f'({self.prompt})~# ' + self.session.app.current_buffer.text, end='')
             sys.stdout.flush()
+
+    def log_unexpected_error(self, e):
+        log_file = self.logger.log_exception(e)
+        self.display(f'Caught unexpected error, logged to {log_file}', 'error', reprompt=False)
+        self.display(
+            'Please open an issue with the redacted error at '
+            'https://github.com/skylerknecht/messenger/issues/new',
+            'information', reprompt=False
+        )
 
 
 class Manager:
@@ -838,7 +846,7 @@ class Manager:
                     self.update_cli.display(f"CTRL+C caught, type `exit` to quit Messenger.", 'information',
                                             reprompt=False)
                 except Exception as e:
-                    self._log_unexpected_error(e)
+                    self.update_cli.log_unexpected_error(e)
 
             captured = strip_ansi(output.getvalue()).strip()
             self.logger.record_command(timestamp, user_input.strip(), captured)
@@ -855,24 +863,6 @@ class Manager:
             self.update_cli.display(f'Output written to {path}.', 'success', reprompt=False)
         except OSError as e:
             self.update_cli.display(f'Could not write output to {path}: {e}', 'error', reprompt=False)
-
-    def _log_unexpected_error(self, e):
-        log_file = os.path.join(self.logger.base_dir, "exceptions.log")
-
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        tb = traceback.format_exc()
-        log_entry = (
-            f"[{timestamp}] Unexpected {type(e).__name__}: {e}\n"
-            f"{tb}\n{'-' * 80}\n"
-        )
-
-        if any(f.get('debug') for f in self.update_cli.display_filters.values()):
-            self.update_cli.display(log_entry, 'error', reprompt=False)
-
-        with open(log_file, "a", encoding="utf-8") as f:
-            f.write(log_entry)
-        self.update_cli.display(f'Captured unexpected error and wrote to {log_file}', 'error', reprompt=False)
-        self.update_cli.display(f'Please open an issue with the redacted error message at https://github.com/skylerknecht/messenger/issues/new', 'information', reprompt=False)
 
     @require_messenger
     async def start_local_forwarder(self, forwarder_config):
