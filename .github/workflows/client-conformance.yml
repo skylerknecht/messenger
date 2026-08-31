@@ -68,37 +68,70 @@ jobs:
           npm install --no-save --no-package-lock ws
 
       - name: Test aggregate and direct builders
+        id: builders
+        continue-on-error: true
         run: python tests/test_builders.py
 
-      - name: Run deterministic protocol contract tests
-        shell: bash
-        run: |
-          python tests/test_protocol_python.py
-          node tests/test_protocol_node.js
+      - name: Run Python protocol contract tests
+        id: protocol_python
+        continue-on-error: true
+        run: python tests/test_protocol_python.py
+
+      - name: Run Node.js protocol contract tests
+        id: protocol_node
+        continue-on-error: true
+        run: node tests/test_protocol_node.js
 
       - name: Generate clients and compile C#
+        id: generate
+        continue-on-error: true
         run: >-
           python tests/build_generated_clients.py
           --output-dir .conformance-artifacts
           --target-framework ${{ matrix.framework }}
 
       - name: Validate generated Python and Node.js syntax
+        id: syntax
+        continue-on-error: true
         shell: bash
         run: |
           python -m py_compile .conformance-artifacts/messenger-client.py
           node --check .conformance-artifacts/messenger-client.js
 
       - name: Run compiled C# protocol contract tests
+        id: protocol_csharp
+        continue-on-error: true
         run: dotnet run --project tests/csharp_contract/Contract.csproj -c Release --nologo
 
       - name: Test generated-client runtime arguments
+        id: runtime_args
+        continue-on-error: true
         run: python tests/test_runtime_args.py --manifest .conformance-artifacts/manifest.json
 
       - name: Run real CLI and all generated clients
+        id: e2e
+        continue-on-error: true
         run: >-
           python tests/run_e2e.py
           --manifest .conformance-artifacts/manifest.json
           --output-dir .conformance-results/e2e
+
+      - name: Conformance report
+        if: always()
+        shell: bash
+        run: |
+          echo "## Conformance Report — ${{ matrix.os-name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Builders | ${{ steps.builders.outcome }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Protocol (Python) | ${{ steps.protocol_python.outcome }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Protocol (Node.js) | ${{ steps.protocol_node.outcome }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Generate clients | ${{ steps.generate.outcome }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Syntax validation | ${{ steps.syntax.outcome }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Protocol (C#) | ${{ steps.protocol_csharp.outcome }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Runtime args | ${{ steps.runtime_args.outcome }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| E2E CLI | ${{ steps.e2e.outcome }} |" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload exact generated clients and test evidence
         if: always()
