@@ -46,6 +46,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Node.js**: Removed `--messenger-id` from README options table and documentation.
 
+### Tests
+
+#### Added
+
+- Client conformance test suite — builders, protocol contracts (Python/Node.js/C#), runtime args, E2E CLI, and TCP stream oracle.
+- GitHub Actions workflow (`tests.yml`) with HTML report, badge JSON output, and percentage summary. Manual dispatch only.
+
 ## [0.9.2] - 2026-08-27
 
 ### Spec
