@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import collections
+import concurrent.futures
 import json
 import os
 import re
@@ -22,13 +23,14 @@ ROOT = TESTS.parent
 PY = Path(sys.executable)
 KEY = "automation-key"
 ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
-PROMPT = re.compile(r"\([^)]*\)~# ")
+PROMPT = re.compile(r"\x1b\[\?2004h.*?\([^)]*\)~#")
 TRANSCRIPT = []
 RESULTS = []
 CLIENTS = {}
 RUNS = None
 RESULTS_PATH = None
 TRANSCRIPT_PATH = None
+LIVE = False
 
 
 def clean(value):
@@ -263,8 +265,12 @@ class Server:
         time.sleep(settle)
         marker = f">>> MESSENGER COMMAND: {value}"
         TRANSCRIPT.append(marker)
+        if LIVE:
+            print(f"\033[36m({self.label})~#\033[0m {value}", flush=True)
         output = self.child.command(value)
         TRANSCRIPT.append(output)
+        if LIVE:
+            print(clean(output), flush=True)
         return output
 
     def exit(self):
@@ -290,6 +296,9 @@ class Server:
 
 def record(scenario, ok, detail=""):
     RESULTS.append({"scenario": scenario, "ok": bool(ok), "detail": detail})
+    if LIVE:
+        icon = "\033[32mPASS\033[0m" if ok else "\033[31mFAIL\033[0m"
+        print(f"  {icon} {scenario}", flush=True)
 
 
 def start_client(kind, url, label):
@@ -728,6 +737,81 @@ def reconnect_flow(kind, transport):
         first.exit()
 
 
+def stress_flow(kind, transport, echo4_port, n_parallel=10):
+    label = f"{kind}-{transport}-stress"
+    server_port = free_port()
+    server = Server(server_port, label)
+    url = f"{transport}://127.0.0.1:{server_port}"
+    client, cmd = start_client(kind, url, label)
+    client_out = ""
+    try:
+        mid, _ = get_id(server)
+        server.command(f"rename {mid} {label}")
+        server.command(f"interact {label}")
+
+        ports = []
+        for i in range(n_parallel):
+            lp = free_port()
+            server.command(f"local 127.0.0.1:{lp}:127.0.0.1:{echo4_port}")
+            ports.append(lp)
+        time.sleep(0.8)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=n_parallel) as pool:
+            futures = {
+                pool.submit(assert_roundtrip, "127.0.0.1", lp, f"stress-{i}:{label}"): i
+                for i, lp in enumerate(ports)
+            }
+            results = {}
+            for fut in concurrent.futures.as_completed(futures):
+                idx = futures[fut]
+                try:
+                    results[idx] = fut.result()
+                except Exception as e:
+                    results[idx] = e
+
+        passed = sum(1 for v in results.values() if not isinstance(v, Exception))
+        failures = {i: repr(v) for i, v in results.items() if isinstance(v, Exception)}
+        record(
+            f"{label}: {n_parallel} parallel local forwards",
+            passed == n_parallel,
+            {"passed": passed, "total": n_parallel, "failures": failures},
+        )
+
+        heavy_port = free_port()
+        server.command(f"local 127.0.0.1:{heavy_port}:127.0.0.1:{echo4_port}")
+        time.sleep(0.4)
+        try:
+            proof = assert_roundtrip("127.0.0.1", heavy_port, f"heavy:{label}", count=200)
+            record(
+                f"{label}: 200 records through single forward",
+                True,
+                proof,
+            )
+        except Exception as e:
+            record(f"{label}: 200 records through single forward", False, repr(e))
+
+        for fid in ids_from_table(server.command("forwarders"), (mid, label)):
+            server.command(f"stop {fid}")
+
+        server.command("back")
+        server.command(f"kill {label}")
+        try:
+            client_out = client.communicate(timeout=8)[0]
+        except subprocess.TimeoutExpired:
+            client.terminate(); client_out = client.communicate(timeout=3)[0]
+    except Exception as e:
+        record(f"{label}: harness flow", False, repr(e))
+        if client.poll() is None:
+            client.terminate()
+        try:
+            client_out += client.communicate(timeout=3)[0]
+        except Exception:
+            client.kill()
+        TRANSCRIPT.append(f"===== CLIENT {label} FAILURE =====\n{client_out}")
+    finally:
+        server.exit()
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Run real Messenger CLI/client conformance tests")
     parser.add_argument("--python-client", type=Path)
@@ -735,12 +819,14 @@ def parse_args():
     parser.add_argument("--csharp-dll", type=Path)
     parser.add_argument("--transports", nargs="+", choices=("ws", "http"), default=("ws", "http"))
     parser.add_argument("--output-dir", type=Path, default=ROOT / ".conformance-results")
+    parser.add_argument("--live", action="store_true", help="Print commands and results to stdout as they execute")
     return parser.parse_args()
 
 
 def main():
-    global CLIENTS, RUNS, RESULTS_PATH, TRANSCRIPT_PATH
+    global CLIENTS, RUNS, RESULTS_PATH, TRANSCRIPT_PATH, LIVE
     args = parse_args()
+    LIVE = args.live
     requested = {
         "python": args.python_client,
         "node": args.node_client,
@@ -774,6 +860,7 @@ def main():
         for transport in args.transports:
             full_flow(kind, transport, p4, p6)
             reconnect_flow(kind, transport)
+            stress_flow(kind, transport, p4)
     e4.shutdown(); e4.server_close()
     if e6: e6.shutdown(); e6.server_close()
     payload = {

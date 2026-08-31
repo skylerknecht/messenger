@@ -141,10 +141,12 @@ class Engine:
 
     async def get_downstream_messages(self, messenger):
         result = b''
-        while not messenger.downstream_messages.empty():
+        count = 0
+        while not messenger.downstream_messages.empty() and count < messenger.MAX_BATCH_SIZE:
             message = await messenger.downstream_messages.get()
             serialized = self._serialize([message])
             messenger.sent_bytes += len(serialized)
             result += serialized
+            count += 1
         return result
 

@@ -62,11 +62,16 @@ static class Contract
                 new CheckInMessage("abcdefghij"),
                 new InitiateBINDReq("bind-req", "::1", 4444, "host.test", 5555),
                 new InitiateBINDRep("bind-rep", "127.0.0.1", 6666, 0),
-                new CheckOutMessage(),
             };
             byte[] wire = MessengerClient.MessengerClient.SerializeMessages(key, messages);
-            List<object> parsed = MessengerClient.MessengerClient.DeserializeMessages(key, wire);
-            Assert(parsed.Select(x => x.GetType()).SequenceEqual(messages.Select(x => x.GetType())), "type/order mismatch");
+            // Append a raw CheckOutMessage frame (server-to-client only, not serializable by the client).
+            byte[] checkoutFrame = new byte[] { 0, 0, 0, 7, 0, 0, 0, 8 };
+            byte[] combined = new byte[wire.Length + checkoutFrame.Length];
+            Buffer.BlockCopy(wire, 0, combined, 0, wire.Length);
+            Buffer.BlockCopy(checkoutFrame, 0, combined, wire.Length, checkoutFrame.Length);
+            List<object> parsed = MessengerClient.MessengerClient.DeserializeMessages(key, combined);
+            object[] expected = messages.Append(new CheckOutMessage()).ToArray();
+            Assert(parsed.Select(x => x.GetType()).SequenceEqual(expected.Select(x => x.GetType())), "type/order mismatch");
             var req = (InitiateTCPClientReq)parsed[0];
             Assert(req.ListeningHost == "::1" && req.ListeningPort == 9000, "optional RPF endpoint mismatch");
             Assert(((SendDataMessage)parsed[2]).Data.SequenceEqual(new byte[] { 0, 1, 2, 255 }), "binary data mismatch");
