@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **C# HTTP**: `ConnectAsync` now uses `DeserializeMessages` (plural) with a `Count > 0` guard instead of `DeserializeMessage` (singular) — a truncated response previously threw `NullReferenceException`.
 - **C# WebSocket**: `ConnectAsync` checks `responseMessages.Count > 0` before accessing `responseMessages[0]` — an empty response previously threw `ArgumentOutOfRangeException`.
 - **Python**: `RemotePortForwarder.start()` catches `socket.gaierror` separately with `return 4` — DNS failures previously fell through to the success path because the handler was missing a `return` statement.
+- **C#**: `RemotePortForwarder.StartAsync` maps `SocketError.HostNotFound` to reason 4 — DNS resolution failures previously fell through to reason 1 (general failure).
 
 ## [0.9.2] - 2026-08-27
 
