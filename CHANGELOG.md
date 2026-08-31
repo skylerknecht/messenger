@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Fixed
 
 - `SocksTcpClient.handle_initiate_tcp_client_rep` now writes the SOCKS reply through `send_data`, so a write failure triggers downstream close notification instead of leaking the remote TCP connection.
+- `HTTPMessenger.status` now shows "disconnected" when no check-in received in the last 5 seconds — previously displayed the stale delta from the previous pair of check-ins, showing a healthy status for dead messengers.
+- HTTP reconnect detection in `checkin_http` now calls `check_in()` before testing `check_in_delta` — previously read the delta from the prior cycle, firing the reconnect message one poll late.
 
 #### Changed
 
@@ -30,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Node.js**: Removed `async` from `dispatchMessage` and its caller in the receive loop — `await` on the synchronous function created microtask yields that allowed inter-frame message interleaving, violating wire order.
 - **C# HTTP**: `ConnectAsync` now uses `DeserializeMessages` (plural) with a `Count > 0` guard instead of `DeserializeMessage` (singular) — a truncated response previously threw `NullReferenceException`.
 - **C# WebSocket**: `ConnectAsync` checks `responseMessages.Count > 0` before accessing `responseMessages[0]` — an empty response previously threw `ArgumentOutOfRangeException`.
-- **Python**: `RemotePortForwarder.start()` catches `socket.gaierror` separately and maps it to reason 4 (host unreachable) — DNS failures previously fell through to reason 1 (general failure) because `EAI_*` errno values don't match `EADDRINUSE`/`EACCES`.
+- **Python**: `RemotePortForwarder.start()` catches `socket.gaierror` separately with `return 4` — DNS failures previously fell through to the success path because the handler was missing a `return` statement.
 
 ## [0.9.2] - 2026-08-27
 

@@ -309,15 +309,13 @@ class HTTPMessenger(Messenger):
     def status(self):
         if self.checked_out:
             return color_text('checked out', 'red')
+        if time.time() - self.last_check_in > 5:
+            return color_text('disconnected', 'red')
         elapsed = self.check_in_delta
         if elapsed < 1:
             return color_text(f"{elapsed * 1000:.0f}ms delay", "green")
-        elif elapsed < 60:
-            return color_text(f"{elapsed:.0f}s delay", "yellow")
-        elif elapsed < 3600:
-            return color_text(f"{elapsed / 60:.0f}m delay", "red")
         else:
-            return color_text(f"{elapsed / 3600:.0f}h delay", "red")
+            return color_text(f"{elapsed:.0f}s delay", "yellow")
 
 class WebSocketMessenger(Messenger):
 
