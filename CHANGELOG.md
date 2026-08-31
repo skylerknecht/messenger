@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Fixed
 
 - **Node.js**: Removed `async` from `dispatchMessage` and its caller in the receive loop — `await` on the synchronous function created microtask yields that allowed inter-frame message interleaving, violating wire order.
+- **Node.js**: HTTP `connect()` and `start()` now let `DecryptionError` propagate instead of wrapping it in a generic `Error` — a wrong encryption key previously caused infinite retry loops instead of stopping.
 - **C# HTTP**: `ConnectAsync` now uses `DeserializeMessages` (plural) with a `Count > 0` guard instead of `DeserializeMessage` (singular) — a truncated response previously threw `NullReferenceException`.
 - **C# WebSocket**: `ConnectAsync` checks `responseMessages.Count > 0` before accessing `responseMessages[0]` — an empty response previously threw `ArgumentOutOfRangeException`.
 - **Python**: `RemotePortForwarder.start()` catches `socket.gaierror` separately with `return 4` — DNS failures previously fell through to the success path because the handler was missing a `return` statement.
