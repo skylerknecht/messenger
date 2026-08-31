@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - HTTP reconnect detection in `checkin_http` now calls `check_in()` before testing `check_in_delta` — previously read the delta from the prior cycle, firing the reconnect message one poll late.
 - `@require_messenger` now blocks commands on checked-out messengers — previously allowed new forwarders and scanners on dead sessions.
 - Scanner port parser validates 1–65535 range — out-of-range ports are skipped with a warning instead of silently accepted.
+- `_handle_send_data` now checks scanner scan entries before warning about unknown client IDs — scanner-originated open ports that send banners no longer produce spurious warnings.
 
 #### Changed
 
