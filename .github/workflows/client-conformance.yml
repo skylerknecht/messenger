@@ -1,0 +1,114 @@
+name: Client conformance
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: client-conformance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  generated-clients:
+    name: ${{ matrix.os-name }} / generated Python, Node.js, C#
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os-name: Linux
+            runner: ubuntu-latest
+            framework: net8.0
+          - os-name: Windows
+            runner: windows-latest
+            framework: net472
+
+    steps:
+      - name: Check out exact client submodules
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Record pinned revisions and tool versions
+        shell: bash
+        run: |
+          mkdir -p .conformance-results
+          {
+            echo "parent=$(git rev-parse HEAD)"
+            git submodule status --recursive
+            python --version
+            node --version
+            npm --version
+            dotnet --info
+          } | tee .conformance-results/environment.txt
+
+      - name: Install test and client dependencies
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check -r requirements.txt pexpect
+          npm install --no-save --no-package-lock ws
+
+      - name: Test aggregate and direct builders
+        run: python tests/test_builders.py
+
+      - name: Run deterministic protocol contract tests
+        shell: bash
+        run: |
+          python tests/test_protocol_python.py
+          node tests/test_protocol_node.js
+
+      - name: Generate clients and compile C#
+        run: >-
+          python tests/build_generated_clients.py
+          --output-dir .conformance-artifacts
+          --target-framework ${{ matrix.framework }}
+
+      - name: Validate generated Python and Node.js syntax
+        shell: bash
+        run: |
+          python -m py_compile .conformance-artifacts/messenger-client.py
+          node --check .conformance-artifacts/messenger-client.js
+
+      - name: Run compiled C# protocol contract tests
+        run: dotnet run --project tests/csharp_contract/Contract.csproj -c Release --nologo
+
+      - name: Test generated-client runtime arguments
+        run: python tests/test_runtime_args.py --manifest .conformance-artifacts/manifest.json
+
+      - name: Run real CLI and all generated clients
+        run: >-
+          python tests/run_e2e.py
+          --manifest .conformance-artifacts/manifest.json
+          --output-dir .conformance-results/e2e
+
+      - name: Upload exact generated clients and test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-conformance-${{ matrix.os-name }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            .conformance-artifacts/
+            .conformance-results/
