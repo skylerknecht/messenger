@@ -170,6 +170,9 @@ class Messenger:
             if tcp_client.identifier == message.client_id:
                 await tcp_client.send_data(message.data)
                 return
+        for scanner in self.scanners:
+            if message.client_id in scanner.scans:
+                return
         self.update_cli.display(
             f'Messenger `{self.nickname}` received data for unknown client `{message.client_id}`.',
             'warning', display_module='messengers'
