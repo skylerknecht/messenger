@@ -340,10 +340,10 @@ class RemotePortForwarder(Forwarder):
         )
         await self.messenger.send_message_downstream(bind_req)
         self.update_cli.display(
-            f'Queued bind request for Messenger `{self.messenger.nickname}` for '
+            f'Queued Remote Port Forwarder request for Messenger `{self.messenger.nickname}` for '
             f'({self.listening_host}:{self.listening_port}) -> '
             f'({self.destination_host}:{self.destination_port}).',
-            'information', display_module='forwarders'
+            'information', display_module='forwarders', reprompt=False
         )
 
     async def stop(self):

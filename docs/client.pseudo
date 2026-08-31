@@ -56,6 +56,7 @@ const USER_AGENT       = "{{ user_agent }}"         # default: browser-like UA s
 const PROXY            = "{{ proxy }}"              # default: "" (none)
 const RETRY_DURATION   = {{ retry_duration }}        # default: 60.0 (seconds)
 const RETRY_ATTEMPTS   = {{ retry_attempts }}        # default: 5
+const MAX_BATCH_SIZE   = 100                          # max messages per send cycle
 
 
 # ============================================================================
@@ -617,7 +618,12 @@ class WSClient extends Client:
         #
         # Messages queued while disconnected are drained by the send_loop on
         # (re)connect, so no separate startup drain step is required.
-        await parallel(receive_loop(), send_loop())
+        # Whichever loop exits first tears down the other. This prevents
+        # a dead send_loop from silently queuing into a closed transport and
+        # a dead receive_loop from leaving a send_loop parked on dequeue().
+        await first_completed(receive_loop(), send_loop())
+        cancel_both_loops()
+        await settle_both_loops()
 
     function receive_loop():
         while websocket.is_open:
@@ -641,10 +647,6 @@ class WSClient extends Client:
                 // background. Replies, data, and close finish inline in the
                 // order they appeared in this frame.
 
-        // On exit (close/error), cancel the send_loop so it wakes and stops --
-        // otherwise parallel() hangs on a send_loop parked on dequeue().
-        cancel_send_loop()
-
     function send_loop():
         # THE single writer. Parks on a blocking dequeue -- no CPU when idle,
         # no latency when a message arrives. On send failure, break -- pending
@@ -661,9 +663,10 @@ class WSClient extends Client:
         while true:
             if pending is empty:
                 pending.append(await upstream_queue.dequeue())
-                drain all remaining from upstream_queue into pending
+                while upstream_queue.has_items() and len(pending) < MAX_BATCH_SIZE:
+                    pending.append(upstream_queue.dequeue_nowait())
                 // dequeue() parks until at least one message; then
-                // drain_nowait pulls everything else that's ready.
+                // drain_nowait pulls up to MAX_BATCH_SIZE total.
 
             try:
                 batch = [CheckInMessage(messenger_id=self.identifier)]
@@ -718,7 +721,8 @@ class HTTPClient extends Client:
         # Polling loop -- blocks until an error triggers reconnection.
         while true:
             if pending is empty:
-                drain all available messages from upstream_queue into pending
+                while upstream_queue.has_items() and len(pending) < MAX_BATCH_SIZE:
+                    pending.append(upstream_queue.dequeue_nowait())
 
             batch = [CheckInMessage(messenger_id=self.identifier)]
             batch.extend(pending)

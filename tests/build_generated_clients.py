@@ -17,10 +17,29 @@ def run(command):
     subprocess.run([str(part) for part in command], cwd=ROOT, check=True)
 
 
+def retarget_net8(csharp_project):
+    project_file = csharp_project / "MessengerClient.csproj"
+    project = project_file.read_text(encoding="utf-8")
+    project = project.replace("<TargetFramework>net472</TargetFramework>", "<TargetFramework>net8.0</TargetFramework>")
+    project = re.sub(
+        r"\s*<ItemGroup>\s*<PackageReference Include=\"Microsoft\.NETFramework\.ReferenceAssemblies\".*?</ItemGroup>",
+        "",
+        project,
+        flags=re.DOTALL,
+    )
+    project = re.sub(
+        r"\s*<ItemGroup>\s*<Reference Include=\"System\.Net\.Http\"\s*/>\s*</ItemGroup>",
+        "",
+        project,
+        flags=re.DOTALL,
+    )
+    project_file.write_text(project, encoding="utf-8")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-dir", type=Path, required=True)
-    parser.add_argument("--target-framework", choices=("net472", "net8.0"), required=True)
+    parser.add_argument("--target-framework", choices=("net472", "net8.0"), default="net8.0")
     args = parser.parse_args()
     output = args.output_dir.resolve()
     output.mkdir(parents=True, exist_ok=True)
@@ -40,22 +59,7 @@ def main():
     run([sys.executable, ROOT / "messenger-builder", "csharp", "--name", csharp_project, *common])
 
     if args.target_framework == "net8.0":
-        project_file = csharp_project / "MessengerClient.csproj"
-        project = project_file.read_text(encoding="utf-8")
-        project = project.replace("<TargetFramework>net472</TargetFramework>", "<TargetFramework>net8.0</TargetFramework>")
-        project = re.sub(
-            r"\s*<ItemGroup>\s*<PackageReference Include=\"Microsoft\.NETFramework\.ReferenceAssemblies\".*?</ItemGroup>",
-            "",
-            project,
-            flags=re.DOTALL,
-        )
-        project = re.sub(
-            r"\s*<ItemGroup>\s*<Reference Include=\"System\.Net\.Http\"\s*/>\s*</ItemGroup>",
-            "",
-            project,
-            flags=re.DOTALL,
-        )
-        project_file.write_text(project, encoding="utf-8")
+        retarget_net8(csharp_project)
 
     run(["dotnet", "build", csharp_project / "MessengerClient.csproj", "-c", "Release", "--nologo"])
 
@@ -70,7 +74,6 @@ def main():
         "python": str(python_client),
         "node": str(node_client),
         "csharp": str(csharp_client),
-        "csharp_target_framework": args.target_framework,
     }
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     print(json.dumps(manifest, indent=2))

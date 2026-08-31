@@ -18,6 +18,7 @@ class Messenger:
     transport_type = 'undefined'
 
     LOOPBACK_ADDRESSES = {'127.0.0.1', '::1', '0.0.0.0'}
+    MAX_BATCH_SIZE = 100
 
     def __init__(self, update_cli, serialize_messages):
         self.identifier = alphanumeric_identifier()
@@ -156,8 +157,8 @@ class Messenger:
         if addr and addr not in self.LOOPBACK_ADDRESSES and addr not in self.ips:
             self.ips.add(addr)
             self.update_cli.display(
-                f'Messenger `{self.nickname}` has a new interface: {addr}',
-                'success', display_module='messengers'
+                f'New IP detected for Messenger `{self.nickname}`: {addr}',
+                'information', display_module='messengers'
             )
         for scanner in list(self.scanners):
             await scanner.handle_initiate_tcp_client_rep(message)
@@ -366,7 +367,7 @@ class WebSocketMessenger(Messenger):
             try:
                 if not self._pending:
                     self._pending.append(await self.downstream_messages.get())
-                    while not self.downstream_messages.empty():
+                    while not self.downstream_messages.empty() and len(self._pending) < self.MAX_BATCH_SIZE:
                         self._pending.append(self.downstream_messages.get_nowait())
                 serialized = self.serialize_messages(self._pending)
                 await self.websocket.send_bytes(serialized)

@@ -8,6 +8,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.9.3] - 2026-08-31
 
+### Spec
+
+#### Changed
+
+- All send loop drains (WS and HTTP, client and server) are now capped at `MAX_BATCH_SIZE = 100` messages per cycle to stay within HTTP 1MB and WebSocket 4MB frame limits during large transfers.
+- Graceful TCP close (empty data signal) now flushes pending writes before closing the socket instead of tearing down immediately.
+
+### Server
+
+#### Changed
+
+- WebSocket `_send_loop` and HTTP `get_downstream_messages` now cap drains at `MAX_BATCH_SIZE = 100`.
+
+### Clients
+
+#### Fixed
+
+- C# — Removed `SetRequestHeader("User-Agent")` from `WebSocketMessengerClient.ConnectAsync`; it is a restricted header in .NET `ClientWebSocket` and threw, preventing WebSocket connections.
+- C# — `SendData(empty)` now calls `GracefulClose()` instead of `Abort()`, allowing `WriteLoop` to drain pending writes before closing the socket. Fixes lost HTTP responses on remote port forwards when the server sends data and closes in quick succession.
+- Node.js — `socket.destroy()` replaced with `socket.end()` on graceful close so pending writes flush before FIN. Fixes the same data-loss scenario as the C# fix.
+
+#### Changed
+
+- All clients (Python, Node.js, C#) cap WS and HTTP send loop drains at `MAX_BATCH_SIZE = 100`.
+- WS `start()` now uses a first-completed / cancel-both / settle-both pattern so either loop failure tears down both loops cleanly.
+
 ## [0.9.2] - 2026-08-27
 
 ### Spec
