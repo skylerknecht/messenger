@@ -19,9 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `SocksTcpClient.handle_initiate_tcp_client_rep` now writes the SOCKS reply through `send_data`, so a write failure triggers downstream close notification instead of leaking the remote TCP connection.
 - `HTTPMessenger.status` now shows "disconnected" when no check-in received in the last 5 seconds — previously displayed the stale delta from the previous pair of check-ins, showing a healthy status for dead messengers.
 - HTTP reconnect detection in `checkin_http` now calls `check_in()` before testing `check_in_delta` — previously read the delta from the prior cycle, firing the reconnect message one poll late.
+- `@require_messenger` now blocks commands on checked-out messengers — previously allowed new forwarders and scanners on dead sessions.
+- Scanner port parser validates 1–65535 range — out-of-range ports are skipped with a warning instead of silently accepted.
 
 #### Changed
 
+- Centralized unexpected error logging into `Logger.log_exception` and `UpdateCLI.log_unexpected_error` — all generic `except Exception` handlers now write tracebacks to `exceptions.log` and display a CLI warning.
+- `Logger._append` warns to stderr on write failure instead of silently swallowing the exception.
+- Added `jinja2` to `requirements.txt`.
 - `TcpClient.send_data` accepts a `cleanup` flag — when set, calls `_cleanup()` after a successful write. Used by the SOCKS handler to write the error reply and close in one call.
 - Removed all `await writer.drain()` calls from `TcpClient` and `SocksTcpClient` — max write size is 4096 bytes, always fits in the kernel send buffer.
 
@@ -34,6 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **C# WebSocket**: `ConnectAsync` checks `responseMessages.Count > 0` before accessing `responseMessages[0]` — an empty response previously threw `ArgumentOutOfRangeException`.
 - **Python**: `RemotePortForwarder.start()` catches `socket.gaierror` separately with `return 4` — DNS failures previously fell through to the success path because the handler was missing a `return` statement.
 - **C#**: `RemotePortForwarder.StartAsync` maps `SocketError.HostNotFound` to reason 4 — DNS resolution failures previously fell through to reason 1 (general failure).
+
+#### Changed
+
+- **Node.js**: Removed `--messenger-id` from README options table and documentation.
 
 ## [0.9.2] - 2026-08-27
 
