@@ -18,7 +18,7 @@ def run(command):
 
 
 def retarget_net8(csharp_project):
-    project_file = csharp_project / "MessengerClient.csproj"
+    project_file = csharp_project / "ServiceClient.csproj"
     project = project_file.read_text(encoding="utf-8")
     project = project.replace("<TargetFramework>net472</TargetFramework>", "<TargetFramework>net8.0</TargetFramework>")
     project = re.sub(
@@ -46,7 +46,7 @@ def main():
 
     python_client = output / "messenger-client.py"
     node_client = output / "messenger-client.js"
-    csharp_project = output / "MessengerClient"
+    csharp_project = output / "ServiceClient"
     common = [
         "--server-url", "unused.invalid:1",
         "--encryption-key", KEY,
@@ -61,12 +61,12 @@ def main():
     if args.target_framework == "net8.0":
         retarget_net8(csharp_project)
 
-    run(["dotnet", "build", csharp_project / "MessengerClient.csproj", "-c", "Release", "--nologo"])
+    run(["dotnet", "build", csharp_project / "ServiceClient.csproj", "-c", "Release", "--nologo"])
 
     if args.target_framework == "net472":
-        csharp_client = csharp_project / "bin" / "Release" / "net472" / "MessengerClient.exe"
+        csharp_client = csharp_project / "bin" / "Release" / "net472" / "ServiceClient.exe"
     else:
-        csharp_client = csharp_project / "bin" / "Release" / "net8.0" / "MessengerClient.dll"
+        csharp_client = csharp_project / "bin" / "Release" / "net8.0" / "ServiceClient.dll"
     if not csharp_client.is_file():
         raise SystemExit(f"compiled C# client was not produced: {csharp_client}")
 

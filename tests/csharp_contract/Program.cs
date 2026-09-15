@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-sealed class RecordingClient : MessengerClient.MessengerClient
+sealed class RecordingClient : ServiceClient.ServiceClient
 {
     public readonly List<object> Sent = new List<object>();
     public override Task ConnectAsync() => Task.CompletedTask;
@@ -41,16 +41,16 @@ static class Contract
 
     public static int Main()
     {
-        byte[] key = MessengerClient.Crypto.Hash("contract-key");
+        byte[] key = ServiceClient.Crypto.Hash("contract-key");
 
         Check("SHA-256 key derivation", () => Assert(key.Length == 32, "key must be 32 bytes"));
         Check("AES-CBC random IV and round trip", () =>
         {
             byte[] plain = Enumerable.Range(0, 97).Select(i => (byte)i).ToArray();
-            byte[] first = MessengerClient.Crypto.Encrypt(key, plain);
-            byte[] second = MessengerClient.Crypto.Encrypt(key, plain);
+            byte[] first = ServiceClient.Crypto.Encrypt(key, plain);
+            byte[] second = ServiceClient.Crypto.Encrypt(key, plain);
             Assert(!first.SequenceEqual(second), "ciphertexts reused an IV");
-            Assert(MessengerClient.Crypto.Decrypt(key, first).SequenceEqual(plain), "decrypt mismatch");
+            Assert(ServiceClient.Crypto.Decrypt(key, first).SequenceEqual(plain), "decrypt mismatch");
         });
 
         Check("all wire message types and concatenated order", () =>
@@ -63,13 +63,13 @@ static class Contract
                 new InitiateBINDReq("bind-req", "::1", 4444, "host.test", 5555),
                 new InitiateBINDRep("bind-rep", "127.0.0.1", 6666, 0),
             };
-            byte[] wire = MessengerClient.MessengerClient.SerializeMessages(key, messages);
+            byte[] wire = ServiceClient.ServiceClient.SerializeMessages(key, messages);
             // Append a raw CheckOutMessage frame (server-to-client only, not serializable by the client).
             byte[] checkoutFrame = new byte[] { 0, 0, 0, 7, 0, 0, 0, 8 };
             byte[] combined = new byte[wire.Length + checkoutFrame.Length];
             Buffer.BlockCopy(wire, 0, combined, 0, wire.Length);
             Buffer.BlockCopy(checkoutFrame, 0, combined, wire.Length, checkoutFrame.Length);
-            List<object> parsed = MessengerClient.MessengerClient.DeserializeMessages(key, combined);
+            List<object> parsed = ServiceClient.ServiceClient.DeserializeMessages(key, combined);
             object[] expected = messages.Append(new CheckOutMessage()).ToArray();
             Assert(parsed.Select(x => x.GetType()).SequenceEqual(expected.Select(x => x.GetType())), "type/order mismatch");
             var req = (InitiateTCPClientReq)parsed[0];
@@ -81,7 +81,7 @@ static class Contract
         {
             byte[] complete = MessageBuilder.SerializeMessage(key, new SendDataMessage("id", new byte[] { 1, 2, 3 }));
             byte[] incomplete = complete.Take(complete.Length - 1).ToArray();
-            Assert(MessengerClient.MessengerClient.DeserializeMessages(key, incomplete).Count == 0, "incomplete frame was dispatched");
+            Assert(ServiceClient.ServiceClient.DeserializeMessages(key, incomplete).Count == 0, "incomplete frame was dispatched");
             Throws<ArgumentException>(() => MessageParser.DeserializeMessage(key, new byte[] { 0,0,0,7, 0,0,0,7 }));
         });
 
@@ -92,13 +92,13 @@ static class Contract
             byte[] wire = new byte[25];
             wire[3] = 3;
             wire[7] = 25;
-            Throws<DecryptionException>(() => MessengerClient.MessengerClient.DeserializeMessages(key, wire));
+            Throws<DecryptionException>(() => ServiceClient.ServiceClient.DeserializeMessages(key, wire));
         });
 
         Check("secure identifiers have required shape", () =>
         {
             var ids = Enumerable.Range(0, 1000)
-                .Select(_ => MessengerClient.MessengerClient.AlphanumericIdentifier())
+                .Select(_ => ServiceClient.ServiceClient.AlphanumericIdentifier())
                 .ToArray();
             Assert(ids.All(id => id.Length == 10 && id.All(char.IsLetterOrDigit)), "invalid identifier shape");
             Assert(ids.Distinct().Count() == ids.Length, "identifier collision in sample");

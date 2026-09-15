@@ -100,7 +100,8 @@ const context = vm.createContext({
   clearTimeout,
   queueMicrotask,
 });
-const source = renderElectronPrefix(fs.readFileSync(TEMPLATE, 'utf8'));
+const source = renderElectronPrefix(fs.readFileSync(TEMPLATE, 'utf8'))
+  .replace('const MAX_BATCH_SIZE = 100', 'const MAX_BATCH_SIZE = 3');
 vm.runInContext(source + `
 globalThis.__clientExports = {
   Client, WSClient, HTTPClient, MessageBuilder, DecryptionError,
@@ -134,6 +135,7 @@ class FakeSocket extends EventEmitter {
     this.resumed = false;
   }
   write(data) { this.writes.push(Buffer.from(data)); return true; }
+  end() { this.destroyed = true; }
   destroy() { this.destroyed = true; }
   resume() { this.resumed = true; }
 }
@@ -292,6 +294,33 @@ async function test(name, body) {
     const parsed = client.deserializeMessages(replacement.sent[0]);
     assert.strictEqual(parsed.map(item => item.kind).join(','), 'CheckInMessage,SendDataMessage');
     assert.deepStrictEqual(Buffer.from(parsed[1].data), Buffer.from('ordered'));
+  });
+
+  await test('sendLoop caps batch at MAX_BATCH_SIZE', async () => {
+    const client = new C.WSClient('ws://127.0.0.1', KEY, 'test-agent');
+    client.identifier = 'batch-id';
+    for (let i = 0; i < 5; i++)
+      client.sendUpstreamMessage(C.SendDataMessage(`T${i}`, Buffer.from(`msg${i}`)));
+    client.ws = new FakeWebSocket();
+    await new Promise(resolve => queueMicrotask(resolve));
+    const sender = client.sendLoop();
+    await new Promise(resolve => setImmediate(resolve));
+    client.ws.close();
+    client._signalSendLoop();
+    await sender;
+    assert(client.ws.sent.length >= 1, 'expected at least one send');
+    const firstBatch = client.deserializeMessages(client.ws.sent[0]);
+    const dataMessages = firstBatch.filter(m => m.kind === 'SendDataMessage');
+    assert(dataMessages.length <= 3, `batch exceeded MAX_BATCH_SIZE: ${dataMessages.length}`);
+  });
+
+  await test('graceful TCP close via empty data calls end', async () => {
+    const client = new RecordingClient();
+    const socket = new FakeSocket();
+    client.tcpClients.set('T', socket);
+    await client.dispatchMessage(C.SendDataMessage('T', Buffer.alloc(0)));
+    assert(socket.destroyed, 'socket.end() was not called');
+    assert(!client.tcpClients.has('T'), 'tcpClients entry was not removed');
   });
 
   process.exitCode = failures ? 1 : 0;
