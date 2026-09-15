@@ -36,9 +36,9 @@ class Engine:
             data = remaining_data
         return messages
 
-    def _get_messenger(self, messenger_id):
+    def _get_messenger(self, client_id):
         for messenger in self.messengers:
-            if messenger.identifier == messenger_id:
+            if messenger.identifier == client_id:
                 return messenger
         return None
 
@@ -58,12 +58,12 @@ class Engine:
             )
             return None
 
-        messenger_id = messages[0].messenger_id
-        messenger = self._get_messenger(messenger_id)
+        client_id = messages[0].client_id
+        messenger = self._get_messenger(client_id)
 
         if messenger and not isinstance(messenger, HTTPMessenger):
             self.update_cli.display(
-                f'Messenger `{messenger_id}` is not an HTTP Messenger, closing connection.',
+                f'Messenger `{client_id}` is not an HTTP Messenger, closing connection.',
                 'warning', display_module='handlers'
             )
             return None
@@ -77,8 +77,8 @@ class Engine:
                 )
         else:
             messenger = HTTPMessenger(ip, user_agent, self.update_cli, self._serialize)
-            if messenger_id:
-                messenger.identifier = messenger_id
+            if client_id:
+                messenger.identifier = client_id
             else:
                 await messenger.send_message_downstream(CheckInMessage(messenger.identifier))
             self._register(messenger)
@@ -96,12 +96,12 @@ class Engine:
             )
             return None
 
-        messenger_id = messages[0].messenger_id
-        messenger = self._get_messenger(messenger_id)
+        client_id = messages[0].client_id
+        messenger = self._get_messenger(client_id)
 
         if messenger and not isinstance(messenger, WebSocketMessenger):
             self.update_cli.display(
-                f'Messenger `{messenger_id}` is not a WebSocket Messenger, closing connection.',
+                f'Messenger `{client_id}` is not a WebSocket Messenger, closing connection.',
                 'warning', display_module='handlers'
             )
             return None
@@ -114,8 +114,8 @@ class Engine:
             )
         else:
             messenger = WebSocketMessenger(ws, ip, user_agent, self.update_cli, self._serialize)
-            if messenger_id:
-                messenger.identifier = messenger_id
+            if client_id:
+                messenger.identifier = client_id
             else:
                 await messenger.send_message_downstream(CheckInMessage(messenger.identifier))
             self._register(messenger)
@@ -131,10 +131,10 @@ class Engine:
             return
         if not isinstance(messages[0], CheckInMessage):
             return
-        messenger_id = messages[0].messenger_id
-        if not messenger_id:
+        client_id = messages[0].client_id
+        if not client_id:
             return
-        messenger = self._get_messenger(messenger_id)
+        messenger = self._get_messenger(client_id)
         if messenger:
             messenger.received_bytes += len(data)
             await messenger.process_upstream_messages(messages[1:])

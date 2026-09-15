@@ -1,6 +1,6 @@
-# Messenger Client -- Golden Standard
+# Client -- Golden Standard
 #
-# This pseudo-code defines the canonical behavior for all Messenger client
+# This pseudo-code defines the canonical behavior for all client
 # implementations. When implementing or fixing a client, compare your code
 # against this file section by section.
 #
@@ -41,6 +41,10 @@
 #     cleans up its resources in finally. Expected request failures are caught
 #     when the protocol requires a failure reply; other task faults may remain
 #     unobserved.
+#   - OPSEC: Client code must not contain identifiers, strings, class names,
+#     namespaces, or log messages that reference the project by name. Use
+#     generic names (Client, ServiceClient, parent, client_id, etc.). Error
+#     messages must not contain project-identifying phrases.
 
 
 # ============================================================================
@@ -160,7 +164,7 @@ function deserialize_messages(raw_data, encryption_key) -> list[message]:
 #   0x07 = CheckOutMessage               (NOT encrypted, empty payload)
 
 struct CheckInMessage:
-    messenger_id: string
+    client_id: string
 
 struct InitiateTCPClientReq:
     client_id: string
@@ -248,21 +252,21 @@ struct CheckOutMessage:
 # ============================================================================
 
 class TcpConnection:
-    messenger: Client
+    parent: Client
     client_id: string
     bind_id: string | null
     socket: socket
     write_queue: ordered_async_queue<bytes>
 
-    function constructor(messenger, client_id, socket, bind_id=null):
-        self.messenger = messenger
+    function constructor(parent, client_id, socket, bind_id=null):
+        self.parent = parent
         self.client_id = client_id
         self.bind_id = bind_id
         self.socket = socket
         self.write_queue = new ordered_async_queue()
 
     function abort() -> bool:
-        if messenger.tcp_clients.remove(client_id, self) failed:
+        if parent.tcp_clients.remove(client_id, self) failed:
             return false
             // Dictionary removal is the once-only abort guard. Every other
             // path becomes a no-op, so no separate closed flag is needed.
@@ -272,8 +276,8 @@ class TcpConnection:
         return true
 
     function abort_and_signal():
-        if abort() and not messenger.killed:
-            _ = messenger.send_upstream_message(
+        if abort() and not parent.killed:
+            _ = parent.send_upstream_message(
                 SendDataMessage(client_id=client_id, data=empty))
 
     function send_data(data):
@@ -303,7 +307,7 @@ class TcpConnection:
                 data = await read(socket, max=4096)
                 if data is empty:
                     break
-                await messenger.send_upstream_message(
+                await parent.send_upstream_message(
                     SendDataMessage(client_id=client_id, data=data))
         catch (EOF, ConnectionReset, ConnectionAborted):
             pass
@@ -394,7 +398,7 @@ class Client:
                 )
 
             CheckInMessage:
-                identifier = message.messenger_id
+                identifier = message.client_id
 
             CheckOutMessage:
                 handle_checkout()
@@ -580,7 +584,7 @@ class WSClient extends Client:
         websocket = await open_websocket(url, headers={User-Agent: user_agent}, tls_verify=false)
 
         # Check-in: identify ourselves to the server.
-        checkin = CheckInMessage(messenger_id=self.identifier)
+        checkin = CheckInMessage(client_id=self.identifier)
         await websocket.send_binary(serialize_message(checkin, encryption_key))
 
         if self.identifier is not empty:
@@ -597,7 +601,7 @@ class WSClient extends Client:
         messages = deserialize_messages(response_bytes, encryption_key)
         assert length(messages) > 0
         assert messages[0] is CheckInMessage
-        self.identifier = messages[0].messenger_id
+        self.identifier = messages[0].client_id
 
     function start():
         # SINGLE-WRITER SEND RULE
@@ -669,7 +673,7 @@ class WSClient extends Client:
                 // drain_nowait pulls up to MAX_BATCH_SIZE total.
 
             try:
-                batch = [CheckInMessage(messenger_id=self.identifier)]
+                batch = [CheckInMessage(client_id=self.identifier)]
                 batch.extend(pending)
                 payload = serialize_messages(batch, encryption_key)
                 await websocket.send_binary(payload)
@@ -693,7 +697,7 @@ class HTTPClient extends Client:
     upstream_queue: concurrent_queue<message>
 
     function connect():
-        checkin = CheckInMessage(messenger_id=self.identifier)
+        checkin = CheckInMessage(client_id=self.identifier)
         payload = serialize_message(checkin, encryption_key)
         response = await http_post(url, payload, timeout=10s)
         assert_http_success(response)
@@ -713,7 +717,7 @@ class HTTPClient extends Client:
         messages = deserialize_messages(response.body, encryption_key)
         assert length(messages) > 0
         assert messages[0] is CheckInMessage
-        self.identifier = messages[0].messenger_id
+        self.identifier = messages[0].client_id
 
     pending: list<message>     # persists across reconnects -- field, not local
 
@@ -724,7 +728,7 @@ class HTTPClient extends Client:
                 while upstream_queue.has_items() and len(pending) < MAX_BATCH_SIZE:
                     pending.append(upstream_queue.dequeue_nowait())
 
-            batch = [CheckInMessage(messenger_id=self.identifier)]
+            batch = [CheckInMessage(client_id=self.identifier)]
             batch.extend(pending)
 
             payload = serialize_messages(batch, encryption_key)
@@ -764,7 +768,7 @@ class HTTPClient extends Client:
 # ============================================================================
 
 class RemotePortForwarder:
-    messenger: Client
+    parent: Client
     identifier: string
     server: tcp_listener
     listening_host: string
@@ -772,8 +776,8 @@ class RemotePortForwarder:
     destination_host: string
     destination_port: int
 
-    function constructor(messenger, identifier, listening_host, listening_port, destination_host, destination_port):
-        self.messenger        = messenger
+    function constructor(parent, identifier, listening_host, listening_port, destination_host, destination_port):
+        self.parent           = parent
         self.identifier       = identifier
         self.listening_host   = listening_host
         self.listening_port   = listening_port
@@ -791,11 +795,11 @@ class RemotePortForwarder:
             # resolution failure=4, anything else=1.
             return map_bind_error(bind_error)
 
-        if messenger.killed:
+        if parent.killed:
             server.close()
             return 1
 
-        messenger.remote_port_forwarders.append(self)
+        parent.remote_port_forwarders.append(self)
         // Publish before starting the accept loop. From this point forward the
         // forwarder owns its cleanup and list removal.
         _ = accept_loop()
@@ -814,16 +818,16 @@ class RemotePortForwarder:
             await cleanup()
 
     function cleanup():
-        if messenger.remote_port_forwarders.remove(self) failed:
+        if parent.remote_port_forwarders.remove(self) failed:
             return
             // List removal is the once-only cleanup guard. stop() never removes
             // the forwarder; it closes the listener and this finally owns the
             // rest of the forwarder's cleanup.
 
-        messenger.close_connections_for_bind(identifier)
+        parent.close_connections_for_bind(identifier)
 
-        if not messenger.killed:
-            await messenger.send_upstream_message(InitiateBINDRep(
+        if not parent.killed:
+            await parent.send_upstream_message(InitiateBINDRep(
                 bind_id = self.identifier, listening_host = self.listening_host,
                 listening_port = self.listening_port, reason = 5))
 
@@ -841,13 +845,13 @@ class RemotePortForwarder:
         cleanup()              // omit if accept_loop's finally is immediate
 
     function handle_client(accepted_socket):
-        if messenger.killed OR self not in messenger.remote_port_forwarders:
+        if parent.killed OR self not in parent.remote_port_forwarders:
             abort_socket(accepted_socket)
             return
 
         client_id = alphanumeric_identifier(10)
 
-        connection = messenger.register_tcp_client(
+        connection = parent.register_tcp_client(
             client_id,
             accepted_socket,
             bind_id = self.identifier
@@ -855,7 +859,7 @@ class RemotePortForwarder:
         if connection is null:
             return
 
-        if self not in messenger.remote_port_forwarders:
+        if self not in parent.remote_port_forwarders:
             connection.abort()
             return
         // Register BEFORE sending the request.
@@ -875,14 +879,14 @@ class RemotePortForwarder:
             listening_host = self.listening_host,   # so the server maps this
             listening_port = self.listening_port    # connection to THIS exact RPF
         )
-        await messenger.send_upstream_message(request)
+        await parent.send_upstream_message(request)
 
         // Stream is NOT started here. The dispatch_message handler for
         // InitiateTCPClientRep (reason=0) resumes the socket and
         // starts stream(). If the server denies (reason!=0), the socket
         // is removed and closed there.
 
-        // Messenger owns the connection in its global map. bind_id associates
+        // The client owns the connection in its global map. bind_id associates
         // it with this RPF so cleanup can close the group without a second list.
 
 
@@ -964,7 +968,7 @@ function main():
 
     disable_tls_certificate_validation()
     // All transports accept self-signed certs. This is intentional --
-    // Messenger is deployed in pentest environments where cert chains
+    // Deployed in pentest environments where cert chains
     // are not available.
 
     # --- Scheme splitting ---
@@ -996,7 +1000,7 @@ function main():
             break
         catch DecryptionError:
             log("[!] Decryption failed -- the encryption key is likely incorrect. "
-                "The messenger cannot decrypt server traffic and is stopping.")
+                "Cannot decrypt server traffic and is stopping.")
             return
             // Fatal: a wrong key fails identically on every scheme and every
             // reconnect, so do NOT try the next scheme or enter retry logic.
@@ -1018,7 +1022,7 @@ function main():
             await client.start()
         catch DecryptionError:
             log("[!] Decryption failed -- the encryption key is likely incorrect. "
-                "The messenger cannot decrypt server traffic and is stopping.")
+                "Cannot decrypt server traffic and is stopping.")
             return
         catch error:
             log("[!] Disconnected: {error}")
@@ -1056,7 +1060,7 @@ function main():
 
             catch DecryptionError:
                 log("[!] Decryption failed -- the encryption key is likely incorrect. "
-                    "The messenger cannot decrypt server traffic and is stopping.")
+                    "Cannot decrypt server traffic and is stopping.")
                 return
                 // Fatal: reconnecting cannot fix a wrong key. Stop the loop.
             catch error:

@@ -375,3 +375,5 @@ class WebSocketMessenger(Messenger):
                 self._pending.clear()
             except Exception:
                 break
+        if not self.websocket.closed:
+            await self.websocket.close()

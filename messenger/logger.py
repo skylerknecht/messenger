@@ -68,7 +68,7 @@ class Logger:
             'output': output,
         })
 
-    def record_message(self, direction, messenger_id, message):
+    def record_message(self, direction, client_id, message):
         values = {}
         for key, value in message._asdict().items():
             if isinstance(value, (bytes, bytearray)):
@@ -78,7 +78,7 @@ class Logger:
         self._append(self.message_path, {
             'timestamp': self.now(),
             'direction': direction,
-            'messenger_id': messenger_id,
+            'client_id': client_id,
             'message_type': type(message).__name__,
             'values': values,
         })

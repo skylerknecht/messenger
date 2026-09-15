@@ -9,7 +9,7 @@ from messenger.aes import decrypt, encrypt
 # 1. Named Tuple Definitions
 # ---------------------------
 
-CheckInMessage = namedtuple('CheckInMessage', ['messenger_id'])
+CheckInMessage = namedtuple('CheckInMessage', ['client_id'])
 InitiateTCPClientReq = namedtuple('InitiateTCPClientReq', ['client_id', 'destination_host', 'destination_port', 'listening_host', 'listening_port'], defaults=['', 0])
 InitiateTCPClientRep = namedtuple('InitiateTCPClientRep', ['client_id', 'bind_address', 'bind_port', 'address_type', 'reason', 'remote_addr', 'remote_port'], defaults=['', 0])
 SendDataMessage = namedtuple('SendDataMessage', ['client_id', 'data'])
@@ -52,10 +52,10 @@ class MessageParser:
     def parse_check_in(value: bytes) -> CheckInMessage:
         """
         Given decrypted bytes for a 0x04 message,
-        read the messenger_id string into a CheckInMessage.
+        read the client_id string into a CheckInMessage.
         """
-        messenger_id, _ = MessageParser.read_string(value)
-        return CheckInMessage(messenger_id=messenger_id)
+        client_id, _ = MessageParser.read_string(value)
+        return CheckInMessage(client_id=client_id)
 
     @staticmethod
     def parse_initiate_tcp_client_req(value: bytes) -> InitiateTCPClientReq:
@@ -233,7 +233,7 @@ class MessageBuilder:
         elif isinstance(msg, CheckInMessage):
             message_type = 0x04
             value = MessageBuilder.build_check_in_message(
-                msg.messenger_id
+                msg.client_id
             )
         elif isinstance(msg, InitiateBINDReq):
             message_type = 0x05
@@ -281,8 +281,8 @@ class MessageBuilder:
         return struct.pack('!I', len(encoded)) + encoded
 
     @staticmethod
-    def build_check_in_message(messenger_id: str) -> bytes:
-        return MessageBuilder.build_string(messenger_id)
+    def build_check_in_message(client_id: str) -> bytes:
+        return MessageBuilder.build_string(client_id)
 
     @staticmethod
     def build_initiate_tcp_client_req(client_id: str,
