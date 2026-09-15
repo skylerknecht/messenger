@@ -7,12 +7,14 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-TEMPLATE = ROOT / "builder/clients/python/templates/messenger-client.py"
+TEMPLATE = ROOT / "builder/clients/python/templates/client.py"
 
 
 def load_client_module():
     """Load the client classes without Jinja2 or running main()."""
+    import re
     source = TEMPLATE.read_text(encoding="utf-8").split("## Arg Parsing", 1)[0]
+    source = re.sub(r'{%.*?%}\n?', '', source)
     source = source.replace('"{{ server_url }}"', '"http://127.0.0.1"')
     source = source.replace('"{{ encryption_key }}"', '"test-key"')
     source = source.replace('"{{ user_agent }}"', '"test-agent"')

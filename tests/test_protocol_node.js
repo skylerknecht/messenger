@@ -6,7 +6,7 @@ const vm = require('vm');
 const { EventEmitter } = require('events');
 
 const ROOT = path.resolve(__dirname, '..');
-const TEMPLATE = path.join(ROOT, 'builder/clients/nodejs/templates/messenger-client.js');
+const TEMPLATE = path.join(ROOT, 'builder/clients/nodejs/templates/client.js');
 
 function renderElectronPrefix(source) {
   source = source.split('/* ARG PARSING */', 1)[0];

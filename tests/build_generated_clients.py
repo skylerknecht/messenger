@@ -44,8 +44,8 @@ def main():
     output = args.output_dir.resolve()
     output.mkdir(parents=True, exist_ok=True)
 
-    python_client = output / "messenger-client.py"
-    node_client = output / "messenger-client.js"
+    python_client = output / "client.py"
+    node_client = output / "client.js"
     csharp_project = output / "ServiceClient"
     common = [
         "--server-url", "unused.invalid:1",
