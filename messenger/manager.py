@@ -112,7 +112,7 @@ class Manager:
             'scans': (self.print_scanners, "Display a list of scanners in a table format."),
             'interact': (self.interact, "Interact with a messenger."),
             'rename': (self.rename, "Rename a messenger, forwarder, or scanner."),
-            'stop': (self.stop, "Stop a forwarder or a scanner."),
+            'stop': (self.stop, "Stop a forwarder, scanner, or 'all'."),
             'kill': (self.kill, "Kill a messenger."),
             'help': (self.print_help, "Display this help message."),
             '?': (self.print_help, "Display this help message but with fewer characters."),
@@ -574,7 +574,7 @@ class Manager:
           forwarders
           forwarders NkMCyCrrcP
         """
-        columns = ["Type", "Name", "Clients", "Listening Host", "Listening Port", "Destination Host", "Destination Port"]
+        columns = ["ID", "Type", "Name", "Messenger", "Clients", "Listening", "Destination"]
         items = []
 
         if len(self.messengers) == 0:
@@ -590,31 +590,23 @@ class Manager:
                 continue
             for forwarder in messenger.forwarders:
                 if isinstance(forwarder, RemotePortForwarder):
-                    colored_id = color_text(forwarder.nickname, 'cyan')
+                    colored_name = color_text(forwarder.nickname, 'cyan')
                 elif forwarder.destination_host == '*' and forwarder.destination_port == '*':
-                    colored_id = color_text(forwarder.nickname, 'blue')
+                    colored_name = color_text(forwarder.nickname, 'blue')
                 else:
-                    colored_id = color_text(forwarder.nickname, 'green')
+                    colored_name = color_text(forwarder.nickname, 'green')
 
-                streaming_clients = [
-                    client
-                    for client in forwarder.clients
-                ]
-
-                # An orphan RPF (advertised by the client, no destination set
-                # yet) shows as unconfigured until the operator runs `remote`.
                 orphan = isinstance(forwarder, RemotePortForwarder) and forwarder.is_orphan
-                dest_host = '•••' if orphan else forwarder.destination_host
-                dest_port = '•••' if orphan else forwarder.destination_port
+                dest = '•••' if orphan else f'{forwarder.destination_host}:{forwarder.destination_port}'
 
                 items.append({
+                    "ID": forwarder.identifier,
                     "Type": forwarder.NAME,
-                    "Name": colored_id,
-                    "Clients": len(streaming_clients),
-                    "Listening Host": forwarder.listening_host,
-                    "Listening Port": forwarder.listening_port,
-                    "Destination Host": dest_host,
-                    "Destination Port": dest_port,
+                    "Name": colored_name,
+                    "Messenger": messenger.nickname,
+                    "Clients": len(forwarder.clients),
+                    "Listening": f'{forwarder.listening_host}:{forwarder.listening_port}',
+                    "Destination": dest,
                 })
         if len(items) == 0:
             if messenger_id:
@@ -995,16 +987,50 @@ class Manager:
         self.current_messenger.scanners.append(scanner)
         asyncio.create_task(scanner.start())
 
-    async def stop(self, id):
+    async def stop(self, id, messenger_id=None):
         """
-        Stop a forwarder or scanner by ID.
+        Stop a forwarder or scanner by ID, or stop all with 'all'.
 
         required:
-          id                       ID of the forwarder or scanner to stop.
+          id                       ID of the forwarder/scanner, or 'all'.
+
+        optional:
+          messenger_id             Messenger ID (required for 'all' when not interacting).
 
         examples:
           stop NkMCyCrrcP
+          stop all
+          stop all NkMCyCrrcP
         """
+        if id == 'all':
+            messenger = None
+            if messenger_id:
+                messenger = next((m for m in self.messengers if messenger_id in (m.identifier, m.nickname)), None)
+                if not messenger:
+                    self.update_cli.display(f'Messenger `{messenger_id}` not found.', 'error', reprompt=False)
+                    return
+            elif self.current_messenger:
+                messenger = self.current_messenger
+            else:
+                self.update_cli.display('Specify a messenger ID or interact with one first.', 'error', reprompt=False)
+                return
+            count = 0
+            while messenger.forwarders:
+                target = messenger.forwarders.pop(0)
+                if isinstance(target, RemotePortForwarder) and not target.forwarding:
+                    target.close_all_clients()
+                else:
+                    await target.stop()
+                count += 1
+            for scanner in list(messenger.scanners):
+                await scanner.stop()
+                count += 1
+            if count == 0:
+                self.update_cli.display('No forwarders or scanners to stop.', 'information', reprompt=False)
+            else:
+                self.update_cli.display(f'Stopped {count} forwarder(s)/scanner(s).', 'information', reprompt=False)
+            return
+
         for messenger in self.messengers:
             # Claim the forwarder atomically (pop before any await) so a
             # concurrent BindRep handler can't also act on it.
@@ -1015,9 +1041,6 @@ class Manager:
                     break
             if target is not None:
                 if isinstance(target, RemotePortForwarder) and not target.forwarding:
-                    # Never confirmed by the client -- just drop it, send no
-                    # signal. Race-safe: a late BindRep for it simply comes back
-                    # as an orphan we can re-adopt.
                     target.close_all_clients()
                     self.update_cli.display(
                         f'Removed unconfirmed remote port forward `{target.nickname}`.',

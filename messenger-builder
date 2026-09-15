@@ -11,8 +11,6 @@ from messenger import BANNER
 import builder.clients as _clients  # anchor to installed builder.clients
 
 CLIENTS_DIR = Path(_clients.__file__).resolve().parent
-LANG_MODULES = ("python", "csharp", "nodejs", "ruby")
-
 def update_submodules(branch="main"):
     repo_path = Path.cwd()
     commands = [
@@ -89,10 +87,14 @@ def main(banner):
         formatter_class=argparse.RawTextHelpFormatter,
         usage=None,
     )
-    subparsers = parser.add_subparsers(dest="language", required=True)
+    subparsers = parser.add_subparsers(dest="language")
     available = discover_and_register_languages(subparsers)
 
     args = parser.parse_args()
+
+    if not args.language:
+        parser.print_help()
+        sys.exit(0)
 
     if not hasattr(args, "func"):
         found = ", ".join(sorted(available.keys())) or "none"

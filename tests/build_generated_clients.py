@@ -54,9 +54,9 @@ def main():
         "--retry-duration", "12",
         "--retry-attempts", "4",
     ]
-    run([sys.executable, ROOT / "messenger-builder", "python", "--name", python_client, "--no-obfuscate", *common])
-    run([sys.executable, ROOT / "messenger-builder", "nodejs", "--name", node_client, *common])
-    run([sys.executable, ROOT / "messenger-builder", "csharp", "--name", csharp_project, *common])
+    run([sys.executable, ROOT / "messenger-builder", "python", "--name", python_client, "--no-compile", *common])
+    run([sys.executable, ROOT / "messenger-builder", "nodejs", "--name", node_client, "--no-compile", *common])
+    run([sys.executable, ROOT / "messenger-builder", "csharp", "--name", csharp_project, "--no-compile", *common])
 
     if args.target_framework == "net8.0":
         retarget_net8(csharp_project)
