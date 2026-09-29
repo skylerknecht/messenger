@@ -96,7 +96,7 @@ class LocalTcpClient(TcpClient):
         if rep != 0:
             self._cleanup(abort=True)
             return
-        asyncio.create_task(self.stream())
+        self.messenger.supervisor.spawn(self.stream(), label=f'stream:{self.identifier}')
 
 class RemoteTcpClient(TcpClient):
     def __init__(self, identifier, reader, writer, messenger, on_close):
@@ -104,7 +104,7 @@ class RemoteTcpClient(TcpClient):
         self.identifier = identifier
 
     async def initiate_tcp_client(self):
-        asyncio.create_task(self.stream())
+        self.messenger.supervisor.spawn(self.stream(), label=f'stream:{self.identifier}')
 
 class SocksTcpClient(LocalTcpClient):
     def __init__(self, reader, writer, messenger, on_close):
@@ -126,7 +126,7 @@ class SocksTcpClient(LocalTcpClient):
         socks_connect_results = self.create_socks_reply(rep, bind_addr, bind_port, atype)
         await self.send_data(socks_connect_results, cleanup=(rep != 0))
         if rep == 0:
-            asyncio.create_task(self.stream())
+            self.messenger.supervisor.spawn(self.stream(), label=f'stream:{self.identifier}')
 
     @staticmethod
     def create_socks_reply(rep, bind_addr, bind_port, atype):

@@ -1001,7 +1001,7 @@ class Manager:
 
         scanner = Scanner(ips, ports, int(top_ports), self.update_cli, self.current_messenger, int(concurrency))
         self.current_messenger.scanners.append(scanner)
-        asyncio.create_task(scanner.start())
+        self.current_messenger.supervisor.spawn(scanner.start(), label=f'scanner:{scanner.identifier}')
 
     async def stop(self, id):
         """

@@ -216,7 +216,7 @@ class Scanner:
             f"Starting scan `{self.nickname}` at {readable} with a concurrency of `{self.concurrency}`.", 'information',
         )
 
-        self._workers = [asyncio.create_task(self._scan_worker()) for _ in range(self.concurrency)]
+        self._workers = [self.messenger.supervisor.spawn(self._scan_worker(), label=f'scan_worker:{self.identifier}') for _ in range(self.concurrency)]
         await asyncio.gather(*self._workers)
 
         self.update_cli.display(

@@ -94,5 +94,7 @@ class HTTPWSServer:
         finally:
             if messenger.websocket is ws:
                 await messenger.cancel_send_task()
+                if messenger.checked_out:
+                    await messenger.supervisor.cancel_all()
 
         return ws
