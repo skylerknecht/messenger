@@ -292,6 +292,7 @@ jobs:
 
       - name: Fail if any test step failed
         if: always()
+        shell: bash
         run: |
           if [ "${{ steps.builders.outcome }}" = "failure" ] ||
              [ "${{ steps.protocol_python.outcome }}" = "failure" ] ||

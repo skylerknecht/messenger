@@ -72,7 +72,11 @@ class FakeWebSocket {
     this.sent.push(Buffer.from(data));
     const sendError = FakeWebSocket.nextSendError;
     FakeWebSocket.nextSendError = null;
-    if (callback) queueMicrotask(() => callback(sendError));
+    if (callback) {
+      queueMicrotask(() => callback(sendError));
+    } else if (sendError) {
+      throw sendError;
+    }
     if (FakeWebSocket.nextServerFrame) {
       const frame = FakeWebSocket.nextServerFrame;
       FakeWebSocket.nextServerFrame = null;
