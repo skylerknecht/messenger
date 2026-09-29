@@ -832,6 +832,8 @@ class Manager:
                     self.update_cli.display(f"CTRL+C caught, type `exit` to quit Messenger.", 'information',
                                             reprompt=False)
                     continue
+                except EOFError:
+                    break
 
                 if not user_input.strip():
                     continue

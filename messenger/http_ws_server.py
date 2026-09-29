@@ -86,11 +86,9 @@ class HTTPWSServer:
 
         try:
             async for msg in ws:
-                try:
-                    await self.engine.send_messages_upstream(msg.data)
-                except Exception as e:
-                    self.update_cli.log_unexpected_error(e)
-                    continue
+                await self.engine.send_messages_upstream(msg.data)
+        except Exception as e:
+            self.update_cli.log_unexpected_error(e)
         finally:
             if messenger.websocket is ws:
                 await messenger.cancel_send_task()
