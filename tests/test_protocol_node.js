@@ -10,16 +10,18 @@ const TEMPLATE = path.join(ROOT, 'builder/clients/nodejs/templates/client.js');
 
 function renderElectronPrefix(source) {
   source = source.split('/* ARG PARSING */', 1)[0];
+  const vars = { electron: false };
   const output = [];
   const stack = [];
   for (const line of source.split(/\r?\n/)) {
     const directive = line.trim();
-    if (directive === '{% if electron %}') {
-      stack.push(false);
+    let m;
+    if ((m = directive.match(/^\{%\s*if\s+not\s+(\w+)\s*%\}$/))) {
+      stack.push(!vars[m[1]]);
       continue;
     }
-    if (directive === '{% if not electron %}') {
-      stack.push(true);
+    if ((m = directive.match(/^\{%\s*if\s+(\w+)\s*%\}$/))) {
+      stack.push(!!vars[m[1]]);
       continue;
     }
     if (directive === '{% else %}') {
@@ -101,7 +103,7 @@ const context = vm.createContext({
   queueMicrotask,
 });
 const source = renderElectronPrefix(fs.readFileSync(TEMPLATE, 'utf8'))
-  .replace('const MAX_BATCH_SIZE = 100', 'const MAX_BATCH_SIZE = 3');
+  + '\nconst MAX_BATCH_SIZE = 3;\n';
 vm.runInContext(source + `
 globalThis.__clientExports = {
   Client, WSClient, HTTPClient, MessageBuilder, DecryptionError,

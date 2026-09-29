@@ -225,7 +225,7 @@ class Scanner:
                 f"Scanner `{self.nickname}` stopped: {failed} worker(s) failed unexpectedly.",
                 'warning',
             )
-        else:
+        elif not any(isinstance(r, asyncio.CancelledError) for r in results):
             self.update_cli.display(
                 f"Scanner `{self.nickname}` finished sending all scan attempts.", 'information',
             )
