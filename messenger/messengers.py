@@ -11,6 +11,7 @@ from messenger.message import (
     InitiateBINDRep
 )
 from messenger.forwarders import RemotePortForwarder
+from messenger.supervisor import TaskSupervisor
 from messenger.text import color_text
 
 class Messenger:
@@ -25,6 +26,7 @@ class Messenger:
         self._nickname = None
         self.checked_out = False
         self.update_cli = update_cli
+        self.supervisor = TaskSupervisor(update_cli)
         self.forwarders = []
         self.scanners = []
         self.downstream_messages = asyncio.Queue()
@@ -372,7 +374,7 @@ class WebSocketMessenger(Messenger):
         await super().send_message_downstream(message)
 
     def start_send_loop(self):
-        self._send_task = asyncio.create_task(self._send_loop())
+        self._send_task = self.supervisor.spawn(self._send_loop(), label='send_loop')
 
     async def _send_loop(self):
         try:

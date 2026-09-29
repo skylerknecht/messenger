@@ -64,7 +64,7 @@ class BuilderTests(unittest.TestCase):
                     direct = base / f"direct-{language}{suffix}"
                     extra = []
                     if language == "python":
-                        extra = ["--non-main-thread", "--no-obfuscate"]
+                        extra = ["--non-main-thread"]
                     elif language == "nodejs":
                         extra = ["--electron"]
 
@@ -113,9 +113,9 @@ class BuilderTests(unittest.TestCase):
             "retry_duration", "retry_attempts",
         }
         expected_extra = {
-            "python": {"non_main_thread", "no_obfuscate"},
-            "nodejs": {"electron"},
-            "csharp": set(),
+            "python": {"non_main_thread", "no_compile", "no_print", "exit_on_close"},
+            "nodejs": {"electron", "no_compile", "no_print", "exit_on_close"},
+            "csharp": {"no_compile", "no_print", "exit_on_close"},
         }
         for language in LANGUAGES:
             with self.subTest(language=language):

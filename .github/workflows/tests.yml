@@ -285,3 +285,18 @@ jobs:
           path: |
             .conformance-artifacts/
             .conformance-results/
+
+      - name: Fail if any test step failed
+        if: always()
+        run: |
+          if [ "${{ steps.builders.outcome }}" = "failure" ] ||
+             [ "${{ steps.protocol_python.outcome }}" = "failure" ] ||
+             [ "${{ steps.protocol_node.outcome }}" = "failure" ] ||
+             [ "${{ steps.generate.outcome }}" = "failure" ] ||
+             [ "${{ steps.syntax.outcome }}" = "failure" ] ||
+             [ "${{ steps.protocol_csharp.outcome }}" = "failure" ] ||
+             [ "${{ steps.runtime_args.outcome }}" = "failure" ] ||
+             [ "${{ steps.e2e.outcome }}" = "failure" ]; then
+            echo "One or more test steps failed."
+            exit 1
+          fi

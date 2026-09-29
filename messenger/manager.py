@@ -316,11 +316,18 @@ class Manager:
 
         return wrapper
 
-    @staticmethod
-    async def exit():
+    async def exit(self):
         """
         Exit the application, stopping the messenger server.
         """
+        for messenger in self.messengers:
+            messenger.checked_out = True
+            while messenger.forwarders:
+                fw = messenger.forwarders.pop(0)
+                await fw.stop()
+            for scanner in list(messenger.scanners):
+                await scanner.stop()
+            await messenger.supervisor.cancel_all()
         print('\rMessenger Server stopped.')
         sys.exit(0)
 
@@ -985,7 +992,7 @@ class Manager:
 
         scanner = Scanner(ips, ports, int(top_ports), self.update_cli, self.current_messenger, int(concurrency))
         self.current_messenger.scanners.append(scanner)
-        asyncio.create_task(scanner.start())
+        self.current_messenger.supervisor.spawn(scanner.start(), label=f'scanner:{scanner.identifier}')
 
     async def stop(self, id, messenger_id=None):
         """
@@ -1017,10 +1024,7 @@ class Manager:
             count = 0
             while messenger.forwarders:
                 target = messenger.forwarders.pop(0)
-                if isinstance(target, RemotePortForwarder) and not target.forwarding:
-                    target.close_all_clients()
-                else:
-                    await target.stop()
+                await target.stop()
                 count += 1
             for scanner in list(messenger.scanners):
                 await scanner.stop()
@@ -1040,18 +1044,7 @@ class Manager:
                     target = messenger.forwarders.pop(i)
                     break
             if target is not None:
-                if isinstance(target, RemotePortForwarder) and not target.forwarding:
-                    target.close_all_clients()
-                    self.update_cli.display(
-                        f'Removed unconfirmed remote port forward `{target.nickname}`.',
-                        'information', reprompt=False
-                    )
-                else:
-                    await target.stop()
-                    self.update_cli.display(
-                        f'Removed `{target.nickname}` from forwarders.',
-                        'information', reprompt=False
-                    )
+                await target.stop()
                 return
             for scanner in messenger.scanners:
                 if id not in (scanner.identifier, scanner.nickname):
@@ -1088,6 +1081,11 @@ class Manager:
                 self.update_cli.display(f'`{id}` not found.', 'error', reprompt=False)
                 return
         target.checked_out = True
+        while target.forwarders:
+            fw = target.forwarders.pop(0)
+            await fw.stop()
+        for scanner in list(target.scanners):
+            await scanner.stop()
         await target.send_message_downstream(CheckOutMessage())
         self.update_cli.display(
             f'Queued kill signal for Messenger `{target.nickname}`.',

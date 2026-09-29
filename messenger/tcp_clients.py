@@ -103,7 +103,7 @@ class LocalTcpClient(TcpClient):
     async def initiate_tcp_client(self):
         try:
             await self.send_initiate_tcp_client_req()
-            asyncio.create_task(self.stream())
+            self.messenger.supervisor.spawn(self.stream(), label=f'stream:{self.identifier}')
         except Exception as e:
             self.messenger.update_cli.log_unexpected_error(e)
             self._cleanup()
@@ -129,7 +129,7 @@ class RemoteTcpClient(TcpClient):
 
     async def initiate_tcp_client(self):
         self.confirm()
-        asyncio.create_task(self.stream())
+        self.messenger.supervisor.spawn(self.stream(), label=f'stream:{self.identifier}')
 
 class SocksTcpClient(LocalTcpClient):
     def __init__(self, reader, writer, messenger, on_close):
@@ -144,7 +144,7 @@ class SocksTcpClient(LocalTcpClient):
             if not await self.negotiate_address():
                 return self._cleanup()
             await self.send_initiate_tcp_client_req()
-            asyncio.create_task(self.stream())
+            self.messenger.supervisor.spawn(self.stream(), label=f'stream:{self.identifier}')
         except Exception as e:
             self.messenger.update_cli.log_unexpected_error(e)
             self._cleanup()
