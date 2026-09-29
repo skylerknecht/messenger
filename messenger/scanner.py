@@ -188,26 +188,31 @@ class Scanner:
             )
 
     async def _scan_worker(self):
-        while True:
-            if self.messenger.checked_out:
-                return
-            async with self._gen_lock:
-                try:
-                    ip, port = next(self._scan_gen)
-                except StopIteration:
+        try:
+            while True:
+                if not self.messenger.connected:
                     return
+                async with self._gen_lock:
+                    try:
+                        ip, port = next(self._scan_gen)
+                    except StopIteration:
+                        return
 
-            await self._semaphore.acquire()
-            identifier = alphanumeric_identifier()
-            self.scans[identifier] = ScanResult(identifier, ip, port, None)
+                await self._semaphore.acquire()
+                identifier = alphanumeric_identifier()
+                self.scans[identifier] = ScanResult(identifier, ip, port, None)
 
-            msg = InitiateTCPClientReq(
-                client_id=identifier,
-                destination_host=ip,
-                destination_port=port
-            )
-            await self.messenger.send_message_downstream(msg)
-            await asyncio.sleep(1)
+                msg = InitiateTCPClientReq(
+                    client_id=identifier,
+                    destination_host=ip,
+                    destination_port=port
+                )
+                await self.messenger.send_message_downstream(msg)
+                await asyncio.sleep(1)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            self.update_cli.log_unexpected_error(e)
 
     async def start(self):
         self.start_time = time.time()
@@ -216,8 +221,13 @@ class Scanner:
             f"Starting scan `{self.nickname}` at {readable} with a concurrency of `{self.concurrency}`.", 'information',
         )
 
-        self._workers = [asyncio.create_task(self._scan_worker()) for _ in range(self.concurrency)]
-        await asyncio.gather(*self._workers)
+        try:
+            self._workers = [asyncio.create_task(self._scan_worker()) for _ in range(self.concurrency)]
+            await asyncio.gather(*self._workers)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            self.update_cli.log_unexpected_error(e)
 
         self.update_cli.display(
             f"Scanner `{self.nickname}` finished sending all scan attempts.", 'information',

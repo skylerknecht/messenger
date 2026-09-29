@@ -30,7 +30,11 @@ class Engine:
                 break
             try:
                 remaining_data, message = MessageParser.deserialize_message(self.encryption_key, data)
-            except Exception:
+            except Exception as e:
+                self.update_cli.display(
+                    f'Failed to deserialize message ({type(e).__name__}), skipping remaining {len(data)} bytes.',
+                    'warning', reprompt=False, display_module='handlers'
+                )
                 break
             messages.append(message)
             data = remaining_data

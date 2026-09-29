@@ -103,12 +103,15 @@ class LocalPortForwarder(Forwarder):
             break
 
     async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-        if self.stopped or self.messenger.checked_out:
-            writer.close()
-            return
-        client = LocalTcpClient(self.destination_host, self.destination_port, reader, writer, self.messenger, self.on_close)
-        self.clients.append(client)
-        await client.initiate_tcp_client()
+        try:
+            if self.stopped or not self.messenger.connected:
+                writer.close()
+                return
+            client = LocalTcpClient(self.destination_host, self.destination_port, reader, writer, self.messenger, self.on_close)
+            self.clients.append(client)
+            await client.initiate_tcp_client()
+        except Exception as e:
+            self.update_cli.log_unexpected_error(e)
 
     def parse_config(self, config):
         parts = self._split_config(config)
@@ -167,10 +170,10 @@ class LocalPortForwarder(Forwarder):
 
         for client in list(self.clients):
             client_id = client.identifier
-            if client._cleanup(abort=True):
-                await self.messenger.send_message_downstream(
-                    SendDataMessage(client_id=client_id, data=b'')
-                )
+            client.deny()
+            await self.messenger.send_message_downstream(
+                SendDataMessage(client_id=client_id, data=b'')
+            )
 
         self.update_cli.display(
             f'Messenger `{self.messenger.nickname}` stopped {self.NAME} ({self._endpoint_str()}).',
@@ -186,12 +189,15 @@ class SocksProxy(LocalPortForwarder):
         super().__init__(messenger, config, update_cli)
 
     async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-        if self.stopped or self.messenger.checked_out:
-            writer.close()
-            return
-        client = SocksTcpClient(reader, writer, self.messenger, self.on_close)
-        self.clients.append(client)
-        await client.initiate_tcp_client()
+        try:
+            if self.stopped or not self.messenger.connected:
+                writer.close()
+                return
+            client = SocksTcpClient(reader, writer, self.messenger, self.on_close)
+            self.clients.append(client)
+            await client.initiate_tcp_client()
+        except Exception as e:
+            self.update_cli.log_unexpected_error(e)
 
     def parse_config(self, config):
         parts = self._split_config(config)
@@ -252,7 +258,7 @@ class RemotePortForwarder(Forwarder):
         pass
 
     async def handle_initiate_tcp_client_req(self, message):
-        if self.stopped or self.messenger.checked_out:
+        if self.stopped or not self.messenger.connected:
             return
         if self.is_orphan:
             # No destination set -- deny; the operator must configure it first.
@@ -269,7 +275,7 @@ class RemotePortForwarder(Forwarder):
                 timeout=5
             )
 
-            if self.stopped or self.messenger.checked_out:
+            if self.stopped or not self.messenger.connected:
                 writer.close()
                 return
 

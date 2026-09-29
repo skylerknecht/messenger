@@ -205,15 +205,19 @@ async function test(name, body) {
     assert(!client.tcpClients.has('T'));
   });
 
-  await test('successful TCP reply resumes waiting RPF socket', async () => {
+  await test('successful TCP reply flushes buffer and confirms', async () => {
     const client = new RecordingClient();
     const socket = new FakeSocket();
+    socket._buffer = [Buffer.from('buffered')];
+    socket._confirmed = false;
     client.tcpClients.set('T', socket);
-    await client.dispatchMessage({
+    client.dispatchMessage({
       kind: 'InitiateTCPClientRep', client_id: 'T', reason: 0
     });
-    assert(socket.resumed);
+    assert(socket._confirmed);
+    assert.strictEqual(socket._buffer.length, 0);
     assert(client.tcpClients.has('T'));
+    assert(client.sent.some(m => m.kind === 'SendDataMessage' && m.client_id === 'T' && Buffer.from(m.data).toString() === 'buffered'));
   });
 
   await test('real bind then same-ID stop finishes stopped', async () => {

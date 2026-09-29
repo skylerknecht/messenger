@@ -140,24 +140,21 @@ class PythonReachableMessageTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(writer.closed)
         self.assertNotIn("T", client.tcp_clients)
 
-    async def test_successful_tcp_reply_resumes_then_streams(self):
+    async def test_successful_tcp_reply_flushes_buffer_and_confirms(self):
         client = RecordingClient()
         writer = FakeWriter()
-        writer.transport.paused = True
-        client.tcp_clients["T"] = M.TcpClient(EOFReader(), writer, "B")
+        tcp_client = M.TcpClient(EOFReader(), writer, "B")
+        tcp_client.buffer.append(b"buffered")
+        client.tcp_clients["T"] = tcp_client
 
         await client.dispatch_message(M.InitiateTCPClientRep(
             "T", "0.0.0.0", 0, 1, 0, "", 0
         ))
-        for _ in range(20):
-            if "T" not in client.tcp_clients:
-                break
-            await asyncio.sleep(0)
 
-        self.assertFalse(writer.transport.paused)
-        self.assertTrue(writer.closed)
+        self.assertTrue(tcp_client.confirmed)
+        self.assertEqual(tcp_client.buffer, [])
         self.assertTrue(any(
-            isinstance(message, M.SendDataMessage) and message.client_id == "T" and message.data == b""
+            isinstance(message, M.SendDataMessage) and message.client_id == "T" and message.data == b"buffered"
             for message in client.sent
         ))
 

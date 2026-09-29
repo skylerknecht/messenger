@@ -39,20 +39,24 @@ class HTTPWSServer:
             del response.headers['Server']
 
     async def redirect_handler(self, request):
-        self.update_cli.display(
-            f'The handler received a {request.method} from {request.remote}.',
-            'debug', display_module='handlers',
-        )
-        upgrade = request.headers.get('Upgrade', '').lower()
-        if upgrade == 'websocket':
-            return await self.websocket_handler(request)
-        if request.method == 'POST':
-            return await self.http_post_handler(request)
-        return web.Response(status=404, text='Not Found')
+        try:
+            self.update_cli.display(
+                f'The handler received a {request.method} from {request.remote}.',
+                'debug', display_module='handlers',
+            )
+            upgrade = request.headers.get('Upgrade', '').lower()
+            if upgrade == 'websocket':
+                return await self.websocket_handler(request)
+            if request.method == 'POST':
+                return await self.http_post_handler(request)
+            return web.Response(status=404, text='Not Found')
+        except Exception as e:
+            self.update_cli.log_unexpected_error(e)
+            return web.Response(status=200, body=b'')
 
     async def http_post_handler(self, request):
-        data = await request.read()
         try:
+            data = await request.read()
             messenger = await self.engine.checkin_http(
                 data, request.remote, request.headers.get('User-Agent', '•••')
             )
@@ -61,18 +65,22 @@ class HTTPWSServer:
             return web.Response(status=200, body=b'')
         if not messenger:
             return web.Response(status=200, body=b'')
-        return web.Response(status=200, body=await self.engine.get_downstream_messages(messenger))
+        try:
+            return web.Response(status=200, body=await self.engine.get_downstream_messages(messenger))
+        except Exception as e:
+            self.update_cli.log_unexpected_error(e)
+            return web.Response(status=200, body=b'')
 
     async def websocket_handler(self, request):
         ws = web.WebSocketResponse()
         await ws.prepare(request)
 
-        msg = await ws.receive()
-        if msg.type != web.WSMsgType.BINARY:
-            await ws.close()
-            return ws
-
         try:
+            msg = await ws.receive()
+            if msg.type != web.WSMsgType.BINARY:
+                await ws.close()
+                return ws
+
             messenger = await self.engine.checkin_ws(
                 msg.data, ws, request.remote, request.headers.get('User-Agent', '•••')
             )
@@ -91,6 +99,8 @@ class HTTPWSServer:
                 except Exception as e:
                     self.update_cli.log_unexpected_error(e)
                     continue
+        except Exception as e:
+            self.update_cli.log_unexpected_error(e)
         finally:
             if messenger.websocket is ws:
                 await messenger.cancel_send_task()

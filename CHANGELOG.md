@@ -8,6 +8,95 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.10.0] - 2026-09-15
 
+### Spec
+
+#### Changed
+
+- `CheckInMessage.messenger_id` field renamed to `client_id` across all message types, parsers, and builders.
+- OPSEC rule added to `client.pseudo`: client code must not contain identifiers, strings, class names, namespaces, or log messages that reference the project by name.
+- `TcpConnection` field renamed from `messenger` to `parent`.
+- TCP lifecycle rewritten: pause/resume pattern replaced with a confirmation gate. `stream()` blocks on `wait_for(confirmed, timeout)` before reading the socket — no application-level buffer needed, the kernel TCP recv buffer holds data during the gate. `confirm()` unblocks the gate; on failure or timeout, `stream()` cleans up and signals the peer. Timeout is 5 seconds client-side, 10 seconds server-side. Outbound connections (client connecting to a destination at the server's request) are confirmed immediately since there is no pending state.
+
+### Builder
+
+#### Added
+
+- `builder/its.py` — platform predicates (`its.windows`, `its.linux`, `its.darwin`).
+- `--no-compile` flag for all builders — outputs raw source instead of a compiled artifact.
+- `--no-print` flag for all clients — suppresses runtime status messages.
+- `messenger-builder` shows help when invoked with no arguments instead of erroring.
+
+#### Changed
+
+- `builder/its.py` simplified to pure platform predicates — `install_cmd` and dependency-checking logic moved inline to each client builder.
+- Python builder compiles to `.pyc` by default; uses `py_compile.compile()` with `dfile` parameter to strip source paths from bytecode metadata.
+- Node.js builder bundles with Webpack in production mode by default; `devtool: false` and `pathinfo: false` prevent source maps and module path comments in output.
+- C# builder passes `/p:DebugType=none /p:DebugSymbols=false` to `dotnet build`; `.csproj` template sets `EmbedAllSources=false`, `EnableSourceLink=false`, `DeterministicSourcePaths=false`, and `PathMap` to strip PDB paths and source file references.
+- Template files renamed from `messenger-client.*` to `client.*` across all client builders.
+- "Not found" messages changed to `X not found, run the following to install:` with platform-specific commands; install commands are now inline in each builder instead of centralized in `its.py`.
+- .NET install commands updated to curl-based `dotnet-install.sh` for macOS and Linux.
+- Removed dead code: `--no-obfuscate` flag and `LANG_MODULES` constant.
+
+### Server
+
+#### Added
+
+- `Messenger.connected` property — transport-specific connectivity check. `WebSocketMessenger` checks `not checked_out and not websocket.closed`; `HTTPMessenger` checks `not checked_out and last_check_in <= 5s ago`. Forwarders and scanners use this instead of `checked_out` alone to reject work when the messenger is disconnected, not just checked out.
+- `TcpClient._confirmed` (`asyncio.Future`), `confirm()`, and `deny()` methods — confirmation gate for the TCP client lifecycle. `confirm()` resolves the future to `True`; `deny()` resolves to `False` and aborts the socket. `stream()` blocks on `wait_for(self._confirmed, timeout=10)` — timeout or denial returns immediately, confirmed starts reading.
+
+#### Changed
+
+- `CheckInMessage.messenger_id` renamed to `client_id` in engine, logger, and message modules.
+- `stop` command extended with `stop all` — stops all forwarders and scanners on the current messenger; `stop all <messenger_id>` targets a specific messenger.
+- `forwarders` table columns changed from Type / Name / Clients / Listening Host / Listening Port / Destination Host / Destination Port to ID / Type / Name / Messenger / Clients / Listening / Destination — host:port combined, added ID and Messenger columns.
+- Logger `record_message` parameter renamed from `messenger_id` to `client_id`.
+- Forwarder guards (`LocalPortForwarder.handle_client`, `SocksProxy.handle_client`, `RemotePortForwarder.handle_initiate_tcp_client_req`) changed from `self.messenger.checked_out` to `not self.messenger.connected` — rejects new connections when the messenger is disconnected, not just when checked out.
+- Scanner `_scan_worker` guard changed from `self.messenger.checked_out` to `not self.messenger.connected`.
+- `HTTPMessenger.status` now uses the `connected` property for disconnected detection.
+- `LocalTcpClient.initiate_tcp_client` starts `stream()` after sending req — `stream()` blocks on the confirmation gate. `handle_initiate_tcp_client_rep` calls `confirm()` on success, `deny()` on failure.
+- `SocksTcpClient` same pattern — sends SOCKS reply, then `confirm()` on success or `deny()` on failure.
+- `RemoteTcpClient.initiate_tcp_client` calls `confirm()` immediately then starts stream (no pending state for outbound connections).
+- `LocalPortForwarder.stop()` calls `deny()` on each client instead of `_cleanup(abort=True)` — resolves the confirmation future so `stream()` wakes immediately instead of hanging for the full timeout.
+- Forwarder `handle_client` methods, scanner workers, and HTTP/WS handlers wrapped in try/except with `log_unexpected_error` — a single handler failure no longer propagates into the transport or event loop.
+- Scanner workers re-raise `CancelledError` so `stop()` cancellation propagates correctly.
+- Engine `_deserialize` failure now logs a warning with the exception type and remaining byte count instead of silently breaking.
+
+#### Fixed
+
+- WebSocket messenger `_send_loop` now closes the WebSocket on exit when it is still open.
+
+### Clients
+
+#### Added
+
+- C# — Help menu (`-h` / `--help`) and `-e` shorthand for `--encryption-key`.
+- All clients — Connection attempt logging shows remaining schemes (e.g., `Attempting to connect over WS (remaining: WSS, HTTP, HTTPS)`).
+- All clients — RPF status messages include the bind ID (e.g., `Remote Port Forwarder (abc123) listening on 127.0.0.1:8080`).
+
+#### Changed
+
+- All clients — TCP lifecycle rewritten: pause/resume replaced with confirmation gate. `stream()` starts immediately on RPF accept and blocks on `wait_for(confirmed, timeout=5)` — the kernel TCP recv buffer holds incoming data during the gate. On confirmation (reason=0), `stream()` begins reading; on timeout or denial, `stream()` cleans up and signals the peer. No application-level buffer.
+- **Python** — `TcpClient` changed from `namedtuple` to a class with `confirmed` (event), `reader`, `writer`, and `bind_id` fields.
+- **Node.js** — RPF socket gets `_confirmed` flag on accept; `stream()` gates reads on confirmation.
+- **C#** — `TcpConnection` gains `_confirmed` (event), `Confirm()`, and `Abort()` methods. `StreamAsync()` gates reads on confirmation. `RegisterTcpClient` starts `StreamAsync()` immediately.
+- All clients — Outbound connections (`handle_initiate_tcp_client_req`) confirmed immediately before starting stream (no pending state).
+- All clients — `CheckInMessage` field renamed from `messenger_id` to `client_id`.
+- All clients — Project-identifying names removed from class names, namespaces, log messages, and string literals.
+
+### Tests
+
+#### Added
+
+- CI workflows for all 3 client submodules (Python, Node.js, C#) with standalone WebSocket server shims for protocol testing.
+- Test shims implement minimal CheckIn / CheckOut handshake for CI validation without the full server.
+
+#### Changed
+
+- `test_successful_tcp_reply_resumes_then_streams` renamed to `test_successful_tcp_reply_confirms_and_streams` in both Python and Node.js test suites — tests now verify confirmation gate instead of pause/resume.
+- Template references updated from `messenger-client.*` to `client.*` across the test suite.
+- `test_protocol_python.py` strips Jinja2 block tags (`{% ... %}`) from template source before loading.
+- Python submodule CI adds `--no-compile` to prevent default `.pyc` compilation from deleting the source file before tests run.
+
 ## [0.9.3] - 2026-08-31
 
 ### Spec

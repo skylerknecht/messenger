@@ -257,6 +257,7 @@ class TcpConnection:
     bind_id: string | null
     socket: socket
     write_queue: ordered_async_queue<bytes>
+    confirmed: event
 
     function constructor(parent, client_id, socket, bind_id=null):
         self.parent = parent
@@ -264,6 +265,7 @@ class TcpConnection:
         self.bind_id = bind_id
         self.socket = socket
         self.write_queue = new ordered_async_queue()
+        self.confirmed = new event()
 
     function abort() -> bool:
         if parent.tcp_clients.remove(client_id, self) failed:
@@ -274,6 +276,9 @@ class TcpConnection:
         write_queue.complete()
         close_socket(socket)         // close without blocking dispatch
         return true
+
+    function confirm():
+        confirmed.set()
 
     function abort_and_signal():
         if abort() and not parent.killed:
@@ -302,6 +307,14 @@ class TcpConnection:
             abort_and_signal()
 
     function stream():
+        // Started immediately on accept. Waits up to 5 seconds for
+        // confirm() (on successful rep). Outbound connections confirm
+        // before stream() runs, so the gate is instant there.
+        try:
+            await wait_for(confirmed, timeout=5)
+        catch Timeout:
+            abort_and_signal()
+            return
         try:
             while true:
                 data = await read(socket, max=4096)
@@ -341,6 +354,7 @@ class Client:
             // killed check and publication in the dictionary.
 
         _ = connection.write_loop()
+        _ = connection.stream()
         return connection
 
     function close_connections_for_bind(bind_id):
@@ -373,10 +387,8 @@ class Client:
                     connection.abort()
                     return
 
-                resume(connection.socket)
-                // The RPF socket was registered and paused before its request.
-                // A successful reply is the protocol gate that starts reading.
-                _ = connection.stream()
+                connection.confirm()
+                // Unblocks stream()'s wait_for gate so it starts reading.
 
             SendDataMessage:
                 connection = tcp_clients.get(message.client_id)
@@ -529,11 +541,10 @@ class Client:
                 remote_port  = connection.socket.remote_port
             )
             await send_upstream_message(reply)
-            await connection.stream()
-            // This responder starts reading immediately. Any resulting data is
-            // enqueued after the reply, so the ordered transport delivers the
-            // reply before that data. The requester does not start its own read
-            // loop until it receives and processes the successful reply.
+            connection.confirm()
+            // Unblocks stream()'s wait_for gate. The reply is already
+            // enqueued, so the ordered transport delivers it before any
+            // forwarded data that stream() reads next.
 
         catch error:
             if not killed:
@@ -866,11 +877,10 @@ class RemotePortForwarder:
         // The server may respond before the send completes -- the reply
         // handler needs the dictionary entry to exist.
 
-        pause(accepted_socket)
-        // Do NOT read data from the accepted socket yet.
-        // Wait for the server to approve the connection (reason=0 in
-        // InitiateTCPClientRep). Data arriving before approval
-        // would be lost because no stream() task is running yet.
+        // register_tcp_client starts stream(), which blocks on a 5-second
+        // wait_for(confirmed). dispatch_message calls connection.confirm()
+        // on reason=0, unblocking the read loop. If no rep arrives in time,
+        // stream() times out and cleans up.
 
         request = InitiateTCPClientReq(
             client_id      = client_id,
@@ -880,11 +890,6 @@ class RemotePortForwarder:
             listening_port = self.listening_port    # connection to THIS exact RPF
         )
         await parent.send_upstream_message(request)
-
-        // Stream is NOT started here. The dispatch_message handler for
-        // InitiateTCPClientRep (reason=0) resumes the socket and
-        // starts stream(). If the server denies (reason!=0), the socket
-        // is removed and closed there.
 
         // The client owns the connection in its global map. bind_id associates
         // it with this RPF so cleanup can close the group without a second list.
