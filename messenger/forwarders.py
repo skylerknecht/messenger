@@ -110,6 +110,14 @@ class LocalPortForwarder(Forwarder):
             client = LocalTcpClient(self.destination_host, self.destination_port, reader, writer, self.messenger, self.on_close)
             self.clients.append(client)
             await client.initiate_tcp_client()
+        except OSError as e:
+            if e.errno in (errno.EMFILE, errno.ENFILE):
+                self.update_cli.display(
+                    f'{self.NAME} ({self._endpoint_str()}) hit file descriptor limit, rejecting client.',
+                    'warning', reprompt=False, display_module='forwarders')
+                writer.close()
+            else:
+                self.update_cli.log_unexpected_error(e)
         except Exception as e:
             self.update_cli.log_unexpected_error(e)
 
@@ -196,6 +204,14 @@ class SocksProxy(LocalPortForwarder):
             client = SocksTcpClient(reader, writer, self.messenger, self.on_close)
             self.clients.append(client)
             await client.initiate_tcp_client()
+        except OSError as e:
+            if e.errno in (errno.EMFILE, errno.ENFILE):
+                self.update_cli.display(
+                    f'{self.NAME} ({self._endpoint_str()}) hit file descriptor limit, rejecting client.',
+                    'warning', reprompt=False, display_module='forwarders')
+                writer.close()
+            else:
+                self.update_cli.log_unexpected_error(e)
         except Exception as e:
             self.update_cli.log_unexpected_error(e)
 
