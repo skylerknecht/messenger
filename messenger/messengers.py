@@ -365,15 +365,21 @@ class WebSocketMessenger(Messenger):
         self._send_task = self.supervisor.spawn(self._send_loop(), label='send_loop')
 
     async def _send_loop(self):
-        while True:
-            try:
+        try:
+            while True:
                 if not self._pending:
                     self._pending.append(await self.downstream_messages.get())
                     while not self.downstream_messages.empty() and len(self._pending) < self.MAX_BATCH_SIZE:
                         self._pending.append(self.downstream_messages.get_nowait())
                 serialized = self.serialize_messages(self._pending)
-                await self.websocket.send_bytes(serialized)
+                try:
+                    await self.websocket.send_bytes(serialized)
+                except Exception:
+                    break
                 self.sent_bytes += len(serialized)
                 self._pending.clear()
-            except Exception:
-                break
+        except Exception as e:
+            self.update_cli.log_unexpected_error(e)
+        finally:
+            if not self.websocket.closed:
+                await self.websocket.close()
