@@ -217,11 +217,18 @@ class Scanner:
         )
 
         self._workers = [self.messenger.supervisor.spawn(self._scan_worker(), label=f'scan_worker:{self.identifier}') for _ in range(self.concurrency)]
-        await asyncio.gather(*self._workers, return_exceptions=True)
+        results = await asyncio.gather(*self._workers, return_exceptions=True)
+        failed = sum(1 for r in results if isinstance(r, BaseException) and not isinstance(r, asyncio.CancelledError))
 
-        self.update_cli.display(
-            f"Scanner `{self.nickname}` finished sending all scan attempts.", 'information',
-        )
+        if failed:
+            self.update_cli.display(
+                f"Scanner `{self.nickname}` stopped: {failed} worker(s) failed unexpectedly.",
+                'warning',
+            )
+        else:
+            self.update_cli.display(
+                f"Scanner `{self.nickname}` finished sending all scan attempts.", 'information',
+            )
 
     async def stop(self):
         if self.end_time:
