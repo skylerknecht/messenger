@@ -310,12 +310,20 @@ class Manager:
         """
         for messenger in self.messengers:
             messenger.checked_out = True
+        for messenger in self.messengers:
             while messenger.forwarders:
                 fw = messenger.forwarders.pop(0)
-                await fw.stop()
+                try:
+                    await fw.stop()
+                except Exception as e:
+                    self.update_cli.log_unexpected_error(e)
             for scanner in list(messenger.scanners):
-                await scanner.stop()
+                try:
+                    await scanner.stop()
+                except Exception as e:
+                    self.update_cli.log_unexpected_error(e)
             await messenger.supervisor.cancel_all()
+        await self.messenger_server.cleanup()
         print('\rMessenger Server stopped.')
         sys.exit(0)
 
@@ -1015,10 +1023,16 @@ class Manager:
             count = 0
             while messenger.forwarders:
                 target = messenger.forwarders.pop(0)
-                await target.stop()
+                try:
+                    await target.stop()
+                except Exception as e:
+                    self.update_cli.log_unexpected_error(e)
                 count += 1
             for scanner in list(messenger.scanners):
-                await scanner.stop()
+                try:
+                    await scanner.stop()
+                except Exception as e:
+                    self.update_cli.log_unexpected_error(e)
                 count += 1
             if count == 0:
                 self.update_cli.display('No forwarders or scanners to stop.', 'information', reprompt=False)
@@ -1074,9 +1088,15 @@ class Manager:
         target.checked_out = True
         while target.forwarders:
             fw = target.forwarders.pop(0)
-            await fw.stop()
+            try:
+                await fw.stop()
+            except Exception as e:
+                self.update_cli.log_unexpected_error(e)
         for scanner in list(target.scanners):
-            await scanner.stop()
+            try:
+                await scanner.stop()
+            except Exception as e:
+                self.update_cli.log_unexpected_error(e)
         await target.send_message_downstream(CheckOutMessage())
         self.update_cli.display(
             f'Queued kill signal for Messenger `{target.nickname}`.',

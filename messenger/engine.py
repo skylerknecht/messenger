@@ -140,11 +140,12 @@ class Engine:
             if not client_id:
                 return
             messenger = self._get_messenger(client_id)
-            if messenger:
-                messenger.received_bytes += len(data)
-                await messenger.process_upstream_messages(messages[1:])
         except Exception as e:
             self.update_cli.log_unexpected_error(e)
+            return
+        if messenger:
+            messenger.received_bytes += len(data)
+            await messenger.process_upstream_messages(messages[1:])
 
     async def get_downstream_messages(self, messenger):
         result = b''

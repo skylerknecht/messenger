@@ -18,6 +18,7 @@ from messenger.tcp_clients import (
 class Forwarder:
 
     NAME = "Unnamed Forwarder"
+    MAX_CLIENTS = 1024
 
     def __init__(self, listening_host, listening_port, destination_host, destination_port, update_cli):
         self.listening_host = listening_host
@@ -105,6 +106,12 @@ class LocalPortForwarder(Forwarder):
     async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         try:
             if self.stopped or not self.messenger.connected:
+                writer.close()
+                return
+            if len(self.clients) >= self.MAX_CLIENTS:
+                self.update_cli.display(
+                    f'{self.NAME} ({self._endpoint_str()}) at connection limit ({self.MAX_CLIENTS}), rejecting client.',
+                    'warning', reprompt=False, display_module='forwarders')
                 writer.close()
                 return
             client = LocalTcpClient(self.destination_host, self.destination_port, reader, writer, self.messenger, self.on_close)
@@ -199,6 +206,12 @@ class SocksProxy(LocalPortForwarder):
     async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         try:
             if self.stopped or not self.messenger.connected:
+                writer.close()
+                return
+            if len(self.clients) >= self.MAX_CLIENTS:
+                self.update_cli.display(
+                    f'{self.NAME} ({self._endpoint_str()}) at connection limit ({self.MAX_CLIENTS}), rejecting client.',
+                    'warning', reprompt=False, display_module='forwarders')
                 writer.close()
                 return
             client = SocksTcpClient(reader, writer, self.messenger, self.on_close)

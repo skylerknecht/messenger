@@ -20,9 +20,12 @@ class TaskSupervisor:
         exc = task.exception()
         if exc is None or isinstance(exc, asyncio.CancelledError):
             return
-        self._update_cli.display(
-            f'Background task failed: {label}', 'error', reprompt=False)
-        self._update_cli.log_unexpected_error(exc)
+        try:
+            self._update_cli.display(
+                f'Background task failed: {label}', 'error', reprompt=False)
+            self._update_cli.log_unexpected_error(exc)
+        except Exception:
+            pass
 
     async def cancel_all(self):
         tasks = list(self._tasks)

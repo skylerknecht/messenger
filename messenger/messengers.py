@@ -82,6 +82,12 @@ class Messenger:
                 return
         logger.record_message(direction, self.identifier, message)
 
+    def deny_pending_clients(self):
+        for forwarder in list(self.forwarders):
+            for client in list(forwarder.clients):
+                if not client._confirmed.done():
+                    client.deny()
+
     async def send_message_downstream(self, message):
         if self.checked_out and not isinstance(message, CheckOutMessage):
             return

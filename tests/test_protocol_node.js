@@ -143,6 +143,10 @@ class FakeSocket extends EventEmitter {
 }
 
 let failures = 0;
+process.on('unhandledRejection', (err) => {
+  failures += 1;
+  console.log(`FAIL unhandled rejection: ${err.message || err}`);
+});
 async function test(name, body) {
   try {
     await body();
@@ -330,4 +334,7 @@ async function test(name, body) {
   });
 
   process.exitCode = failures ? 1 : 0;
-})();
+})().catch(err => {
+  console.log(`FAIL uncaught: ${err.message || err}`);
+  process.exitCode = 1;
+});

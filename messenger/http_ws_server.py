@@ -11,6 +11,7 @@ class HTTPWSServer:
         self.ssl_cert = ssl_cert
         self.update_cli = update_cli
         self.engine = messenger_engine
+        self.runner = None
 
     async def start(self):
         app = web.Application()
@@ -18,20 +19,24 @@ class HTTPWSServer:
         app.router.add_routes([
             web.route('*', '/{tail:.*}', self.redirect_handler)
         ])
-        runner = web.AppRunner(app)
-        await runner.setup()
+        self.runner = web.AppRunner(app)
+        await self.runner.setup()
         try:
             if self.ssl_cert:
                 ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
                 ssl_context.load_cert_chain(self.ssl_cert[0], self.ssl_cert[1])
-                site = web.TCPSite(runner, self.ip, self.port, ssl_context=ssl_context)
+                site = web.TCPSite(self.runner, self.ip, self.port, ssl_context=ssl_context)
                 await site.start()
             else:
-                site = web.TCPSite(runner, self.ip, self.port)
+                site = web.TCPSite(self.runner, self.ip, self.port)
                 await site.start()
             self.update_cli.display(f"Waiting for messengers on http{'s' if self.ssl_cert else ''}+ws{'s' if self.ssl_cert else ''}://{self.ip}:{self.port}/", 'information', reprompt=False, display_module='handlers')
         except OSError:
             self.update_cli.display(f'An error prevented the server from starting:\n{traceback.format_exc()}', 'error', reprompt=False, display_module='handlers')
+
+    async def cleanup(self):
+        if self.runner:
+            await self.runner.cleanup()
 
     @staticmethod
     async def remove_server_header(_, response):
@@ -92,6 +97,7 @@ class HTTPWSServer:
         finally:
             if messenger.websocket is ws:
                 await messenger.cancel_send_task()
+                messenger.deny_pending_clients()
                 if messenger.checked_out:
                     await messenger.supervisor.cancel_all()
 
