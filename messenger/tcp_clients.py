@@ -20,11 +20,11 @@ class TcpClient(ABC):
         self._confirmed = asyncio.get_running_loop().create_future()
 
     def _cleanup(self, abort=False):
+        removed = False
         try:
-            if not self.on_close(self):
-                return False
+            removed = self.on_close(self)
         except Exception:
-            return False
+            pass
         try:
             if abort and self.writer.transport:
                 self.writer.transport.abort()
@@ -32,7 +32,7 @@ class TcpClient(ABC):
                 self.writer.close()
         except Exception:
             pass
-        return True
+        return removed
 
     @abstractmethod
     async def initiate_tcp_client(self):

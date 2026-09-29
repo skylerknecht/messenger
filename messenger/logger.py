@@ -86,7 +86,7 @@ class Logger:
     def log_exception(self, e):
         log_file = os.path.join(self.base_dir, 'exceptions.log')
         timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
-        tb = traceback.format_exc()
+        tb = ''.join(traceback.format_exception(type(e), e, e.__traceback__))
         log_entry = (
             f"[{timestamp}] Unexpected {type(e).__name__}: {e}\n"
             f"{tb}\n{'-' * 80}\n"
