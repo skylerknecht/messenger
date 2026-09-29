@@ -273,6 +273,7 @@ class TcpConnection:
             // Dictionary removal is the once-only abort guard. Every other
             // path becomes a no-op, so no separate closed flag is needed.
 
+        confirmed.set()              // wake stream() if blocked on the gate
         write_queue.complete()
         close_socket(socket)         // close without blocking dispatch
         return true
@@ -307,14 +308,11 @@ class TcpConnection:
             abort_and_signal()
 
     function stream():
-        // Started immediately on accept. Waits up to 5 seconds for
-        // confirm() (on successful rep). Outbound connections confirm
-        // before stream() runs, so the gate is instant there.
-        try:
-            await wait_for(confirmed, timeout=5)
-        catch Timeout:
-            abort_and_signal()
-            return
+        // Blocks until confirm() or abort(). Outbound connections
+        // confirm before stream() runs, so the gate is instant there.
+        // No timeout -- cleanup relies on transport death or explicit
+        // stop, same as OpenSSH's OPENING channel state.
+        await confirmed
         try:
             while true:
                 data = await read(socket, max=4096)
@@ -388,7 +386,7 @@ class Client:
                     return
 
                 connection.confirm()
-                // Unblocks stream()'s wait_for gate so it starts reading.
+                // Unblocks stream()'s confirmation gate so it starts reading.
 
             SendDataMessage:
                 connection = tcp_clients.get(message.client_id)
@@ -542,7 +540,7 @@ class Client:
             )
             await send_upstream_message(reply)
             connection.confirm()
-            // Unblocks stream()'s wait_for gate. The reply is already
+            // Unblocks stream()'s confirmation gate. The reply is already
             // enqueued, so the ordered transport delivers it before any
             // forwarded data that stream() reads next.
 
@@ -821,7 +819,14 @@ class RemotePortForwarder:
     function accept_loop():
         try:
             while server is open:
-                accepted_socket = await server.accept()
+                try:
+                    accepted_socket = await server.accept()
+                catch (EMFILE, ENFILE):
+                    // File descriptor exhaustion -- back off for one second
+                    // instead of spinning or killing the listener. Matches
+                    // OpenSSH's channels.c accept defense.
+                    await sleep(1)
+                    continue
                 _ = handle_client(accepted_socket)
         catch (ListenerClosed):
             pass
@@ -877,10 +882,10 @@ class RemotePortForwarder:
         // The server may respond before the send completes -- the reply
         // handler needs the dictionary entry to exist.
 
-        // register_tcp_client starts stream(), which blocks on a 5-second
-        // wait_for(confirmed). dispatch_message calls connection.confirm()
-        // on reason=0, unblocking the read loop. If no rep arrives in time,
-        // stream() times out and cleans up.
+        // register_tcp_client starts stream(), which blocks on the
+        // confirmed event. dispatch_message calls connection.confirm()
+        // on reason=0, unblocking the read loop. On denial, abort()
+        // sets the event and closes the socket.
 
         request = InitiateTCPClientReq(
             client_id      = client_id,

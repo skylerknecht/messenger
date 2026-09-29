@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `CheckInMessage.messenger_id` field renamed to `client_id` across all message types, parsers, and builders.
 - OPSEC rule added to `client.pseudo`: client code must not contain identifiers, strings, class names, namespaces, or log messages that reference the project by name.
 - `TcpConnection` field renamed from `messenger` to `parent`.
-- TCP lifecycle rewritten: pause/resume pattern replaced with a confirmation gate. `stream()` blocks on `wait_for(confirmed, timeout)` before reading the socket — no application-level buffer needed, the kernel TCP recv buffer holds data during the gate. `confirm()` unblocks the gate; on failure or timeout, `stream()` cleans up and signals the peer. Timeout is 5 seconds client-side, 10 seconds server-side. Outbound connections (client connecting to a destination at the server's request) are confirmed immediately since there is no pending state.
+- TCP lifecycle rewritten: pause/resume pattern replaced with a confirmation gate. `stream()` blocks on `await confirmed` before reading the socket — no application-level buffer needed, the kernel TCP recv buffer holds data during the gate. `confirm()` unblocks the gate; `abort()` sets the event and closes the socket so `stream()` wakes and exits via the read failure path. No timeout — cleanup relies on transport death or explicit stop, matching OpenSSH's OPENING channel state. Outbound connections are confirmed immediately since there is no pending state.
+- RPF `accept_loop` catches EMFILE/ENFILE on accept and backs off for one second instead of killing the listener. Matches OpenSSH's accept defense in `channels.c`.
 
 ### Builder
 
@@ -42,7 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Added
 
 - `Messenger.connected` property — transport-specific connectivity check. `WebSocketMessenger` checks `not checked_out and not websocket.closed`; `HTTPMessenger` checks `not checked_out and last_check_in <= 5s ago`. Forwarders and scanners use this instead of `checked_out` alone to reject work when the messenger is disconnected, not just checked out.
-- `TcpClient._confirmed` (`asyncio.Future`), `confirm()`, and `deny()` methods — confirmation gate for the TCP client lifecycle. `confirm()` resolves the future to `True`; `deny()` resolves to `False` and aborts the socket. `stream()` blocks on `wait_for(self._confirmed, timeout=10)` — timeout or denial returns immediately, confirmed starts reading.
+- `TcpClient._confirmed` (`asyncio.Future`), `confirm()`, and `deny()` methods — confirmation gate for the TCP client lifecycle. `confirm()` resolves the future to `True`; `deny()` resolves to `False` and aborts the socket. `stream()` blocks on `await self._confirmed` — denial returns immediately, confirmed starts reading. No timeout.
 
 #### Changed
 
@@ -75,7 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
-- All clients — TCP lifecycle rewritten: pause/resume replaced with confirmation gate. `stream()` starts immediately on RPF accept and blocks on `wait_for(confirmed, timeout=5)` — the kernel TCP recv buffer holds incoming data during the gate. On confirmation (reason=0), `stream()` begins reading; on timeout or denial, `stream()` cleans up and signals the peer. No application-level buffer.
+- All clients — TCP lifecycle rewritten: pause/resume replaced with confirmation gate. `stream()` starts immediately on RPF accept and blocks on `await confirmed` — the kernel TCP recv buffer holds incoming data during the gate. On confirmation (reason=0), `stream()` begins reading; on denial, `abort()` sets the event and closes the socket so `stream()` wakes and exits. No timeout, no application-level buffer.
 - **Python** — `TcpClient` changed from `namedtuple` to a class with `confirmed` (event), `reader`, `writer`, and `bind_id` fields.
 - **Node.js** — RPF socket gets `_confirmed` flag on accept; `stream()` gates reads on confirmation.
 - **C#** — `TcpConnection` gains `_confirmed` (event), `Confirm()`, and `Abort()` methods. `StreamAsync()` gates reads on confirmation. `RegisterTcpClient` starts `StreamAsync()` immediately.

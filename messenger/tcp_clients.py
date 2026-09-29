@@ -49,11 +49,7 @@ class TcpClient(ABC):
 
     async def stream(self):
         try:
-            try:
-                confirmed = await asyncio.wait_for(self._confirmed, timeout=10)
-            except asyncio.TimeoutError:
-                return
-            if not confirmed:
+            if not await self._confirmed:
                 return
             while True:
                 try:
