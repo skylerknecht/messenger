@@ -8,6 +8,7 @@ from collections import namedtuple
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import Completer, Completion
+from prompt_toolkit.patch_stdout import patch_stdout
 
 from functools import wraps
 from inspect import Parameter
@@ -64,11 +65,7 @@ class UpdateCLI:
         else:
             icon = color_text(status_info.icon, status_info.color)
 
-        print(f'\x1b[2K\r{icon} {stdout}')
-
-        if reprompt:
-            print(f'({self.prompt})~# ' + self.session.app.current_buffer.text, end='')
-            sys.stdout.flush()
+        print(f'{icon} {stdout}')
 
     def log_unexpected_error(self, e):
         log_file = self.logger.log_exception(e)
@@ -810,49 +807,60 @@ class Manager:
 
         print(self.create_table(f"Scanner {identifier} Results", columns, items))
 
+    def _asyncio_exception_handler(self, loop, context):
+        """Log every asyncio-signaled exception as a warning through the CLI."""
+        exc = context.get('exception')
+        detail = f'{type(exc).__name__}: {exc}' if exc else context.get('message', 'unknown')
+        self.update_cli.display(
+            f'asyncio: {detail}',
+            'warning', reprompt=False, display_module='handlers'
+        )
+
     async def start_command_line_interface(self):
         """
         Start the CLI, display banner, and manage user input.
         """
+        asyncio.get_running_loop().set_exception_handler(self._asyncio_exception_handler)
         await self.messenger_server.start()
 
-        while True:
-            try:
-                prompt = self.current_messenger.nickname if self.current_messenger else self.PROMPT
-                user_input = await self.session.prompt_async(f'({prompt})~# ')
-            except KeyboardInterrupt:
-                self.update_cli.display(f"CTRL+C caught, type `exit` to quit Messenger.", 'information',
-                                        reprompt=False)
-                continue
-
-            if not user_input.strip():
-                continue
-
-            timestamp = self.logger.now()
-            output_path = None
-            with self.logger.capture() as output:
+        with patch_stdout(raw=True):
+            while True:
                 try:
-                    parts = user_input.split()
-                    command = parts[0]
-                    for messenger in self.messengers:
-                        if command in (messenger.identifier, messenger.nickname):
-                            await self.interact(messenger)
-                            break
-                    else:
-                        output_path = await self.execute_command(command, parts[1:])
-                except InvalidConfigError as e:
-                    self.update_cli.display(str(e), 'error', reprompt=False)
+                    prompt = self.current_messenger.nickname if self.current_messenger else self.PROMPT
+                    user_input = await self.session.prompt_async(f'({prompt})~# ')
                 except KeyboardInterrupt:
                     self.update_cli.display(f"CTRL+C caught, type `exit` to quit Messenger.", 'information',
                                             reprompt=False)
-                except Exception as e:
-                    self.update_cli.log_unexpected_error(e)
+                    continue
 
-            captured = strip_ansi(output.getvalue()).strip()
-            self.logger.record_command(timestamp, user_input.strip(), captured)
+                if not user_input.strip():
+                    continue
 
-            if output_path:
-                self._write_output_file(output_path, captured)
+                timestamp = self.logger.now()
+                output_path = None
+                with self.logger.capture() as output:
+                    try:
+                        parts = user_input.split()
+                        command = parts[0]
+                        for messenger in self.messengers:
+                            if command in (messenger.identifier, messenger.nickname):
+                                await self.interact(messenger)
+                                break
+                        else:
+                            output_path = await self.execute_command(command, parts[1:])
+                    except InvalidConfigError as e:
+                        self.update_cli.display(str(e), 'error', reprompt=False)
+                    except KeyboardInterrupt:
+                        self.update_cli.display(f"CTRL+C caught, type `exit` to quit Messenger.", 'information',
+                                                reprompt=False)
+                    except Exception as e:
+                        self.update_cli.log_unexpected_error(e)
+
+                captured = strip_ansi(output.getvalue()).strip()
+                self.logger.record_command(timestamp, user_input.strip(), captured)
+
+                if output_path:
+                    self._write_output_file(output_path, captured)
         await self.exit()
 
     def _write_output_file(self, path, contents):

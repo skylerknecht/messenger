@@ -290,12 +290,21 @@ class RemotePortForwarder(Forwarder):
         except ConnectionRefusedError:
             reason = 5
         except OSError as e:
+            if e.errno in (errno.EMFILE, errno.ENFILE):
+                self.update_cli.display(
+                    f'Messenger `{self.messenger.nickname}` refusing TCP client for '
+                    f'{self.destination_host}:{self.destination_port}: file descriptors exhausted '
+                    f'({errno.errorcode.get(e.errno, e.errno)}).',
+                    'error', reprompt=False, display_module='forwarders'
+                )
             reason = {
                 errno.ENETUNREACH: 3,
                 errno.EHOSTUNREACH: 4,
                 errno.ECONNREFUSED: 5,
                 errno.ENOPROTOOPT: 7,
-                errno.EAFNOSUPPORT: 8
+                errno.EAFNOSUPPORT: 8,
+                errno.EMFILE: 1,
+                errno.ENFILE: 1,
             }.get(e.errno, 1)
         except Exception as e:
             self.update_cli.log_unexpected_error(e)
