@@ -47,6 +47,10 @@ class TcpClient(ABC):
             self._confirmed.set_result(False)
         self._cleanup(abort=True)
 
+    EXPECTED_DISCONNECT = (
+        ConnectionResetError, ConnectionAbortedError, BrokenPipeError, EOFError, OSError
+    )
+
     async def stream(self):
         try:
             if not await self._confirmed:
@@ -54,7 +58,13 @@ class TcpClient(ABC):
             while True:
                 try:
                     downstream_message = await self.reader.read(4096)
-                except Exception:
+                except self.EXPECTED_DISCONNECT:
+                    break
+                except Exception as e:
+                    self.messenger.update_cli.display(
+                        f'TCP Client {self.identifier} read failed: {type(e).__name__}',
+                        'warning', reprompt=False, display_module='forwarders')
+                    self.messenger.update_cli.log_unexpected_error(e)
                     break
                 if not downstream_message:
                     break
@@ -88,7 +98,13 @@ class TcpClient(ABC):
             self.writer.write(data)
             if cleanup:
                 self._cleanup()
-        except Exception:
+        except self.EXPECTED_DISCONNECT:
+            self._cleanup()
+        except Exception as e:
+            self.messenger.update_cli.display(
+                f'TCP Client {self.identifier} write failed: {type(e).__name__}',
+                'warning', reprompt=False, display_module='forwarders')
+            self.messenger.update_cli.log_unexpected_error(e)
             if self._cleanup():
                 await self.messenger.send_message_downstream(
                     SendDataMessage(client_id=self.identifier, data=b'')

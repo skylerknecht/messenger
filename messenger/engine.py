@@ -130,18 +130,21 @@ class Engine:
         return messenger
 
     async def send_messages_upstream(self, data):
-        messages = self._deserialize(data) if data else []
-        if not messages:
-            return
-        if not isinstance(messages[0], CheckInMessage):
-            return
-        client_id = messages[0].client_id
-        if not client_id:
-            return
-        messenger = self._get_messenger(client_id)
-        if messenger:
-            messenger.received_bytes += len(data)
-            await messenger.process_upstream_messages(messages[1:])
+        try:
+            messages = self._deserialize(data) if data else []
+            if not messages:
+                return
+            if not isinstance(messages[0], CheckInMessage):
+                return
+            client_id = messages[0].client_id
+            if not client_id:
+                return
+            messenger = self._get_messenger(client_id)
+            if messenger:
+                messenger.received_bytes += len(data)
+                await messenger.process_upstream_messages(messages[1:])
+        except Exception as e:
+            self.update_cli.log_unexpected_error(e)
 
     async def get_downstream_messages(self, messenger):
         result = b''

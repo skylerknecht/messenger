@@ -8,6 +8,7 @@ from collections import namedtuple
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import Completer, Completion
+from prompt_toolkit.patch_stdout import patch_stdout
 
 from functools import wraps
 from inspect import Parameter
@@ -23,14 +24,7 @@ from messenger.text import color_text, bold_text, strip_ansi
 from messenger.logger import Logger
 
 class UpdateCLI:
-    """
-    A helper class for managing output display and updating the prompt session buffer.
 
-    Attributes:
-        prompt (str): The command prompt string.
-        session (PromptSession): The prompt session instance for handling CLI input and output.
-        debug (bool): If True, enables debug-level messages.
-    """
     Status = namedtuple('Status', ['icon', 'color'])
 
     STATUS_LEVELS = {
@@ -42,9 +36,7 @@ class UpdateCLI:
         'standard': Status('', 'reset')
     }
 
-    def __init__(self, prompt, session, logger, logging_types=None):
-        self.prompt = prompt
-        self.session = session
+    def __init__(self, logger, logging_types=None):
         self.logger = logger
         self.display_filters = {'handlers': {'disabled': {'warning'}}}
         self.logging_types = set(logging_types) if logging_types else set()
@@ -64,11 +56,7 @@ class UpdateCLI:
         else:
             icon = color_text(status_info.icon, status_info.color)
 
-        print(f'\x1b[2K\r{icon} {stdout}')
-
-        if reprompt:
-            print(f'({self.prompt})~# ' + self.session.app.current_buffer.text, end='')
-            sys.stdout.flush()
+        print(f'{icon} {stdout}')
 
     def log_unexpected_error(self, e):
         log_file = self.logger.log_exception(e)
@@ -130,7 +118,7 @@ class Manager:
         self.current_messenger = None
         self.logger = Logger(config_dir)
         self.session = PromptSession(completer=DynamicCompleter(self), reserve_space_for_menu=0)
-        self.update_cli = UpdateCLI(self.PROMPT, self.session, self.logger, logging_types)
+        self.update_cli = UpdateCLI(self.logger, logging_types)
         self.encryption_key = encryption_key if encryption_key is not None else generate_encryption_key()
         if not quiet:
             self.update_cli.display(f'The AES encryption key is {bold_text(self.encryption_key)}', 'information', reprompt=False)
@@ -815,44 +803,47 @@ class Manager:
         """
         await self.messenger_server.start()
 
-        while True:
-            try:
-                prompt = self.current_messenger.nickname if self.current_messenger else self.PROMPT
-                user_input = await self.session.prompt_async(f'({prompt})~# ')
-            except KeyboardInterrupt:
-                self.update_cli.display(f"CTRL+C caught, type `exit` to quit Messenger.", 'information',
-                                        reprompt=False)
-                continue
-
-            if not user_input.strip():
-                continue
-
-            timestamp = self.logger.now()
-            output_path = None
-            with self.logger.capture() as output:
+        with patch_stdout():
+            while True:
                 try:
-                    parts = user_input.split()
-                    command = parts[0]
-                    for messenger in self.messengers:
-                        if command in (messenger.identifier, messenger.nickname):
-                            await self.interact(messenger)
-                            break
-                    else:
-                        output_path = await self.execute_command(command, parts[1:])
-                except InvalidConfigError as e:
-                    self.update_cli.display(str(e), 'error', reprompt=False)
+                    prompt = self.current_messenger.nickname if self.current_messenger else self.PROMPT
+                    user_input = await self.session.prompt_async(f'({prompt})~# ')
                 except KeyboardInterrupt:
                     self.update_cli.display(f"CTRL+C caught, type `exit` to quit Messenger.", 'information',
                                             reprompt=False)
-                except Exception as e:
-                    self.update_cli.log_unexpected_error(e)
+                    continue
+                except EOFError:
+                    break
 
-            captured = strip_ansi(output.getvalue()).strip()
-            self.logger.record_command(timestamp, user_input.strip(), captured)
+                if not user_input.strip():
+                    continue
 
-            if output_path:
-                self._write_output_file(output_path, captured)
-        await self.exit()
+                timestamp = self.logger.now()
+                output_path = None
+                with self.logger.capture() as output:
+                    try:
+                        parts = user_input.split()
+                        command = parts[0]
+                        for messenger in self.messengers:
+                            if command in (messenger.identifier, messenger.nickname):
+                                await self.interact(messenger)
+                                break
+                        else:
+                            output_path = await self.execute_command(command, parts[1:])
+                    except InvalidConfigError as e:
+                        self.update_cli.display(str(e), 'error', reprompt=False)
+                    except KeyboardInterrupt:
+                        self.update_cli.display(f"CTRL+C caught, type `exit` to quit Messenger.", 'information',
+                                                reprompt=False)
+                    except Exception as e:
+                        self.update_cli.log_unexpected_error(e)
+
+                captured = strip_ansi(output.getvalue()).strip()
+                self.logger.record_command(timestamp, user_input.strip(), captured)
+
+                if output_path:
+                    self._write_output_file(output_path, captured)
+            await self.exit()
 
     def _write_output_file(self, path, contents):
         try:

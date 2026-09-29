@@ -39,20 +39,16 @@ class HTTPWSServer:
             del response.headers['Server']
 
     async def redirect_handler(self, request):
-        try:
-            self.update_cli.display(
-                f'The handler received a {request.method} from {request.remote}.',
-                'debug', display_module='handlers',
-            )
-            upgrade = request.headers.get('Upgrade', '').lower()
-            if upgrade == 'websocket':
-                return await self.websocket_handler(request)
-            if request.method == 'POST':
-                return await self.http_post_handler(request)
-            return web.Response(status=404, text='Not Found')
-        except Exception as e:
-            self.update_cli.log_unexpected_error(e)
-            return web.Response(status=200, body=b'')
+        self.update_cli.display(
+            f'The handler received a {request.method} from {request.remote}.',
+            'debug', display_module='handlers',
+        )
+        upgrade = request.headers.get('Upgrade', '').lower()
+        if upgrade == 'websocket':
+            return await self.websocket_handler(request)
+        if request.method == 'POST':
+            return await self.http_post_handler(request)
+        return web.Response(status=404, text='Not Found')
 
     async def http_post_handler(self, request):
         try:
@@ -60,12 +56,8 @@ class HTTPWSServer:
             messenger = await self.engine.checkin_http(
                 data, request.remote, request.headers.get('User-Agent', '•••')
             )
-        except Exception as e:
-            self.update_cli.log_unexpected_error(e)
-            return web.Response(status=200, body=b'')
-        if not messenger:
-            return web.Response(status=200, body=b'')
-        try:
+            if not messenger:
+                return web.Response(status=200, body=b'')
             return web.Response(status=200, body=await self.engine.get_downstream_messages(messenger))
         except Exception as e:
             self.update_cli.log_unexpected_error(e)
@@ -94,11 +86,7 @@ class HTTPWSServer:
 
         try:
             async for msg in ws:
-                try:
-                    await self.engine.send_messages_upstream(msg.data)
-                except Exception as e:
-                    self.update_cli.log_unexpected_error(e)
-                    continue
+                await self.engine.send_messages_upstream(msg.data)
         except Exception as e:
             self.update_cli.log_unexpected_error(e)
         finally:
