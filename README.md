@@ -80,11 +80,9 @@ operator~# ./client.py
 
 All clients support HTTP and WebSocket transports, AES-256-CBC encryption, SOCKS5 TCP, local port forwards, and remote port forwards.
 
-| Client                                                             | Target                          | Notes                        |
-|--------------------------------------------------------------------|---------------------------------|------------------------------|
-| [Python](https://github.com/skylerknecht/messenger-client-python)  | Python 3.6+, any platform      | Non-main-thread support      |
-| [C#](https://github.com/skylerknecht/messenger-client-csharp)      | .NET Framework 4.7.2, Windows   | No runtime install needed    |
-| [Node JS](https://github.com/skylerknecht/messenger-client-nodejs) | Node.js, any platform           | Electron support             |
+- [Python](https://github.com/skylerknecht/messenger-client-python) — Cross-platform, Python 3.6+, non-main-thread support
+- [C#](https://github.com/skylerknecht/messenger-client-csharp) — .NET Framework 4.7.2, preinstalled on Windows 10/11, no runtime install needed
+- [Node JS](https://github.com/skylerknecht/messenger-client-nodejs) — Node.js, Electron support
 
 ## Credits 
 
