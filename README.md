@@ -82,7 +82,7 @@ All clients support HTTP and WebSocket transports, AES-256-CBC encryption, SOCKS
 
 | Client                                                             | Target                          | Notes                        |
 |--------------------------------------------------------------------|---------------------------------|------------------------------|
-| [Python](https://github.com/skylerknecht/messenger-client-python)  | Python 3.6+, any platform      | Obfuscation, non-main-thread |
+| [Python](https://github.com/skylerknecht/messenger-client-python)  | Python 3.6+, any platform      | Non-main-thread support      |
 | [C#](https://github.com/skylerknecht/messenger-client-csharp)      | .NET Framework 4.7.2, Windows   | No runtime install needed    |
 | [Node JS](https://github.com/skylerknecht/messenger-client-nodejs) | Node.js, any platform           | Electron support             |
 
