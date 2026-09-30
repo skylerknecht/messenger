@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.3] - 2026-09-30
+
+### Clients
+
+#### Fixed
+
+- Node.js — `--exit-on-close` now works when injected into an Electron host. The renderer calls `window.close()`, which fires a `closed` event in `main.js` running inside the host's main process, where `process.exit(0)` kills the entire app.
+
 ## [0.10.2] - 2026-09-30
 
 - Re-release of 0.10.1 with correct client submodule pointers. The 0.10.1 PyPI package shipped with stale client code.
