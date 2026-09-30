@@ -54,6 +54,10 @@ class Messenger:
         self._nickname = value
 
     @property
+    def connected(self):
+        raise NotImplementedError
+
+    @property
     def status(self):
         raise NotImplementedError
 
@@ -309,10 +313,14 @@ class HTTPMessenger(Messenger):
         self.disconnected = False
 
     @property
+    def connected(self):
+        return not self.checked_out and time.time() - self.last_check_in <= 5
+
+    @property
     def status(self):
         if self.checked_out:
             return color_text('checked out', 'red')
-        if time.time() - self.last_check_in > 5:
+        if not self.connected:
             return color_text('disconnected', 'red')
         elapsed = self.check_in_delta
         if elapsed < 1:
@@ -334,10 +342,14 @@ class WebSocketMessenger(Messenger):
         self._pending = []
 
     @property
+    def connected(self):
+        return not self.checked_out and not self.websocket.closed
+
+    @property
     def status(self):
         if self.checked_out:
             return color_text('checked out', 'red')
-        if not self.websocket.closed:
+        if self.connected:
             return color_text('connected', "green")
         return color_text('disconnected', 'red')
 

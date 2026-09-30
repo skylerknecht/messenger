@@ -103,7 +103,7 @@ class LocalPortForwarder(Forwarder):
             break
 
     async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-        if self.stopped or self.messenger.checked_out:
+        if self.stopped or not self.messenger.connected:
             writer.close()
             return
         client = LocalTcpClient(self.destination_host, self.destination_port, reader, writer, self.messenger, self.on_close)
@@ -186,7 +186,7 @@ class SocksProxy(LocalPortForwarder):
         super().__init__(messenger, config, update_cli)
 
     async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-        if self.stopped or self.messenger.checked_out:
+        if self.stopped or not self.messenger.connected:
             writer.close()
             return
         client = SocksTcpClient(reader, writer, self.messenger, self.on_close)
@@ -252,7 +252,7 @@ class RemotePortForwarder(Forwarder):
         pass
 
     async def handle_initiate_tcp_client_req(self, message):
-        if self.stopped or self.messenger.checked_out:
+        if self.stopped or not self.messenger.connected:
             return
         if self.is_orphan:
             # No destination set -- deny; the operator must configure it first.
@@ -269,7 +269,7 @@ class RemotePortForwarder(Forwarder):
                 timeout=5
             )
 
-            if self.stopped or self.messenger.checked_out:
+            if self.stopped or not self.messenger.connected:
                 writer.close()
                 return
 

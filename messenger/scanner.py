@@ -189,7 +189,7 @@ class Scanner:
 
     async def _scan_worker(self):
         while True:
-            if self.messenger.checked_out:
+            if not self.messenger.connected:
                 return
             async with self._gen_lock:
                 try:

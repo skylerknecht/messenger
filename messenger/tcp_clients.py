@@ -19,13 +19,19 @@ class TcpClient(ABC):
         self.on_close = on_close
 
     def _cleanup(self, abort=False):
-        if not self.on_close(self):
-            return False
-        if abort:
-            self.writer.transport.abort()
-        else:
-            self.writer.close()
-        return True
+        removed = False
+        try:
+            removed = self.on_close(self)
+        except Exception:
+            pass
+        try:
+            if abort and self.writer.transport:
+                self.writer.transport.abort()
+            else:
+                self.writer.close()
+        except Exception:
+            pass
+        return removed
 
     @abstractmethod
     async def initiate_tcp_client(self):
@@ -87,12 +93,14 @@ class TcpClient(ABC):
                     SendDataMessage(client_id=self.identifier, data=b'')
                 )
         except Exception as e:
-            if self.writer.is_closing() or self.messenger.checked_out:
-                return
             self.messenger.update_cli.display(
                 f'TCP Client {self.identifier} write failed: {type(e).__name__}',
                 'warning', reprompt=False, display_module='forwarders')
             self.messenger.update_cli.log_unexpected_error(e)
+            if self._cleanup():
+                await self.messenger.send_message_downstream(
+                    SendDataMessage(client_id=self.identifier, data=b'')
+                )
 
 class LocalTcpClient(TcpClient):
     def __init__(self, destination_host, destination_port, reader, writer, messenger, on_close):

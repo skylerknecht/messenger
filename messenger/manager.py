@@ -571,11 +571,11 @@ class Manager:
           forwarders
           forwarders NkMCyCrrcP
         """
-        columns = ["Type", "Name", "Clients", "Listening Host", "Listening Port", "Destination Host", "Destination Port"]
+        columns = ["Messenger", "Type", "Name", "Clients", "Listen", "Destination"]
         items = []
 
         if len(self.messengers) == 0:
-            self.update_cli.display('There are no connected Messengers, therefore, there cannot be any Forwarders. Idiot.', 'information', reprompt=False)
+            self.update_cli.display('There are no connected Messengers, therefore, there cannot be any Forwarders.', 'information', reprompt=False)
             return
 
         if messenger_id and not any(messenger_id in (m.identifier, m.nickname) for m in self.messengers):
@@ -593,25 +593,17 @@ class Manager:
                 else:
                     colored_id = color_text(forwarder.nickname, 'green')
 
-                streaming_clients = [
-                    client
-                    for client in forwarder.clients
-                ]
-
-                # An orphan RPF (advertised by the client, no destination set
-                # yet) shows as unconfigured until the operator runs `remote`.
                 orphan = isinstance(forwarder, RemotePortForwarder) and forwarder.is_orphan
-                dest_host = '•••' if orphan else forwarder.destination_host
-                dest_port = '•••' if orphan else forwarder.destination_port
+                listen = f'{forwarder.listening_host}:{forwarder.listening_port}'
+                dest = '•••' if orphan else f'{forwarder.destination_host}:{forwarder.destination_port}'
 
                 items.append({
+                    "Messenger": messenger.nickname,
                     "Type": forwarder.NAME,
                     "Name": colored_id,
-                    "Clients": len(streaming_clients),
-                    "Listening Host": forwarder.listening_host,
-                    "Listening Port": forwarder.listening_port,
-                    "Destination Host": dest_host,
-                    "Destination Port": dest_port,
+                    "Clients": len(forwarder.clients),
+                    "Listen": listen,
+                    "Destination": dest,
                 })
         if len(items) == 0:
             if messenger_id:
