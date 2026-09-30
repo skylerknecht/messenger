@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.10.1] - 2026-09-30
 
+### Server
+
+#### Fixed
+
+- Forwarders table config column now uses `:` separator (e.g. `127.0.0.1:1080:10.0.0.5:80`) to match command syntax instead of ` -> `.
+
+### Clients
+
+#### Added
+
+- `--exit-on-close` builder flag for all three clients (Python, C#, Node.js). When set, the client calls `os._exit(0)` / `Environment.Exit(0)` / `process.exit(0)` immediately on kill signal, terminating the host process with no cleanup.
+
+#### Fixed
+
+- C# — Windows build instructions now use `dotnet build` (requires .NET SDK) instead of `msbuild`.
+- Node.js — Electron copy instructions now use `Copy-Item` on Windows instead of `cp`.
+
 ## [0.10.0] - 2026-09-30
 
 ### Server
