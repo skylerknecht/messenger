@@ -76,13 +76,15 @@ operator~# ./client.py
 - [Client Specification (Pseudo-Code)](docs/client.pseudo)
 
 
-## Client Support Matrix
+## Clients
 
-| Clients                                                            | Messenger Builder | Protocols         | Local/Remote Port Forwarding | SOCKS5 TCP | SOCKS5 UDP    |
-|--------------------------------------------------------------------|-------------------|-------------------|------------------------------|------------|---------------|
-| [Python](https://github.com/skylerknecht/messenger-client-python)  | Supported         | HTTP & WebSockets | Supported                    | Supported  | Not Supported |
-| [C#](https://github.com/skylerknecht/messenger-client-csharp)      | Supported         | HTTP & WebSockets | Supported                    | Supported  | Not Supported |
-| [Node JS](https://github.com/skylerknecht/messenger-client-nodejs) | Supported         | HTTP & WebSockets | Supported                    | Supported  | Not Supported |
+All clients support HTTP and WebSocket transports, AES-256-CBC encryption, SOCKS5 TCP, local port forwards, and remote port forwards.
+
+| Client                                                             | Target                          | Notes                        |
+|--------------------------------------------------------------------|---------------------------------|------------------------------|
+| [Python](https://github.com/skylerknecht/messenger-client-python)  | Python 3.6+, any platform      | Obfuscation, non-main-thread |
+| [C#](https://github.com/skylerknecht/messenger-client-csharp)      | .NET Framework 4.7.2, Windows   | No runtime install needed    |
+| [Node JS](https://github.com/skylerknecht/messenger-client-nodejs) | Node.js, any platform           | Electron support             |
 
 ## Credits 
 
