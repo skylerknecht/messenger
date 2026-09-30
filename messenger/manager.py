@@ -602,7 +602,7 @@ class Manager:
                 orphan = isinstance(forwarder, RemotePortForwarder) and forwarder.is_orphan
                 listen = f'{forwarder.listening_host}:{forwarder.listening_port}'
                 dest = '•••' if orphan else f'{forwarder.destination_host}:{forwarder.destination_port}'
-                config = f'{listen} -> {dest}'
+                config = f'{listen}:{dest}'
 
                 items.append({
                     "Type": type_labels.get(forwarder.NAME, forwarder.NAME),
