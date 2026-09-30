@@ -1,4 +1,6 @@
-### SOCKS Proxy
+# SOCKS Proxy and Local Port Forwards
+
+## SOCKS Proxy
 
 The most common use-case for Messenger is setting up an ingress SOCKS proxy, allowing network traffic from external tools to be tunneled into a target network.
 
@@ -8,49 +10,103 @@ The most common use-case for Messenger is setting up an ingress SOCKS proxy, all
 (messenger)~# PWnauryxxD
 (PWnauryxxD)~#
 ```
-2. Next, use the `socks` command with a specified port to open a SOCKS proxy.
+
+2. Use the `socks` command with a port (or host:port) to open a SOCKS proxy:
 ```
 (PWnauryxxD)~# socks 1080
-[*] Attempting to forward (127.0.0.1:1080) -> (*:*).
-[+] Messenger PWnauryxxD now forwarding (127.0.0.1:1080) -> (*:*).
-(PWnauryxxD)~#
+[*] Messenger `PWnauryxxD` is attempting to start SOCKS Server (127.0.0.1:1080 -> *:*).
+[+] Messenger `PWnauryxxD` started SOCKS Server (127.0.0.1:1080 -> *:*).
 ```
-3. Use a proxy-capable tool, or a proxifier tool, such as `proxychains`, to send TCP traffic through the SOCKS proxy. An example `proxychains` config for a Messenger SOCKS proxy on port 1080 is provided here:
+
+To bind to a specific interface:
+```
+(PWnauryxxD)~# socks 0.0.0.0:1080
+```
+
+3. Use a proxy-capable tool or a proxifier like `proxychains` to send TCP traffic through the SOCKS proxy. An example `proxychains` config:
 ```
 [ProxyList]
 socks5  127.0.0.1 1080
 ```
-4. Hint: to check to make sure your SOCKS tunnel is working, try using `curl` on `ifconfig.io` to check which IP address you are coming from.
+
+4. Verify the tunnel is working:
 ```
 $ proxychains curl ifconfig.io
-[proxychains] config file found: /etc/proxychains.conf
-[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
-[proxychains] DLL init: proxychains-ng 4.14
 [proxychains] Strict chain  ...  127.0.0.1:1080  ...  ifconfig.io:80  ...  OK
 68.12.211.24
 ```
 
-### Local Port Forward
+## Local Port Forward
 
-Similar to SOCKS proxies, Local Port Forwards also allow network traffic from external tools to be tunneled to a target network. However, instead of any detination
-local port forwards have a specific destination.
+Local port forwards tunnel traffic to a specific destination, unlike SOCKS which allows any destination.
 
-1. Use the `local` command to specify a listening ip and port along with a destination ip and port.
+1. Use the `local` command with `listening_host:listening_port:destination_host:destination_port`:
 ```
-(UkKPRJYtZk)~# local localhost:8089:google.com:80
-[*] Attempting to forward (localhost:8089) -> (google.com:80).
-[+] Messenger `UkKPRJYtZk` now forwarding (localhost:8089) -> (google.com:80).
-(UkKPRJYtZk)~#
+(PWnauryxxD)~# local 127.0.0.1:8089:10.0.0.5:80
+[*] Messenger `PWnauryxxD` is attempting to start Local Port Forwarder (127.0.0.1:8089 -> 10.0.0.5:80).
+[+] Messenger `PWnauryxxD` started Local Port Forwarder (127.0.0.1:8089 -> 10.0.0.5:80).
 ```
 
-2. Make a GET request to google by hitting our localhost on port 8089.
+2. Traffic to `localhost:8089` is now forwarded through the messenger to `10.0.0.5:80` on the target network:
+```
+$ curl http://localhost:8089 -H "Host: 10.0.0.5"
+```
+
+IPv6 addresses must be wrapped in brackets:
+```
+(PWnauryxxD)~# local [::1]:8089:[::1]:80
+```
+
+## Port Scanning
+
+Messenger supports port scanning through the SOCKS proxy or via the built-in `portscan` command.
+
+### Built-in Scanner
+
+The `portscan` command runs scans through the messenger directly:
+```
+(PWnauryxxD)~# portscan 10.0.0.0/24 --top-ports 100 --concurrency 50
+```
+
+View results with `scans`:
+```
+(PWnauryxxD)~# scans
+```
+
+### External Tools via SOCKS
+
+For `nmap` through proxychains, note these caveats:
+- Use `-sT` (full TCP connect scans) since SOCKS cannot handle raw sockets
+- Use `-Pn` to skip host discovery
+- Reduce timeouts in `proxychains.conf`:
 
 ```
-$ curl http://localhost:8089 -H "host:google.com"
-<HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">
-<TITLE>301 Moved</TITLE></HEAD><BODY>
-<H1>301 Moved</H1>
-The document has moved
-<A HREF="http://www.google.com/">here</A>.
-</BODY></HTML>
+dynamic_chain
+proxy_dns
+tcp_connect_time_out 3000
+tcp_read_time_out 5000
+
+[ProxyList]
+socks5  127.0.0.1 1080
+```
+
+```
+$ proxychains nmap -sT -Pn -p445 10.0.0.0/24
+```
+
+## Managing Forwarders
+
+View active forwarders with the `forwarders` command:
+```
+(messenger)~# forwarders
+                                    Forwarders
+  Messenger     Type        Name    Clients     Listen        Destination
+----------- ------------ --------- --------- ------------- ---------------
+ PWnauryxxD  SOCKS Server AbCdEfGh     3     127.0.0.1:1080    *:*
+```
+
+Stop a forwarder by its name:
+```
+(messenger)~# stop AbCdEfGh
+[*] Removed `AbCdEfGh` from forwarders.
 ```

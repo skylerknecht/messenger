@@ -72,9 +72,8 @@ operator~# ./client.py
 
 ### Developers
 - [Communication Overview](docs/communication.md)
+- [The Minimal Client](docs/minimal-client.md)
 - [Client Specification (Pseudo-Code)](docs/client.pseudo)
-- [Testing Checklist](docs/testing.md)
-- [Releasing](docs/releasing.md)
 
 
 ## Client Support Matrix
