@@ -1,4 +1,5 @@
 import asyncio
+import errno
 import inspect
 import sys
 import re
@@ -571,7 +572,12 @@ class Manager:
           forwarders
           forwarders NkMCyCrrcP
         """
-        columns = ["Messenger", "Type", "Name", "Clients", "Listen", "Destination"]
+        columns = ["Type", "Messenger", "Name", "Configuration", "Clients"]
+        type_labels = {
+            "SOCKS Server": "SOCKS",
+            "Local Port Forwarder": "LPF",
+            "Remote Port Forwarder": "RPF",
+        }
         items = []
 
         if len(self.messengers) == 0:
@@ -596,14 +602,14 @@ class Manager:
                 orphan = isinstance(forwarder, RemotePortForwarder) and forwarder.is_orphan
                 listen = f'{forwarder.listening_host}:{forwarder.listening_port}'
                 dest = '•••' if orphan else f'{forwarder.destination_host}:{forwarder.destination_port}'
+                config = f'{listen} -> {dest}'
 
                 items.append({
+                    "Type": type_labels.get(forwarder.NAME, forwarder.NAME),
                     "Messenger": messenger.nickname,
-                    "Type": forwarder.NAME,
                     "Name": colored_id,
+                    "Configuration": config,
                     "Clients": len(forwarder.clients),
-                    "Listen": listen,
-                    "Destination": dest,
                 })
         if len(items) == 0:
             if messenger_id:
@@ -807,6 +813,19 @@ class Manager:
             f'asyncio: {detail}',
             'warning', reprompt=False, display_module='handlers'
         )
+        if isinstance(exc, OSError) and exc.errno in (errno.EMFILE, errno.ENFILE):
+            worst = None
+            for messenger in self.messengers:
+                for forwarder in messenger.forwarders:
+                    if worst is None or len(forwarder.clients) > len(worst[1].clients):
+                        worst = (messenger, forwarder)
+            if worst:
+                m, f = worst
+                self.update_cli.display(
+                    f'File descriptors exhausted. Forwarder `{f.nickname}` on '
+                    f'messenger `{m.nickname}` has the most clients ({len(f.clients)}).',
+                    'error', reprompt=False, display_module='forwarders'
+                )
 
     async def start_command_line_interface(self):
         """
