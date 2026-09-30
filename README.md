@@ -78,11 +78,11 @@ operator~# ./client.py
 
 ## Clients
 
-All clients support HTTP and WebSocket transports, AES-256-CBC encryption, SOCKS5 TCP, local port forwards, and remote port forwards.
-
-- [Python](https://github.com/skylerknecht/messenger-client-python) — Cross-platform, Python 3.6+, non-main-thread support
-- [C#](https://github.com/skylerknecht/messenger-client-csharp) — .NET Framework 4.7.2, preinstalled on Windows 10/11, no runtime install needed
-- [Node JS](https://github.com/skylerknecht/messenger-client-nodejs) — Node.js, Electron support
+| Client                                                             | Description                                                                                                                                           |
+|--------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [Python](https://github.com/skylerknecht/messenger-client-python)  | A cross-platform Messenger client supporting Python 3.6+.                                                                                             |
+| [C#](https://github.com/skylerknecht/messenger-client-csharp)      | A .NET Framework 4.7.2 Messenger client targeting Windows environments. The framework is preinstalled on Windows 10/11 and most enterprise systems, requiring no additional runtime to deploy. |
+| [Node JS](https://github.com/skylerknecht/messenger-client-nodejs) | A Node JS Messenger client that can run directly with `node` or be dropped into an Electron app.                                                      |
 
 ## Credits 
 
