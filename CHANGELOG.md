@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.2] - 2026-09-30
+
+- Re-release of 0.10.1 with correct client submodule pointers. The 0.10.1 PyPI package shipped with stale client code.
+
 ## [0.10.1] - 2026-09-30
 
 ### Server
