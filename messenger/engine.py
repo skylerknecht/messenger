@@ -30,7 +30,11 @@ class Engine:
                 break
             try:
                 remaining_data, message = MessageParser.deserialize_message(self.encryption_key, data)
-            except Exception:
+            except Exception as e:
+                self.update_cli.display(
+                    f'Discarded upstream frame ({potential_length} bytes): {type(e).__name__}',
+                    'warning', reprompt=False, display_module='handlers'
+                )
                 break
             messages.append(message)
             data = remaining_data
@@ -126,18 +130,21 @@ class Engine:
         return messenger
 
     async def send_messages_upstream(self, data):
-        messages = self._deserialize(data) if data else []
-        if not messages:
-            return
-        if not isinstance(messages[0], CheckInMessage):
-            return
-        messenger_id = messages[0].messenger_id
-        if not messenger_id:
-            return
-        messenger = self._get_messenger(messenger_id)
-        if messenger:
-            messenger.received_bytes += len(data)
-            await messenger.process_upstream_messages(messages[1:])
+        try:
+            messages = self._deserialize(data) if data else []
+            if not messages:
+                return
+            if not isinstance(messages[0], CheckInMessage):
+                return
+            messenger_id = messages[0].messenger_id
+            if not messenger_id:
+                return
+            messenger = self._get_messenger(messenger_id)
+            if messenger:
+                messenger.received_bytes += len(data)
+                await messenger.process_upstream_messages(messages[1:])
+        except Exception as e:
+            self.update_cli.log_unexpected_error(e)
 
     async def get_downstream_messages(self, messenger):
         result = b''

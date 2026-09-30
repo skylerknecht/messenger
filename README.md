@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.9.3-orange" alt="Version">
+  <img src="https://img.shields.io/badge/version-v0.10.0-orange" alt="Version">
   <img src="https://img.shields.io/pypi/v/messenger-proxy" alt="PyPI">
   <img src="https://img.shields.io/badge/python->3.8-blue" alt="Python">
   <img src="https://img.shields.io/github/license/skylerknecht/messenger" alt="License">
@@ -72,18 +72,17 @@ operator~# ./client.py
 
 ### Developers
 - [Communication Overview](docs/communication.md)
+- [The Minimal Client](docs/minimal-client.md)
 - [Client Specification (Pseudo-Code)](docs/client.pseudo)
-- [Testing Checklist](docs/testing.md)
-- [Releasing](docs/releasing.md)
 
 
-## Client Support Matrix
+## Clients
 
-| Clients                                                            | Messenger Builder | Protocols         | Local/Remote Port Forwarding | SOCKS5 TCP | SOCKS5 UDP    |
-|--------------------------------------------------------------------|-------------------|-------------------|------------------------------|------------|---------------|
-| [Python](https://github.com/skylerknecht/messenger-client-python)  | Supported         | HTTP & WebSockets | Supported                    | Supported  | Not Supported |
-| [C#](https://github.com/skylerknecht/messenger-client-csharp)      | Supported         | HTTP & WebSockets | Supported                    | Supported  | Not Supported |
-| [Node JS](https://github.com/skylerknecht/messenger-client-nodejs) | Supported         | HTTP & WebSockets | Supported                    | Supported  | Not Supported |
+| Client                                                             | Description                                                                                                                                           |
+|--------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [Python](https://github.com/skylerknecht/messenger-client-python)  | A cross-platform Messenger client supporting Python 3.6+.                                                                                             |
+| [C#](https://github.com/skylerknecht/messenger-client-csharp)      | A .NET Framework 4.7.2 Messenger client targeting Windows environments. The framework is preinstalled on Windows 10/11 and most enterprise systems, requiring no additional runtime to deploy. |
+| [Node JS](https://github.com/skylerknecht/messenger-client-nodejs) | A Node JS Messenger client that can run directly with `node` or be dropped into an Electron app.                                                      |
 
 ## Credits 
 

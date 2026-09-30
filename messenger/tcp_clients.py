@@ -19,22 +19,41 @@ class TcpClient(ABC):
         self.on_close = on_close
 
     def _cleanup(self, abort=False):
-        if not self.on_close(self):
-            return False
-        if abort:
-            self.writer.transport.abort()
-        else:
-            self.writer.close()
-        return True
+        removed = False
+        try:
+            removed = self.on_close(self)
+        except Exception:
+            pass
+        try:
+            if abort and self.writer.transport:
+                self.writer.transport.abort()
+            else:
+                self.writer.close()
+        except Exception:
+            pass
+        return removed
 
     @abstractmethod
     async def initiate_tcp_client(self):
         pass
 
+    EXPECTED_DISCONNECT = (
+        ConnectionResetError, ConnectionAbortedError, BrokenPipeError,
+    )
+
     async def stream(self):
-        while True:
-            try:
-                downstream_message = await self.reader.read(4096)
+        try:
+            while True:
+                try:
+                    downstream_message = await self.reader.read(4096)
+                except self.EXPECTED_DISCONNECT:
+                    break
+                except Exception as e:
+                    self.messenger.update_cli.display(
+                        f'TCP Client {self.identifier} read failed: {type(e).__name__}',
+                        'warning', reprompt=False, display_module='forwarders')
+                    self.messenger.update_cli.log_unexpected_error(e)
+                    break
                 if not downstream_message:
                     break
                 self.messenger.update_cli.display(
@@ -51,12 +70,14 @@ class TcpClient(ABC):
                         data=downstream_message
                     )
                 )
-            except Exception:
-                break
-        if self._cleanup():
-            await self.messenger.send_message_downstream(
-                SendDataMessage(client_id=self.identifier, data=b'')
-            )
+        except Exception as e:
+            if not self.messenger.checked_out:
+                self.messenger.update_cli.log_unexpected_error(e)
+        finally:
+            if self._cleanup():
+                await self.messenger.send_message_downstream(
+                    SendDataMessage(client_id=self.identifier, data=b'')
+                )
 
     async def send_data(self, data, cleanup=False):
         if len(data) == 0:
@@ -66,7 +87,16 @@ class TcpClient(ABC):
             self.writer.write(data)
             if cleanup:
                 self._cleanup()
-        except Exception:
+        except self.EXPECTED_DISCONNECT:
+            if self._cleanup():
+                await self.messenger.send_message_downstream(
+                    SendDataMessage(client_id=self.identifier, data=b'')
+                )
+        except Exception as e:
+            self.messenger.update_cli.display(
+                f'TCP Client {self.identifier} write failed: {type(e).__name__}',
+                'warning', reprompt=False, display_module='forwarders')
+            self.messenger.update_cli.log_unexpected_error(e)
             if self._cleanup():
                 await self.messenger.send_message_downstream(
                     SendDataMessage(client_id=self.identifier, data=b'')
@@ -81,7 +111,8 @@ class LocalTcpClient(TcpClient):
     async def initiate_tcp_client(self):
         try:
             await self.send_initiate_tcp_client_req()
-        except Exception:
+        except Exception as e:
+            self.messenger.update_cli.log_unexpected_error(e)
             self._cleanup()
 
     async def send_initiate_tcp_client_req(self):
@@ -96,7 +127,7 @@ class LocalTcpClient(TcpClient):
         if rep != 0:
             self._cleanup(abort=True)
             return
-        asyncio.create_task(self.stream())
+        self.messenger.supervisor.spawn(self.stream(), label=f'stream:{self.identifier}')
 
 class RemoteTcpClient(TcpClient):
     def __init__(self, identifier, reader, writer, messenger, on_close):
@@ -104,7 +135,7 @@ class RemoteTcpClient(TcpClient):
         self.identifier = identifier
 
     async def initiate_tcp_client(self):
-        asyncio.create_task(self.stream())
+        self.messenger.supervisor.spawn(self.stream(), label=f'stream:{self.identifier}')
 
 class SocksTcpClient(LocalTcpClient):
     def __init__(self, reader, writer, messenger, on_close):
@@ -119,14 +150,17 @@ class SocksTcpClient(LocalTcpClient):
             if not await self.negotiate_address():
                 return self._cleanup()
             await self.send_initiate_tcp_client_req()
-        except Exception:
+        except (*self.EXPECTED_DISCONNECT, asyncio.IncompleteReadError, EOFError):
+            self._cleanup()
+        except Exception as e:
+            self.messenger.update_cli.log_unexpected_error(e)
             self._cleanup()
 
     async def handle_initiate_tcp_client_rep(self, bind_addr, bind_port, atype, rep):
         socks_connect_results = self.create_socks_reply(rep, bind_addr, bind_port, atype)
         await self.send_data(socks_connect_results, cleanup=(rep != 0))
         if rep == 0:
-            asyncio.create_task(self.stream())
+            self.messenger.supervisor.spawn(self.stream(), label=f'stream:{self.identifier}')
 
     @staticmethod
     def create_socks_reply(rep, bind_addr, bind_port, atype):

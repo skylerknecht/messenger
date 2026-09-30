@@ -1,4 +1,5 @@
 import asyncio
+import errno
 import inspect
 import sys
 import re
@@ -8,6 +9,7 @@ from collections import namedtuple
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import Completer, Completion
+from prompt_toolkit.patch_stdout import patch_stdout
 
 from functools import wraps
 from inspect import Parameter
@@ -64,11 +66,7 @@ class UpdateCLI:
         else:
             icon = color_text(status_info.icon, status_info.color)
 
-        print(f'\x1b[2K\r{icon} {stdout}')
-
-        if reprompt:
-            print(f'({self.prompt})~# ' + self.session.app.current_buffer.text, end='')
-            sys.stdout.flush()
+        print(f'{icon} {stdout}')
 
     def log_unexpected_error(self, e):
         log_file = self.logger.log_exception(e)
@@ -574,11 +572,16 @@ class Manager:
           forwarders
           forwarders NkMCyCrrcP
         """
-        columns = ["Type", "Name", "Clients", "Listening Host", "Listening Port", "Destination Host", "Destination Port"]
+        columns = ["Type", "Messenger", "Name", "Configuration", "Clients"]
+        type_labels = {
+            "SOCKS Server": "SOCKS",
+            "Local Port Forwarder": "LPF",
+            "Remote Port Forwarder": "RPF",
+        }
         items = []
 
         if len(self.messengers) == 0:
-            self.update_cli.display('There are no connected Messengers, therefore, there cannot be any Forwarders. Idiot.', 'information', reprompt=False)
+            self.update_cli.display('There are no connected Messengers, therefore, there cannot be any Forwarders.', 'information', reprompt=False)
             return
 
         if messenger_id and not any(messenger_id in (m.identifier, m.nickname) for m in self.messengers):
@@ -596,25 +599,17 @@ class Manager:
                 else:
                     colored_id = color_text(forwarder.nickname, 'green')
 
-                streaming_clients = [
-                    client
-                    for client in forwarder.clients
-                ]
-
-                # An orphan RPF (advertised by the client, no destination set
-                # yet) shows as unconfigured until the operator runs `remote`.
                 orphan = isinstance(forwarder, RemotePortForwarder) and forwarder.is_orphan
-                dest_host = '•••' if orphan else forwarder.destination_host
-                dest_port = '•••' if orphan else forwarder.destination_port
+                listen = f'{forwarder.listening_host}:{forwarder.listening_port}'
+                dest = '•••' if orphan else f'{forwarder.destination_host}:{forwarder.destination_port}'
+                config = f'{listen} -> {dest}'
 
                 items.append({
-                    "Type": forwarder.NAME,
+                    "Type": type_labels.get(forwarder.NAME, forwarder.NAME),
+                    "Messenger": messenger.nickname,
                     "Name": colored_id,
-                    "Clients": len(streaming_clients),
-                    "Listening Host": forwarder.listening_host,
-                    "Listening Port": forwarder.listening_port,
-                    "Destination Host": dest_host,
-                    "Destination Port": dest_port,
+                    "Configuration": config,
+                    "Clients": len(forwarder.clients),
                 })
         if len(items) == 0:
             if messenger_id:
@@ -810,49 +805,75 @@ class Manager:
 
         print(self.create_table(f"Scanner {identifier} Results", columns, items))
 
+    def _asyncio_exception_handler(self, loop, context):
+        """Log every asyncio-signaled exception as a warning through the CLI."""
+        exc = context.get('exception')
+        detail = f'{type(exc).__name__}: {exc}' if exc else context.get('message', 'unknown')
+        self.update_cli.display(
+            f'asyncio: {detail}',
+            'warning', reprompt=False, display_module='handlers'
+        )
+        if isinstance(exc, OSError) and exc.errno in (errno.EMFILE, errno.ENFILE):
+            worst = None
+            for messenger in self.messengers:
+                for forwarder in messenger.forwarders:
+                    if worst is None or len(forwarder.clients) > len(worst[1].clients):
+                        worst = (messenger, forwarder)
+            if worst:
+                m, f = worst
+                self.update_cli.display(
+                    f'File descriptors exhausted. Forwarder `{f.nickname}` on '
+                    f'messenger `{m.nickname}` has the most clients ({len(f.clients)}).',
+                    'error', reprompt=False, display_module='forwarders'
+                )
+
     async def start_command_line_interface(self):
         """
         Start the CLI, display banner, and manage user input.
         """
+        asyncio.get_running_loop().set_exception_handler(self._asyncio_exception_handler)
         await self.messenger_server.start()
 
-        while True:
-            try:
-                prompt = self.current_messenger.nickname if self.current_messenger else self.PROMPT
-                user_input = await self.session.prompt_async(f'({prompt})~# ')
-            except KeyboardInterrupt:
-                self.update_cli.display(f"CTRL+C caught, type `exit` to quit Messenger.", 'information',
-                                        reprompt=False)
-                continue
-
-            if not user_input.strip():
-                continue
-
-            timestamp = self.logger.now()
-            output_path = None
-            with self.logger.capture() as output:
+        with patch_stdout(raw=True):
+            while True:
                 try:
-                    parts = user_input.split()
-                    command = parts[0]
-                    for messenger in self.messengers:
-                        if command in (messenger.identifier, messenger.nickname):
-                            await self.interact(messenger)
-                            break
-                    else:
-                        output_path = await self.execute_command(command, parts[1:])
-                except InvalidConfigError as e:
-                    self.update_cli.display(str(e), 'error', reprompt=False)
+                    prompt = self.current_messenger.nickname if self.current_messenger else self.PROMPT
+                    user_input = await self.session.prompt_async(f'({prompt})~# ')
                 except KeyboardInterrupt:
                     self.update_cli.display(f"CTRL+C caught, type `exit` to quit Messenger.", 'information',
                                             reprompt=False)
-                except Exception as e:
-                    self.update_cli.log_unexpected_error(e)
+                    continue
+                except EOFError:
+                    break
 
-            captured = strip_ansi(output.getvalue()).strip()
-            self.logger.record_command(timestamp, user_input.strip(), captured)
+                if not user_input.strip():
+                    continue
 
-            if output_path:
-                self._write_output_file(output_path, captured)
+                timestamp = self.logger.now()
+                output_path = None
+                with self.logger.capture() as output:
+                    try:
+                        parts = user_input.split()
+                        command = parts[0]
+                        for messenger in self.messengers:
+                            if command in (messenger.identifier, messenger.nickname):
+                                await self.interact(messenger)
+                                break
+                        else:
+                            output_path = await self.execute_command(command, parts[1:])
+                    except InvalidConfigError as e:
+                        self.update_cli.display(str(e), 'error', reprompt=False)
+                    except KeyboardInterrupt:
+                        self.update_cli.display(f"CTRL+C caught, type `exit` to quit Messenger.", 'information',
+                                                reprompt=False)
+                    except Exception as e:
+                        self.update_cli.log_unexpected_error(e)
+
+                captured = strip_ansi(output.getvalue()).strip()
+                self.logger.record_command(timestamp, user_input.strip(), captured)
+
+                if output_path:
+                    self._write_output_file(output_path, captured)
         await self.exit()
 
     def _write_output_file(self, path, contents):
@@ -993,7 +1014,7 @@ class Manager:
 
         scanner = Scanner(ips, ports, int(top_ports), self.update_cli, self.current_messenger, int(concurrency))
         self.current_messenger.scanners.append(scanner)
-        asyncio.create_task(scanner.start())
+        self.current_messenger.supervisor.spawn(scanner.start(), label=f'scanner:{scanner.identifier}')
 
     async def stop(self, id):
         """

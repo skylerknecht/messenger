@@ -6,6 +6,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-09-30
+
+### Server
+
+#### Added
+
+- `TaskSupervisor` (`messenger/supervisor.py`) — centralized background task management. All `asyncio.create_task` calls replaced with `supervisor.spawn()` which automatically logs exceptions and supports bulk cancellation on messenger checkout.
+- `connected` property on `Messenger`, `HTTPMessenger`, and `WebSocketMessenger` — a single authoritative liveness predicate replacing scattered `checked_out` checks.
+- asyncio exception handler that logs unhandled asyncio exceptions through the CLI; on EMFILE/ENFILE, identifies the forwarder with the most clients.
+- EMFILE/ENFILE classification on RPF outbound connect — fd exhaustion is reported at error severity with the forwarder and messenger name.
+- `docs/minimal-client.md` — walkthrough for writing a messenger client from scratch (~120 lines of Python).
+
+#### Changed
+
+- CLI wrapped in prompt_toolkit's `patch_stdout` — replaces the manual `\x1b[2K\r` erase-line hack for correct async output interleaving.
+- Forwarders table redesigned: columns are now `Type | Messenger | Name | Configuration | Clients` with short type labels (SOCKS, LPF, RPF) and a merged config column (`listen -> dest`).
+- Client matrix in README replaced with a two-column table (Client, Description) sourced from each client repo's README.
+- WebSocket `_send_loop` restructured with `try/finally` that closes the websocket on any send failure, coupling send and receive loop lifetimes.
+- `checked_out` guards in forwarders, scanner, and RPF replaced with the `connected` property.
+- Exception handling in `send_messages_upstream` moved from per-message to wrapping the entire method.
+- WebSocket handler `finally` block cancels all supervised tasks on checkout.
+- Docs rewritten: operator guides updated with current command output and IPv6 examples, communication overview expanded with mermaid sequence diagrams and full message type specs.
+- Removed `docs/releasing.md` and `docs/testing.md`.
+- Removed insult from empty-forwarders message.
+
+#### Fixed
+
+- `Logger.log_exception` used `traceback.format_exc()` which returns `NoneType: None` when called outside an exception handler; replaced with `traceback.format_exception(type(e), e, e.__traceback__)`.
+- `TcpClient._cleanup` could raise if `on_close` or `writer.close()` threw; both are now wrapped in try/except.
+- `TcpClient.stream` swallowed all exceptions with a bare `except Exception: break`; now distinguishes expected disconnects (`ConnectionResetError`, `BrokenPipeError`, etc.) from unexpected errors and logs the latter.
+- `TcpClient.send_data` write failures now distinguish expected disconnects from unexpected errors.
+- `SocksTcpClient.initiate_tcp_client` distinguishes expected disconnects and incomplete reads from unexpected errors.
+- Discarded upstream frames in `Engine._deserialize` now log a warning with the frame size instead of silently breaking.
+
+### Clients
+
+#### Changed
+
+- All client READMEs rewritten to match current builder flags (removed `--remote-port-forwards`, added `--no-print`, corrected defaults).
+- Python client: removed dead `--no-obfuscate` builder argument.
+
 ## [0.9.3] - 2026-08-31
 
 ### Spec
