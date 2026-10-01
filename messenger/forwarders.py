@@ -127,10 +127,10 @@ class LocalPortForwarder(Forwarder):
         return listening_host, int(listening_port), destination_host, int(destination_port)
 
     def _endpoint_str(self):
-        listen = f'{self.listening_host}:{self.listening_port}'
+        listen = f'({self.listening_host}:{self.listening_port})'
         if self.destination_host == '*':
             return listen
-        return f'{listen} -> {self.destination_host}:{self.destination_port}'
+        return f'{listen} -> ({self.destination_host}:{self.destination_port})'
 
     async def start(self):
         self.update_cli.display(
@@ -152,7 +152,7 @@ class LocalPortForwarder(Forwarder):
             else:
                 reason = str(e)
             self.update_cli.display(
-                f'Messenger `{self.messenger.nickname}` failed to bind ({self.listening_host}:{self.listening_port}): {reason}.',
+                f'Messenger `{self.messenger.nickname}` failed to bind on ({self.listening_host}:{self.listening_port}): {reason}.',
                 'error',
                 reprompt=False, display_module='forwarders'
             )
@@ -293,7 +293,7 @@ class RemotePortForwarder(Forwarder):
             if e.errno in (errno.EMFILE, errno.ENFILE):
                 self.update_cli.display(
                     f'Messenger `{self.messenger.nickname}` refusing TCP client for '
-                    f'{self.destination_host}:{self.destination_port}: file descriptors exhausted '
+                    f'({self.destination_host}:{self.destination_port}): file descriptors exhausted '
                     f'({errno.errorcode.get(e.errno, e.errno)}).',
                     'error', reprompt=False, display_module='forwarders'
                 )
@@ -367,7 +367,7 @@ class RemotePortForwarder(Forwarder):
         await self.messenger.send_message_downstream(bind_req)
         self.update_cli.display(
             f'Sent stop to Messenger `{self.messenger.nickname}` for Remote Port Forwarder '
-            f'`{self.identifier}` ({self.listening_host}:{self.listening_port}).',
+            f'`{self.identifier}` on ({self.listening_host}:{self.listening_port}).',
             'information', display_module='forwarders'
         )
         self.close_all_clients()

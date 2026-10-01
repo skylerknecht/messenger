@@ -602,7 +602,7 @@ class Manager:
                 orphan = isinstance(forwarder, RemotePortForwarder) and forwarder.is_orphan
                 listen = f'{forwarder.listening_host}:{forwarder.listening_port}'
                 dest = '•••' if orphan else f'{forwarder.destination_host}:{forwarder.destination_port}'
-                config = f'{listen} -> {dest}'
+                config = f'({listen}) -> ({dest})'
 
                 items.append({
                     "Type": type_labels.get(forwarder.NAME, forwarder.NAME),
@@ -711,13 +711,13 @@ class Manager:
             for f in messenger.forwarders:
                 if isinstance(f, RemotePortForwarder):
                     ftype = "Remote"
-                    cfg = f"{f.listening_host}:{f.listening_port} -> {f.destination_host}:{f.destination_port}"
+                    cfg = f"({f.listening_host}:{f.listening_port}) -> ({f.destination_host}:{f.destination_port})"
                 elif f.destination_host == '*' and f.destination_port == '*':
                     ftype = "Socks"
-                    cfg = f"{f.listening_host}:{f.listening_port} -> *:*"
+                    cfg = f"({f.listening_host}:{f.listening_port}) -> (*:*)"
                 else:
                     ftype = "Local"
-                    cfg = f"{f.listening_host}:{f.listening_port} -> {f.destination_host}:{f.destination_port}"
+                    cfg = f"({f.listening_host}:{f.listening_port}) -> ({f.destination_host}:{f.destination_port})"
                 lines.append(f"    {f.nickname} ({ftype}) {cfg}")
         else:
             lines.append(f"  Forwarders:  •••")
@@ -934,7 +934,7 @@ class Manager:
                 # Already a configured forward here -- don't make a duplicate.
                 self.update_cli.display(
                     f'Messenger `{messenger.nickname}` is already forwarding on '
-                    f'{forwarder.listening_host}:{forwarder.listening_port}.',
+                    f'({forwarder.listening_host}:{forwarder.listening_port}).',
                     'error', reprompt=False
                 )
                 return
@@ -944,8 +944,8 @@ class Manager:
             existing.destination_port = forwarder.destination_port
             self.update_cli.display(
                 f'Configured remote port forward `{existing.identifier}` on Messenger '
-                f'`{messenger.nickname}` ({existing.listening_host}:{existing.listening_port} -> '
-                f'{existing.destination_host}:{existing.destination_port}).',
+                f'`{messenger.nickname}` ({existing.listening_host}:{existing.listening_port}) -> '
+                f'({existing.destination_host}:{existing.destination_port}).',
                 'success', reprompt=False
             )
             return
@@ -1016,40 +1016,73 @@ class Manager:
         self.current_messenger.scanners.append(scanner)
         self.current_messenger.supervisor.spawn(scanner.start(), label=f'scanner:{scanner.identifier}')
 
-    async def stop(self, id):
+    def _resolve_messenger(self, id=None):
+        if id is None:
+            if self.current_messenger is None:
+                self.update_cli.display('Please specify a messenger or interact with one first.', 'error', reprompt=False)
+                return None
+            return self.current_messenger
+        for messenger in self.messengers:
+            if id in (messenger.identifier, messenger.nickname):
+                return messenger
+        self.update_cli.display(f'`{id}` not found.', 'error', reprompt=False)
+        return None
+
+    async def _stop_forwarder(self, forwarder):
+        if isinstance(forwarder, RemotePortForwarder) and not forwarder.forwarding:
+            forwarder.close_all_clients()
+            self.update_cli.display(
+                f'Removed unconfirmed remote port forward `{forwarder.nickname}`.',
+                'information', reprompt=False
+            )
+        else:
+            await forwarder.stop()
+            self.update_cli.display(
+                f'Removed `{forwarder.nickname}` from forwarders.',
+                'information', reprompt=False
+            )
+
+    async def stop(self, id, messenger_id=None):
         """
-        Stop a forwarder or scanner by ID.
+        Stop a forwarder or scanner by ID, or stop all on a messenger.
 
         required:
-          id                       ID of the forwarder or scanner to stop.
+          id                       ID of the forwarder/scanner, or "all".
+
+        optional:
+          messenger_id             Messenger to stop all on. Defaults to current.
 
         examples:
           stop NkMCyCrrcP
+          stop all
+          stop all dc01
         """
+        if id == 'all':
+            messenger = self._resolve_messenger(messenger_id)
+            if not messenger:
+                return
+            if not messenger.forwarders and not messenger.scanners:
+                self.update_cli.display('Nothing to stop.', 'information', reprompt=False)
+                return
+            for f in list(messenger.forwarders):
+                messenger.forwarders.remove(f)
+                await self._stop_forwarder(f)
+            for s in list(messenger.scanners):
+                await s.stop()
+            self.update_cli.display(
+                f'Stopped all forwarders and scanners on Messenger `{messenger.nickname}`.',
+                'success', reprompt=False
+            )
+            return
+
         for messenger in self.messengers:
-            # Claim the forwarder atomically (pop before any await) so a
-            # concurrent BindRep handler can't also act on it.
             target = None
             for i, f in enumerate(messenger.forwarders):
                 if id in (f.identifier, f.nickname):
                     target = messenger.forwarders.pop(i)
                     break
             if target is not None:
-                if isinstance(target, RemotePortForwarder) and not target.forwarding:
-                    # Never confirmed by the client -- just drop it, send no
-                    # signal. Race-safe: a late BindRep for it simply comes back
-                    # as an orphan we can re-adopt.
-                    target.close_all_clients()
-                    self.update_cli.display(
-                        f'Removed unconfirmed remote port forward `{target.nickname}`.',
-                        'information', reprompt=False
-                    )
-                else:
-                    await target.stop()
-                    self.update_cli.display(
-                        f'Removed `{target.nickname}` from forwarders.',
-                        'information', reprompt=False
-                    )
+                await self._stop_forwarder(target)
                 return
             for scanner in messenger.scanners:
                 if id not in (scanner.identifier, scanner.nickname):
@@ -1071,20 +1104,9 @@ class Manager:
           kill dc01
           kill
         """
-        if id is None:
-            if self.current_messenger is None:
-                self.update_cli.display('Please specify a messenger or interact with one first.', 'error', reprompt=False)
-                return
-            target = self.current_messenger
-        else:
-            target = None
-            for messenger in self.messengers:
-                if id in (messenger.identifier, messenger.nickname):
-                    target = messenger
-                    break
-            if target is None:
-                self.update_cli.display(f'`{id}` not found.', 'error', reprompt=False)
-                return
+        target = self._resolve_messenger(id)
+        if not target:
+            return
         target.checked_out = True
         await target.send_message_downstream(CheckOutMessage())
         self.update_cli.display(

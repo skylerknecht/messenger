@@ -144,8 +144,8 @@ class Messenger:
             return
         self.update_cli.display(
             f'Messenger `{self.nickname}` has no configured remote port forward '
-            f'for {message.listening_host}:{message.listening_port} -> '
-            f'{message.destination_host}:{message.destination_port}, denying forward!',
+            f'for ({message.listening_host}:{message.listening_port}) -> '
+            f'({message.destination_host}:{message.destination_port}), denying forward!',
             'warning', display_module='messengers'
         )
         await self.send_message_downstream(
@@ -207,7 +207,7 @@ class Messenger:
                 break
         else:
             self.update_cli.display(
-                f'Messenger `{self.nickname}` is no longer remote forwarding '
+                f'Messenger `{self.nickname}` is no longer remote forwarding on '
                 f'({message.listening_host}:{message.listening_port}): {reason_text}.',
                 'information', display_module='messengers'
             )
@@ -216,7 +216,7 @@ class Messenger:
         remote_port_forwarder.close_all_clients()
         severity = 'information' if message.reason == 5 else 'error'
         self.update_cli.display(
-            f'Messenger `{self.nickname}` is no longer remote forwarding '
+            f'Messenger `{self.nickname}` is no longer remote forwarding on '
             f'({message.listening_host}:{message.listening_port}): {reason_text}.',
             severity, display_module='messengers'
         )
@@ -230,7 +230,7 @@ class Messenger:
             remote_port_forwarder.forwarding = True
             dest = f' -> ({remote_port_forwarder.destination_host}:{remote_port_forwarder.destination_port})' if not remote_port_forwarder.is_orphan else ''
             self.update_cli.display(
-                f'Messenger `{self.nickname}` is now remote forwarding ({message.listening_host}:{message.listening_port}){dest}.',
+                f'Messenger `{self.nickname}` is now remote forwarding on ({message.listening_host}:{message.listening_port}){dest}.',
                 'success', display_module='messengers'
             )
             return
@@ -245,7 +245,7 @@ class Messenger:
                 old_remote_port_forwarder.close_all_clients()
                 self.update_cli.display(
                     f'Messenger `{self.nickname}` claims bind `{message.bind_id}` on '
-                    f'{message.listening_host}:{message.listening_port}, which was tracked as '
+                    f'({message.listening_host}:{message.listening_port}), which was tracked as '
                     f'`{old_remote_port_forwarder.identifier}`. Replacing the stale entry.',
                     'warning', display_module='messengers'
                 )
@@ -261,7 +261,7 @@ class Messenger:
         self.forwarders.append(remote_port_forwarder)
         self.update_cli.display(
             f'Messenger `{self.nickname}` advertised remote port forward `{message.bind_id}` '
-            f'on {message.listening_host}:{message.listening_port}.',
+            f'on ({message.listening_host}:{message.listening_port}).',
             'warning', display_module='messengers'
         )
         self.update_cli.display(

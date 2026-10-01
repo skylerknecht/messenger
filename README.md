@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.10.3-orange" alt="Version">
+  <img src="https://img.shields.io/badge/version-v0.10.4-orange" alt="Version">
   <img src="https://img.shields.io/pypi/v/messenger-proxy" alt="PyPI">
   <img src="https://img.shields.io/badge/python->3.8-blue" alt="Python">
   <img src="https://img.shields.io/github/license/skylerknecht/messenger" alt="License">
@@ -78,11 +78,15 @@ operator~# ./client.py
 
 ## Clients
 
-| Client                                                             | Description                                                                                                                                           |
-|--------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [Python](https://github.com/skylerknecht/messenger-client-python)  | A cross-platform Messenger client supporting Python 3.6+.                                                                                             |
-| [C#](https://github.com/skylerknecht/messenger-client-csharp)      | A .NET Framework 4.7.2 Messenger client targeting Windows environments. The framework is preinstalled on Windows 10/11 and most enterprise systems, requiring no additional runtime to deploy. |
-| [Node JS](https://github.com/skylerknecht/messenger-client-nodejs) | A Node JS Messenger client that can run directly with `node` or be dropped into an Electron app.                                                      |
+| Client    | Description                                                                          |
+|-----------|--------------------------------------------------------------------------------------|
+| [Python]  | Designed to run anywhere Python 3.6+ is installed.                                   |
+| [C#]      | Compiles to a native Windows .NET Framework 4.7.2 executable with no additional dependencies. |
+| [Node JS] | Runs standalone with Node or injected into an Electron app.                          |
+
+[Python]: https://github.com/skylerknecht/messenger-client-python
+[C#]: https://github.com/skylerknecht/messenger-client-csharp
+[Node JS]: https://github.com/skylerknecht/messenger-client-nodejs
 
 ## Credits 
 

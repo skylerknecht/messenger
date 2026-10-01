@@ -6,6 +6,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.4] - 2026-10-01
+
+### Server
+
+#### Added
+
+- `stop all` command — stops all forwarders and scanners on the current messenger, or on a specified messenger (`stop all dc01`).
+
+#### Changed
+
+- All forwarder address pairs now display as `(IP:PORT) -> (IP:PORT)` consistently across tables, log messages, and status output.
+- Extracted `_resolve_messenger()` and `_stop_forwarder()` helpers, deduplicating messenger lookup in `stop` and `kill`.
+
+### Clients
+
+#### Added
+
+- Connection attempt counters on all three clients — log lines now show `(1/4)` progress during scheme fallback.
+- C# — added missing `[*] Attempting to connect over` log that Python and Node.js already had.
+
+#### Changed
+
+- Builder output rewritten for all three clients with consistent `[*]` status prefixes, install instructions, and operational security steps.
+- Client README descriptions rewritten: Python, C#, and Node.js.
+- Main README client table rewritten with reference-style links.
+
 ## [0.10.3] - 2026-09-30
 
 ### Clients
@@ -19,12 +45,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Re-release of 0.10.1 with correct client submodule pointers. The 0.10.1 PyPI package shipped with stale client code.
 
 ## [0.10.1] - 2026-09-30
-
-### Server
-
-#### Fixed
-
-- Forwarders table config column now uses `:` separator (e.g. `127.0.0.1:1080:10.0.0.5:80`) to match command syntax instead of ` -> `.
 
 ### Clients
 
