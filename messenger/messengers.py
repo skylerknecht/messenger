@@ -214,12 +214,19 @@ class Messenger:
             return
 
         remote_port_forwarder.close_all_clients()
-        severity = 'information' if message.reason == 5 else 'error'
-        self.update_cli.display(
-            f'Messenger `{self.nickname}` is no longer remote forwarding on '
-            f'({message.listening_host}:{message.listening_port}): {reason_text}.',
-            severity, display_module='messengers'
-        )
+        if remote_port_forwarder.forwarding:
+            severity = 'information' if message.reason == 5 else 'error'
+            self.update_cli.display(
+                f'Messenger `{self.nickname}` is no longer remote forwarding on '
+                f'({message.listening_host}:{message.listening_port}): {reason_text}.',
+                severity, display_module='messengers'
+            )
+        else:
+            self.update_cli.display(
+                f'Messenger `{self.nickname}` failed to remote port forward on '
+                f'({message.listening_host}:{message.listening_port}): {reason_text}.',
+                'error', display_module='messengers'
+            )
 
     async def _handle_bind_success(self, message):
         remote_port_forwarder = next(
@@ -270,6 +277,18 @@ class Messenger:
         )
 
     @staticmethod
+    def _format_delay(seconds: float) -> str:
+        if seconds < 1:
+            return f"{seconds * 1000:.0f}ms"
+        if seconds < 60:
+            return f"{seconds:.0f}s"
+        if seconds < 3600:
+            return f"{seconds / 60:.0f}m"
+        if seconds < 86400:
+            return f"{seconds / 3600:.1f}h"
+        return f"{seconds / 86400:.1f}d"
+
+    @staticmethod
     def _format_bytes(size: int) -> str:
         """
         Convert an integer number of bytes into a human-friendly string.
@@ -314,19 +333,20 @@ class HTTPMessenger(Messenger):
 
     @property
     def connected(self):
-        return not self.checked_out and time.time() - self.last_check_in <= 5
+        return not self.checked_out and time.time() - self.last_check_in <= 60
 
     @property
     def status(self):
         if self.checked_out:
             return color_text('checked out', 'red')
-        if not self.connected:
-            return color_text('disconnected', 'red')
-        elapsed = self.check_in_delta
+        elapsed = time.time() - self.last_check_in
+        label = f"{self._format_delay(elapsed)} ago"
         if elapsed < 1:
-            return color_text(f"{elapsed * 1000:.0f}ms delay", "green")
+            return color_text(label, "green")
+        elif elapsed < 5:
+            return color_text(label, "yellow")
         else:
-            return color_text(f"{elapsed:.0f}s delay", "yellow")
+            return color_text(label, "red")
 
 class WebSocketMessenger(Messenger):
 

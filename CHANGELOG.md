@@ -12,19 +12,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
-- `stop all` command — stops all forwarders and scanners on the current messenger, or on a specified messenger (`stop all dc01`).
+- `stop all` command -- stops all forwarders and scanners on the current messenger, or on a specified messenger (`stop all dc01`).
 
 #### Changed
 
-- All forwarder address pairs now display as `(IP:PORT) -> (IP:PORT)` consistently across tables, log messages, and status output.
+- Forwarder address formatting is now consistently `(HOST:PORT) -> (HOST:PORT)` across all tables, log messages, and status output.
+- HTTP messenger status displays time since last check-in (`102ms ago`, `3s ago`, `5m ago`) instead of the polling interval delta.
+- HTTP messenger `connected` threshold is a fixed 60-second window since last check-in instead of a `check_in_delta`-based calculation.
+- RPF bind errors that never successfully bound display `failed to remote port forward on (HOST:PORT)` instead of the misleading `is no longer remote forwarding on`.
+- WebSocket handler `finally` block simplified to `messenger.websocket is ws` with `cancel_send_task()`, removing redundant `checked_out` and `supervisor.cancel_all()` checks.
 - Extracted `_resolve_messenger()` and `_stop_forwarder()` helpers, deduplicating messenger lookup in `stop` and `kill`.
 
 ### Clients
 
 #### Added
 
-- Connection attempt counters on all three clients — log lines now show `(1/4)` progress during scheme fallback.
-- C# — added missing `[*] Attempting to connect over` log that Python and Node.js already had.
+- Connection attempt counters on all three clients -- log lines now show `(1/4)` progress during scheme fallback.
+- C# -- added missing `[*] Attempting to connect over` log that Python and Node.js already had.
+
+#### Fixed
+
+- C# -- `RemotePortForwarder` called `Dns.GetHostAddressesAsync("0.0.0.0")` which fails because it tries DNS resolution on a raw IP -> now uses `IPAddress.TryParse` first and only calls `Dns.GetHostAddressesAsync` for hostnames.
 
 #### Changed
 

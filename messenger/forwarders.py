@@ -134,12 +134,12 @@ class LocalPortForwarder(Forwarder):
 
     async def start(self):
         self.update_cli.display(
-            f'Messenger `{self.messenger.nickname}` is attempting to start {self.NAME} ({self._endpoint_str()}).',
+            f'Messenger `{self.messenger.nickname}` is attempting to start {self.NAME} {self._endpoint_str()}.',
             'information', reprompt=False, display_module='forwarders')
         try:
             self.server = await asyncio.start_server(self.handle_client, self.listening_host, int(self.listening_port))
             self.update_cli.display(
-                f'Messenger `{self.messenger.nickname}` started {self.NAME} ({self._endpoint_str()}).',
+                f'Messenger `{self.messenger.nickname}` started {self.NAME} {self._endpoint_str()}.',
                 'success', reprompt=False, display_module='forwarders')
             return True
         except OSError as e:
@@ -173,7 +173,7 @@ class LocalPortForwarder(Forwarder):
                 )
 
         self.update_cli.display(
-            f'Messenger `{self.messenger.nickname}` stopped {self.NAME} ({self._endpoint_str()}).',
+            f'Messenger `{self.messenger.nickname}` stopped {self.NAME} {self._endpoint_str()}.',
             'success',
             reprompt=False, display_module='forwarders'
         )
