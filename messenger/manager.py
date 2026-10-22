@@ -158,6 +158,13 @@ class Manager:
         self.messenger_server = HTTPWSServer(self.update_cli, self.messenger_engine, ip=server_ip, port=server_port, ssl_cert=ssl)
 
     @staticmethod
+    def _truncate_list(csv_str, max_items=3):
+        items = [i.strip() for i in csv_str.split(',')]
+        if len(items) <= max_items:
+            return ', '.join(items)
+        return ', '.join(items[:max_items]) + f', +{len(items) - max_items} more'
+
+    @staticmethod
     def strip_ansi_codes(text):
         """
         Remove ANSI color codes from a string.
@@ -561,17 +568,37 @@ class Manager:
         for command, (func, description) in self.messenger_commands.items():
             print(f"  {command:10} {description}")
 
-    async def print_forwarders(self, messenger_id=None):
+    async def print_forwarders(self, identifier=None):
         """
-        Display active forwarders in a table format.
+        Display active forwarders. With no arguments, show a summary table.
+        With an ID or name, show detailed information for that forwarder
+        or filter by messenger.
 
         optional:
-          messenger_id             Filter by Messenger ID.
+          identifier               ID or name of a forwarder or messenger.
+          -o, --output             Write output to a file.
 
         examples:
           forwarders
           forwarders NkMCyCrrcP
         """
+        if len(self.messengers) == 0:
+            self.update_cli.display('There are no connected Messengers, therefore, there cannot be any Forwarders.', 'information', reprompt=False)
+            return
+
+        if identifier == 'all':
+            for messenger in self.messengers:
+                for forwarder in messenger.forwarders:
+                    self._print_forwarder_detail(messenger, forwarder)
+            return
+
+        if identifier:
+            for messenger in self.messengers:
+                for forwarder in messenger.forwarders:
+                    if identifier in (forwarder.identifier, forwarder.nickname):
+                        self._print_forwarder_detail(messenger, forwarder)
+                        return
+
         columns = ["Type", "Messenger", "Name", "Configuration", "Clients"]
         type_labels = {
             "SOCKS Server": "SOCKS",
@@ -580,16 +607,12 @@ class Manager:
         }
         items = []
 
-        if len(self.messengers) == 0:
-            self.update_cli.display('There are no connected Messengers, therefore, there cannot be any Forwarders.', 'information', reprompt=False)
-            return
-
-        if messenger_id and not any(messenger_id in (m.identifier, m.nickname) for m in self.messengers):
-            self.update_cli.display(f'Messenger `{messenger_id}` does not exist.', 'information', reprompt=False)
+        if identifier and not any(identifier in (m.identifier, m.nickname) for m in self.messengers):
+            self.update_cli.display(f'`{identifier}` not found.', 'error', reprompt=False)
             return
 
         for messenger in self.messengers:
-            if messenger_id and messenger_id not in (messenger.identifier, messenger.nickname):
+            if identifier and identifier not in (messenger.identifier, messenger.nickname):
                 continue
             for forwarder in messenger.forwarders:
                 if isinstance(forwarder, RemotePortForwarder):
@@ -601,7 +624,7 @@ class Manager:
 
                 orphan = isinstance(forwarder, RemotePortForwarder) and forwarder.is_orphan
                 listen = f'{forwarder.listening_host}:{forwarder.listening_port}'
-                dest = '•••' if orphan else f'{forwarder.destination_host}:{forwarder.destination_port}'
+                dest = 'None' if orphan else f'{forwarder.destination_host}:{forwarder.destination_port}'
                 config = f'({listen}) -> ({dest})'
 
                 items.append({
@@ -612,8 +635,8 @@ class Manager:
                     "Clients": len(forwarder.clients),
                 })
         if len(items) == 0:
-            if messenger_id:
-                self.update_cli.display(f'There are no forwarders to display for messenger `{messenger_id}`.', 'information', reprompt=False)
+            if identifier:
+                self.update_cli.display(f'There are no forwarders to display for messenger `{identifier}`.', 'information', reprompt=False)
             else:
                 self.update_cli.display('There are no forwarders to display.', 'information', reprompt=False)
             return
@@ -626,6 +649,7 @@ class Manager:
 
         optional:
           identifiers              IDs or names of messengers to show details for.
+          -o, --output             Write output to a file.
 
         examples:
           messengers
@@ -633,6 +657,10 @@ class Manager:
           messengers dc01 dc02
         """
         if identifiers:
+            if identifiers == ('all',):
+                for messenger in self.messengers:
+                    self._print_messenger_detail(messenger)
+                return
             for identifier in identifiers:
                 messenger = None
                 for m in self.messengers:
@@ -645,7 +673,7 @@ class Manager:
                 self._print_messenger_detail(messenger)
             return
 
-        columns = ["Name", "Transport", "Status", "IPs", "Forwarders / Scanners", "Sent", "Received"]
+        columns = ["Name", "Transport", "Status", "IPs", "Forwarders", "Sent", "Received"]
         items = []
 
         for messenger in self.messengers:
@@ -658,11 +686,6 @@ class Manager:
                 )
                 for forwarder in messenger.forwarders
             ]
-            scanner_ids = [
-                color_text(scanner.nickname, 'yellow')
-                for scanner in messenger.scanners
-            ]
-            all_ids = forwarder_ids + scanner_ids
             current_messenger_name = f"{color_text('>', 'white')} {bold_text(messenger.nickname)}"
             messenger_name = bold_text(messenger.nickname)
             name = current_messenger_name if self.current_messenger == messenger else messenger_name
@@ -670,8 +693,8 @@ class Manager:
                 "Name": name,
                 "Transport": messenger.transport_type,
                 "Status": messenger.status,
-                "IPs": ', '.join(sorted(messenger.ips)) if messenger.ips else '•••',
-                "Forwarders / Scanners": ', '.join(all_ids) if all_ids else '•••',
+                "IPs": ', '.join(sorted(messenger.ips)) if messenger.ips else 'None',
+                "Forwarders": ', '.join(forwarder_ids) if forwarder_ids else 'None',
                 "Sent": f"{messenger.format_sent_bytes()}",
                 "Received": f"{messenger.format_received_bytes()}"
             }
@@ -690,64 +713,153 @@ class Manager:
         separator = '-' * len(header)
         first_seen = dt.fromtimestamp(messenger.first_seen, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
         last_seen = dt.fromtimestamp(messenger.last_check_in, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
-        ua = messenger.user_agent if hasattr(messenger, 'user_agent') else '•••'
-        ips = ', '.join(sorted(messenger.ips)) if messenger.ips else '•••'
+        ua = messenger.user_agent if hasattr(messenger, 'user_agent') else 'None'
+        ips = ', '.join(sorted(messenger.ips)) if messenger.ips else 'None'
 
         lines = [
             header,
             separator,
-            f"  Transport:   {messenger.transport_type}",
-            f"  Status:      {messenger.status}",
-            f"  IPs:         {ips}",
-            f"  First Seen:  {first_seen}",
-            f"  Last Seen:   {last_seen}",
-            f"  Sent:        {messenger.format_sent_bytes()}",
-            f"  Received:    {messenger.format_received_bytes()}",
-            f"  User-Agent:  {ua}",
+            f"Transport:   {messenger.transport_type}",
+            f"Status:      {messenger.status}",
+            f"IPs:         {ips}",
+            f"First Seen:  {first_seen}",
+            f"Last Seen:   {last_seen}",
+            f"Sent:        {messenger.format_sent_bytes()}",
+            f"Received:    {messenger.format_received_bytes()}",
+            f"User-Agent:  {ua}",
         ]
 
         if messenger.forwarders:
-            lines.append(f"  Forwarders:")
+            type_labels = {
+                "SOCKS Server": "SOCKS",
+                "Local Port Forwarder": "LPF",
+                "Remote Port Forwarder": "RPF",
+            }
+            lines.append(f"Forwarders:")
             for f in messenger.forwarders:
-                if isinstance(f, RemotePortForwarder):
-                    ftype = "Remote"
-                    cfg = f"({f.listening_host}:{f.listening_port}) -> ({f.destination_host}:{f.destination_port})"
-                elif f.destination_host == '*' and f.destination_port == '*':
-                    ftype = "Socks"
-                    cfg = f"({f.listening_host}:{f.listening_port}) -> (*:*)"
-                else:
-                    ftype = "Local"
-                    cfg = f"({f.listening_host}:{f.listening_port}) -> ({f.destination_host}:{f.destination_port})"
-                lines.append(f"    {f.nickname} ({ftype}) {cfg}")
+                label = type_labels.get(f.NAME, f.NAME)
+                lines.append(f"  {f.nickname}")
+                lines.append(f"    Type:     {label}")
+                lines.append(f"    Config:   {f._endpoint_str()}")
+                lines.append(f"    Clients:  {len(f.clients)}")
         else:
-            lines.append(f"  Forwarders:  •••")
+            lines.append(f"Forwarders:  None")
 
         if messenger.scanners:
-            lines.append(f"  Scanners:")
+            lines.append(f"Scanners:")
             for s in messenger.scanners:
-                cfg = s.ip_input
-                if s.port_input:
-                    cfg += f" {s.port_input}"
-                else:
-                    cfg += f" top {len(s.ports)}"
-                lines.append(f"    {s.nickname} ({cfg}) -- {s.progress_str} {s.open_count} open {s.closed_count} closed")
+                ips = s.ip_input
+                ports = s.port_input if s.port_input else f"top {len(s.ports)}"
+                progress = s.open_count + s.closed_count
+                percent = int((progress / s.total_scans) * 100) if s.total_scans else 0
+                lines.append(f"  {s.nickname}")
+                lines.append(f"    IPs:          {ips}")
+                lines.append(f"    Ports:        {ports}")
+                lines.append(f"    Concurrency:  {s.concurrency}")
+                lines.append(f"    Progress:     {percent}%")
+                lines.append(f"    Open:         {s.open_count}")
+                lines.append(f"    Closed:       {s.closed_count}")
         else:
-            lines.append(f"  Scanners:    •••")
+            lines.append(f"Scanners:    None")
 
         print('\n'.join(lines))
 
-    async def print_scanners(self, identifier=None, show_closed=False):
+    def _print_forwarder_detail(self, messenger, forwarder):
+        from datetime import datetime as dt, timezone
+        header = f"Forwarder ({forwarder.identifier})"
+        if forwarder._nickname:
+            header += f" ({forwarder._nickname})"
+        separator = '-' * len(header)
+        created = dt.fromtimestamp(forwarder.created, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
+
+        lines = [
+            header,
+            separator,
+            f"Type:       {forwarder.NAME}",
+            f"Messenger:  {messenger.nickname}",
+            f"Config:     {forwarder._endpoint_str()}",
+            f"Clients:    {len(forwarder.clients)}",
+            f"Created:    {created}",
+        ]
+
+        print('\n'.join(lines))
+
+    def _print_scanner_detail(self, scanner, open=False, show_all_results=False):
+        from datetime import datetime as dt, timezone
+        STATE_COLORS = {'running': 'cyan', 'stopped': 'yellow', 'completed': 'green'}
+        header = f"Scan ({scanner.identifier})"
+        if scanner._nickname:
+            header += f" ({scanner._nickname})"
+        separator = '-' * len(header)
+        ips = scanner.ip_input
+        ports = scanner.port_input if scanner.port_input else f"top {len(scanner.ports)}"
+        state = scanner.state
+        started = dt.fromtimestamp(scanner.start_time, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
+        completed = dt.fromtimestamp(scanner.end_time, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC') if scanner.end_time else 'None'
+
+        print(header)
+        print(separator)
+        print(f"Messenger:    {scanner.messenger.nickname}")
+        print(f"IPs:          {ips}")
+        print(f"Ports:        {ports}")
+        print(f"State:        {color_text(state, STATE_COLORS[state])}")
+        print(f"Started:      {started}")
+        print(f"Completed:    {completed}")
+        print(f"Runtime:      {scanner.formatted_runtime}")
+        print(f"Concurrency:  {scanner.concurrency}")
+        print(f"Progress:     {scanner.progress_str}")
+        print(f"Open:         {scanner.open_count}")
+        print(f"Closed:       {scanner.closed_count}")
+        print()
+
+        columns = ["Address", "Port", "Result"]
+        items = []
+
+        for scan in scanner.scans.values():
+            result = "None"
+            if scan.result == 0:
+                result = "open"
+            elif isinstance(scan.result, int):
+                result = "closed"
+            if open and result != "open":
+                continue
+
+            items.append({
+                "Address": scan.address,
+                "Port": scan.port,
+                "Result": result
+            })
+
+        if not items:
+            return
+
+        limit = 40
+        truncated = not show_all_results and len(items) > limit
+        display_items = items[:limit] if truncated else items
+
+        print(self.create_table('Results', columns, display_items))
+
+        if truncated:
+            self.update_cli.display(
+                f'Showing {limit} of {len(items)} results. Use --show-all-results to display all and --open to only show open results.',
+                'information', reprompt=False
+            )
+
+    async def print_scanners(self, identifier=None, open=False, show_all_results=False):
         """
         Display scan results.
 
         optional:
           identifier               Specific scanner ID to show detailed scan results.
-          --show-closed            Include closed and pending results (default: False).
+          --open                   Only show open results (default: False).
+          --show-all-results       Show all results instead of the top 40 (default: False).
+          -o, --output             Write output to a file.
 
         examples:
           scans
           scans NkMCyCrrcP
-          scans NkMCyCrrcP --show-closed
+          scans NkMCyCrrcP --open
+          scans NkMCyCrrcP --show-all-results
         """
         scanners = [scanner for messenger in self.messengers for scanner in messenger.scanners]
 
@@ -780,30 +892,17 @@ class Manager:
             print(self.create_table('Scans', columns, items))
             return
 
+        if identifier == 'all':
+            for scanner in scanners:
+                self._print_scanner_detail(scanner, open, show_all_results)
+            return
+
         scanner = next((s for s in scanners if s and identifier in (s.identifier, s.nickname)), None)
         if not scanner:
             self.update_cli.display(f"No scanner found with identifier `{identifier}`", 'warning', reprompt=False)
             return
 
-        columns = ["Address", "Port", "Result"]
-        items = []
-
-        for scan in scanner.scans.values():
-            result = "•••"
-            if scan.result == 0:
-                result = "open"
-            elif isinstance(scan.result, int):
-                result = "closed"
-            if (result == "closed" or result == "•••") and not show_closed:
-                continue
-
-            items.append({
-                "Address": scan.address,
-                "Port": scan.port,
-                "Result": result
-            })
-
-        print(self.create_table(f"Scanner {identifier} Results", columns, items))
+        self._print_scanner_detail(scanner, open, show_all_results)
 
     def _asyncio_exception_handler(self, loop, context):
         """Log every asyncio-signaled exception as a warning through the CLI."""
@@ -933,7 +1032,7 @@ class Manager:
             if not existing.is_orphan:
                 # Already a configured forward here -- don't make a duplicate.
                 self.update_cli.display(
-                    f'Messenger `{messenger.nickname}` is already forwarding on '
+                    f'Messenger `{messenger.nickname}` already has a Remote Port Forwarder '
                     f'({forwarder.listening_host}:{forwarder.listening_port}).',
                     'error', reprompt=False
                 )
@@ -943,9 +1042,7 @@ class Manager:
             existing.destination_host = forwarder.destination_host
             existing.destination_port = forwarder.destination_port
             self.update_cli.display(
-                f'Configured remote port forward `{existing.identifier}` on Messenger '
-                f'`{messenger.nickname}` ({existing.listening_host}:{existing.listening_port}) -> '
-                f'({existing.destination_host}:{existing.destination_port}).',
+                f'Messenger `{messenger.nickname}` configured a {existing.NAME} {existing._endpoint_str()}.',
                 'success', reprompt=False
             )
             return
@@ -1032,7 +1129,7 @@ class Manager:
         if isinstance(forwarder, RemotePortForwarder) and not forwarder.forwarding:
             forwarder.close_all_clients()
             self.update_cli.display(
-                f'Removed unconfirmed remote port forward `{forwarder.nickname}`.',
+                f'Removed unconfigured remote port forward `{forwarder.nickname}`.',
                 'information', reprompt=False
             )
         else:
@@ -1064,15 +1161,15 @@ class Manager:
             if not messenger.forwarders and not messenger.scanners:
                 self.update_cli.display('Nothing to stop.', 'information', reprompt=False)
                 return
+            self.update_cli.display(
+                f'Messenger `{messenger.nickname}` is attempting to stop all forwarders and scanners.',
+                'success', reprompt=False
+            )
             for f in list(messenger.forwarders):
                 messenger.forwarders.remove(f)
                 await self._stop_forwarder(f)
             for s in list(messenger.scanners):
                 await s.stop()
-            self.update_cli.display(
-                f'Stopped all forwarders and scanners on Messenger `{messenger.nickname}`.',
-                'success', reprompt=False
-            )
             return
 
         for messenger in self.messengers:

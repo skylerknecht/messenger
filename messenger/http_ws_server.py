@@ -54,7 +54,7 @@ class HTTPWSServer:
         data = await request.read()
         try:
             messenger = await self.engine.checkin_http(
-                data, request.remote, request.headers.get('User-Agent', '•••')
+                data, request.remote, request.headers.get('User-Agent', 'None')
             )
         except Exception as e:
             self.update_cli.log_unexpected_error(e)
@@ -74,7 +74,7 @@ class HTTPWSServer:
 
         try:
             messenger = await self.engine.checkin_ws(
-                msg.data, ws, request.remote, request.headers.get('User-Agent', '•••')
+                msg.data, ws, request.remote, request.headers.get('User-Agent', 'None')
             )
         except Exception as e:
             self.update_cli.log_unexpected_error(e)

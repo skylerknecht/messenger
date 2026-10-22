@@ -143,8 +143,8 @@ class Messenger:
             await forwarder.handle_initiate_tcp_client_req(message)
             return
         self.update_cli.display(
-            f'Messenger `{self.nickname}` has no configured remote port forward '
-            f'for ({message.listening_host}:{message.listening_port}) -> '
+            f'Messenger `{self.nickname}` does not have a Remote Port Forwarder '
+            f'({message.listening_host}:{message.listening_port}) -> '
             f'({message.destination_host}:{message.destination_port}), denying forward!',
             'warning', display_module='messengers'
         )
@@ -163,7 +163,7 @@ class Messenger:
         if addr and addr not in self.LOOPBACK_ADDRESSES and addr not in self.ips:
             self.ips.add(addr)
             self.update_cli.display(
-                f'New IP detected for Messenger `{self.nickname}`: {addr}',
+                f'Messenger `{self.nickname}` has a new IP `{addr}`',
                 'information', display_module='messengers'
             )
         for scanner in list(self.scanners):
@@ -181,7 +181,7 @@ class Messenger:
             if message.client_id in scanner.scans:
                 return
         self.update_cli.display(
-            f'Messenger `{self.nickname}` received data for unknown client `{message.client_id}`.',
+            f'Messenger `{self.nickname}` received data for unknown TCP client `{message.client_id}`.',
             'warning', display_module='messengers'
         )
 
@@ -206,24 +206,37 @@ class Messenger:
                 remote_port_forwarder = self.forwarders.pop(i)
                 break
         else:
-            self.update_cli.display(
-                f'Messenger `{self.nickname}` is no longer remote forwarding on '
-                f'({message.listening_host}:{message.listening_port}): {reason_text}.',
-                'information', display_module='messengers'
-            )
+            if message.reason == 5:
+                self.update_cli.display(
+                    f'Messenger `{self.nickname}` stopped the Remote Port Forwarder '
+                    f'({message.listening_host}:{message.listening_port}).',
+                    'information', display_module='messengers'
+                )
+            else:
+                self.update_cli.display(
+                    f'Messenger `{self.nickname}` encountered an error for the Remote Port Forwarder '
+                    f'({message.listening_host}:{message.listening_port}): {reason_text}.',
+                    'error', display_module='messengers'
+                )
             return
 
         remote_port_forwarder.close_all_clients()
         if remote_port_forwarder.forwarding:
-            severity = 'information' if message.reason == 5 else 'error'
-            self.update_cli.display(
-                f'Messenger `{self.nickname}` is no longer remote forwarding on '
-                f'({message.listening_host}:{message.listening_port}): {reason_text}.',
-                severity, display_module='messengers'
-            )
+            if message.reason == 5:
+                self.update_cli.display(
+                    f'Messenger `{self.nickname}` stopped the Remote Port Forwarder '
+                    f'({message.listening_host}:{message.listening_port}).',
+                    'information', display_module='messengers'
+                )
+            else:
+                self.update_cli.display(
+                    f'Messenger `{self.nickname}` encountered an error for the Remote Port Forwarder '
+                    f'({message.listening_host}:{message.listening_port}): {reason_text}.',
+                    'error', display_module='messengers'
+                )
         else:
             self.update_cli.display(
-                f'Messenger `{self.nickname}` failed to remote port forward on '
+                f'Messenger `{self.nickname}` failed to start the Remote Port Forwarder '
                 f'({message.listening_host}:{message.listening_port}): {reason_text}.',
                 'error', display_module='messengers'
             )
@@ -235,9 +248,8 @@ class Messenger:
         )
         if remote_port_forwarder:
             remote_port_forwarder.forwarding = True
-            dest = f' -> ({remote_port_forwarder.destination_host}:{remote_port_forwarder.destination_port})' if not remote_port_forwarder.is_orphan else ''
             self.update_cli.display(
-                f'Messenger `{self.nickname}` is now remote forwarding on ({message.listening_host}:{message.listening_port}){dest}.',
+                f'Messenger `{self.nickname}` started a {remote_port_forwarder.NAME} {remote_port_forwarder._endpoint_str()}.',
                 'success', display_module='messengers'
             )
             return
@@ -251,7 +263,7 @@ class Messenger:
                 old_remote_port_forwarder = self.forwarders.pop(i)
                 old_remote_port_forwarder.close_all_clients()
                 self.update_cli.display(
-                    f'Messenger `{self.nickname}` claims bind `{message.bind_id}` on '
+                    f'Messenger `{self.nickname}` claimed Remote Port Forwarder `{message.bind_id}` on '
                     f'({message.listening_host}:{message.listening_port}), which was tracked as '
                     f'`{old_remote_port_forwarder.identifier}`. Replacing the stale entry.',
                     'warning', display_module='messengers'
@@ -267,8 +279,8 @@ class Messenger:
         )
         self.forwarders.append(remote_port_forwarder)
         self.update_cli.display(
-            f'Messenger `{self.nickname}` advertised remote port forward `{message.bind_id}` '
-            f'on ({message.listening_host}:{message.listening_port}).',
+            f'Messenger `{self.nickname}` advertised a Remote Port Forwarder '
+            f'({message.listening_host}:{message.listening_port}).',
             'warning', display_module='messengers'
         )
         self.update_cli.display(

@@ -1,6 +1,7 @@
 import asyncio
 import errno
 import socket
+import time
 from abc import abstractmethod
 
 from messenger.generator import alphanumeric_identifier
@@ -28,6 +29,7 @@ class Forwarder:
         self.identifier = alphanumeric_identifier()
         self._nickname = None
         self.stopped = False
+        self.created = time.time()
         self.clients = []
         def _remove_client(c):
             if c in self.clients:
@@ -82,6 +84,12 @@ class Forwarder:
         except ValueError:
             return False
 
+    def _endpoint_str(self):
+        listen = f'({self.listening_host}:{self.listening_port})'
+        if self.destination_host == '*':
+            return listen
+        return f'{listen} -> ({self.destination_host}:{self.destination_port})'
+
 
 class LocalPortForwarder(Forwarder):
 
@@ -126,20 +134,14 @@ class LocalPortForwarder(Forwarder):
 
         return listening_host, int(listening_port), destination_host, int(destination_port)
 
-    def _endpoint_str(self):
-        listen = f'({self.listening_host}:{self.listening_port})'
-        if self.destination_host == '*':
-            return listen
-        return f'{listen} -> ({self.destination_host}:{self.destination_port})'
-
     async def start(self):
         self.update_cli.display(
-            f'Messenger `{self.messenger.nickname}` is attempting to start {self.NAME} {self._endpoint_str()}.',
+            f'Messenger `{self.messenger.nickname}` is attempting to start a {self.NAME} {self._endpoint_str()}.',
             'information', reprompt=False, display_module='forwarders')
         try:
             self.server = await asyncio.start_server(self.handle_client, self.listening_host, int(self.listening_port))
             self.update_cli.display(
-                f'Messenger `{self.messenger.nickname}` started {self.NAME} {self._endpoint_str()}.',
+                f'Messenger `{self.messenger.nickname}` started a {self.NAME} {self._endpoint_str()}.',
                 'success', reprompt=False, display_module='forwarders')
             return True
         except OSError as e:
@@ -152,7 +154,7 @@ class LocalPortForwarder(Forwarder):
             else:
                 reason = str(e)
             self.update_cli.display(
-                f'Messenger `{self.messenger.nickname}` failed to bind on ({self.listening_host}:{self.listening_port}): {reason}.',
+                f'Messenger `{self.messenger.nickname}` failed to start the {self.NAME} ({self.listening_host}:{self.listening_port}): {reason}.',
                 'error',
                 reprompt=False, display_module='forwarders'
             )
@@ -173,7 +175,7 @@ class LocalPortForwarder(Forwarder):
                 )
 
         self.update_cli.display(
-            f'Messenger `{self.messenger.nickname}` stopped {self.NAME} {self._endpoint_str()}.',
+            f'Messenger `{self.messenger.nickname}` stopped the {self.NAME} {self._endpoint_str()}.',
             'success',
             reprompt=False, display_module='forwarders'
         )
@@ -349,9 +351,7 @@ class RemotePortForwarder(Forwarder):
         )
         await self.messenger.send_message_downstream(bind_req)
         self.update_cli.display(
-            f'Queued Remote Port Forwarder request for Messenger `{self.messenger.nickname}` for '
-            f'({self.listening_host}:{self.listening_port}) -> '
-            f'({self.destination_host}:{self.destination_port}).',
+            f'Messenger `{self.messenger.nickname}` is attempting to start a {self.NAME} {self._endpoint_str()}.',
             'information', display_module='forwarders', reprompt=False
         )
 
@@ -366,8 +366,8 @@ class RemotePortForwarder(Forwarder):
         )
         await self.messenger.send_message_downstream(bind_req)
         self.update_cli.display(
-            f'Sent stop to Messenger `{self.messenger.nickname}` for Remote Port Forwarder '
-            f'`{self.identifier}` on ({self.listening_host}:{self.listening_port}).',
+            f'Messenger `{self.messenger.nickname}` is attempting to stop the Remote Port Forwarder '
+            f'({self.listening_host}:{self.listening_port}).',
             'information', display_module='forwarders'
         )
         self.close_all_clients()

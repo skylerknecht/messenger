@@ -6,6 +6,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.5] - 2026-10-21
+
+### Server
+
+#### Added
+
+- Forwarder detail view (`forwarders <id>`) -- shows Type, Messenger, Config, Clients, and Created timestamp.
+- Scanner detail view (`scans <id>`) -- shows full config header (Messenger, IPs, Ports, State, Started, Completed, Runtime, Concurrency, Progress, Open, Closed) followed by top 40 results with `--show-all-results` and `--output` options.
+- `messengers all`, `forwarders all`, and `scans all` to display detail views for every item at once.
+- `-o, --output` flag documented in command docstrings for messengers, forwarders, and scans.
+- `_endpoint_str()` moved to base `Forwarder` class so all forwarder types share it.
+- `created` timestamp on base `Forwarder` for tracking forwarder age.
+
+#### Changed
+
+- CLI messages reworded for consistency: articles added (`a Local Port Forwarder`), verbs unified (`stopped the`, `failed to start the`, `encountered an error for the`).
+- Replaced all `•••` placeholders with `None` across the codebase.
+- Messenger detail view: forwarders and scanners now use vertical property layout (name as header, indented properties) instead of inline columns.
+- Removed scanners from the messengers table -- column now shows only Forwarders.
+- Replaced `--show-closed` flag with `--open` flag on scans (show all by default, `--open` filters to open only).
+- RPF bind error handling restructured: reason 5 (stopped) shows as information, other reasons while forwarding show as errors, and failures before forwarding show as `failed to start`.
+
+### Clients
+
+#### Fixed
+
+- C# -- `WriteLoop` blocked a thread pool thread for the lifetime of every TCP connection via `BlockingCollection.GetConsumingEnumerable()`. This only surfaced when many connections were simultaneously established and sustained (e.g. `nxc smb` against 150 live hosts) -- each successful connection held a pool thread permanently, starving the HTTP check-in loop's `await` continuations and causing the client to appear disconnected. Replaced with an async producer-consumer pattern (`SemaphoreSlim` + `ConcurrentQueue` + `Stream.WriteAsync`) that holds zero pool threads.
+
 ## [0.10.4] - 2026-10-01
 
 ### Server
