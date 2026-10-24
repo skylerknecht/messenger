@@ -45,8 +45,8 @@ class BuilderVersionTests(unittest.TestCase):
         self.target('2.10.6')
         self.assertIn('Error: major version mismatch', self.output())
 
-    def test_missing_metadata_warns_and_invalid_metadata_blocks(self):
-        self.assertIn('compatibility is unknown', self.output())
+    def test_missing_metadata_is_silent_and_invalid_metadata_blocks(self):
+        self.assertEqual(self.output(), '')
         self.target('invalid')
         with self.assertRaisesRegex(ValueError, 'Invalid target/server version'):
             self.output()

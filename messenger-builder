@@ -45,7 +45,6 @@ def available_languages():
 def check_target_version(lang):
     target_file = CLIENTS_DIR / lang / "target-version.txt"
     if not target_file.is_file():
-        print(f"[!] Warning: {lang} client has no target-version.txt; server compatibility is unknown.")
         return
     target = target_file.read_text(encoding="utf-8").strip()
     pattern = r"(\d+)\.(\d+)\.(\d+)(?:[-+][0-9A-Za-z.-]+)?"
