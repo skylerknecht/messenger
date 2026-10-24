@@ -1,6 +1,7 @@
 import asyncio
 import errno
 import inspect
+import signal
 import sys
 import re
 import os
@@ -181,6 +182,7 @@ class Manager:
                     'information', reprompt=False)
         self._watching = None
         self._watch_interval = 1
+        self._previous_sigint = None
         self.messenger_engine = Engine(self.messengers, self.update_cli, generate_hash(self.encryption_key))
         self.messenger_server = HTTPWSServer(self.update_cli, self.messenger_engine, ip=server_ip, port=server_port, ssl_cert=ssl)
 
@@ -913,13 +915,19 @@ class Manager:
                     'error', reprompt=False, display_module='forwarders'
                 )
 
+    def _handle_watch_sigint(self, signum=None, frame=None):
+        self._watching = None
+        if self._previous_sigint is not None:
+            signal.signal(signal.SIGINT, self._previous_sigint)
+            self._previous_sigint = None
+
     async def watch(self, target='messengers', interval=1):
         """
         Watch a table with live updates. Press Ctrl+C to stop.
 
         optional:
           target                   Table to watch: messengers, forwarders, or scans (default: messengers).
-          --interval               Refresh interval in seconds (default: 1).
+          --interval               Refresh interval in whole seconds (default: 1).
 
         examples:
           watch
@@ -940,12 +948,18 @@ class Manager:
             )
             return
         try:
-            interval = float(interval)
-        except (ValueError, TypeError):
-            interval = 1
+            interval = int(str(interval))
+        except ValueError:
+            self.update_cli.display('Interval must be a whole number of seconds.', 'error', reprompt=False)
+            return
         if interval < 1:
             self.update_cli.display('Interval must be at least 1 second.', 'error', reprompt=False)
             return
+        if self._watching is not None:
+            self._handle_watch_sigint()
+            return
+
+        self._previous_sigint = signal.signal(signal.SIGINT, self._handle_watch_sigint)
         self._watching = render
         self._watch_interval = interval
         self.update_cli.display(f'Started watching {target} table.', 'information', reprompt=False)
@@ -960,11 +974,16 @@ class Manager:
         with patch_stdout(raw=True):
             while True:
                 try:
-                    if self._watching:
-                        sys.stdout.write('\033[2J\033[H')
-                        sys.stdout.flush()
-                        await self._watching()
-                        await asyncio.sleep(self._watch_interval)
+                    render = self._watching
+                    if render is not None:
+                        try:
+                            sys.stdout.write('\033[2J\033[H')
+                            await render()
+                            sys.stdout.flush()
+                            await asyncio.sleep(self._watch_interval)
+                        except BaseException:
+                            self._handle_watch_sigint()
+                            raise
                         continue
 
                     prompt = self.current_messenger.nickname if self.current_messenger else self.PROMPT
