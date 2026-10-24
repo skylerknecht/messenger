@@ -1,8 +1,9 @@
 import asyncio
+import os
 import struct
 
 from messenger.messengers import HTTPMessenger, WebSocketMessenger
-from messenger.message import MessageBuilder, MessageParser, CheckInMessage
+from messenger.message import MessageBuilder, MessageParser, CheckInMessage, SendDataMessage
 
 
 class Engine:
@@ -73,12 +74,12 @@ class Engine:
             return None
 
         if messenger:
-            messenger.check_in()
-            if messenger.check_in_delta > 60:
+            if not messenger.connected:
                 self.update_cli.display(
                     f'{messenger.transport_type} Messenger `{messenger.nickname}` has reconnected.',
                     'success', display_module='handlers'
                 )
+            messenger.check_in()
         else:
             messenger = HTTPMessenger(ip, user_agent, self.update_cli, self._serialize)
             if messenger_id:
@@ -155,5 +156,12 @@ class Engine:
             messenger.sent_bytes += len(serialized)
             result += serialized
             count += 1
+        if (isinstance(messenger, HTTPMessenger) and not messenger.adaptative
+                and not messenger.checked_out and count < messenger.MAX_BATCH_SIZE):
+            message = SendDataMessage('', os.urandom(16))
+            serialized = self._serialize([message])
+            messenger.log_message('downstream', message)
+            messenger.sent_bytes += len(serialized)
+            result += serialized
         return result
 

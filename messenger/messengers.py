@@ -201,43 +201,34 @@ class Messenger:
 
     async def _handle_bind_error(self, message):
         reason_text = self.BIND_REASONS.get(message.reason, f'unknown reason ({message.reason})')
+        host_port = f'({message.listening_host}:{message.listening_port})'
+
         for i, forwarder in enumerate(self.forwarders):
             if forwarder.identifier == message.bind_id:
                 remote_port_forwarder = self.forwarders.pop(i)
                 break
         else:
-            if message.reason == 5:
-                self.update_cli.display(
-                    f'Messenger `{self.nickname}` stopped the Remote Port Forwarder '
-                    f'({message.listening_host}:{message.listening_port}).',
-                    'information', display_module='messengers'
-                )
-            else:
-                self.update_cli.display(
-                    f'Messenger `{self.nickname}` encountered an error for the Remote Port Forwarder '
-                    f'({message.listening_host}:{message.listening_port}): {reason_text}.',
-                    'error', display_module='messengers'
-                )
-            return
+            remote_port_forwarder = None
 
-        remote_port_forwarder.close_all_clients()
-        if remote_port_forwarder.forwarding:
-            if message.reason == 5:
+        if remote_port_forwarder:
+            remote_port_forwarder.close_all_clients()
+            if not remote_port_forwarder.forwarding:
                 self.update_cli.display(
-                    f'Messenger `{self.nickname}` stopped the Remote Port Forwarder '
-                    f'({message.listening_host}:{message.listening_port}).',
-                    'information', display_module='messengers'
-                )
-            else:
-                self.update_cli.display(
-                    f'Messenger `{self.nickname}` encountered an error for the Remote Port Forwarder '
-                    f'({message.listening_host}:{message.listening_port}): {reason_text}.',
+                    f'Messenger `{self.nickname}` failed to start the Remote Port Forwarder '
+                    f'{host_port}: {reason_text}.',
                     'error', display_module='messengers'
                 )
+                return
+
+        if message.reason == 5:
+            self.update_cli.display(
+                f'Messenger `{self.nickname}` stopped the Remote Port Forwarder {host_port}.',
+                'information', display_module='messengers'
+            )
         else:
             self.update_cli.display(
-                f'Messenger `{self.nickname}` failed to start the Remote Port Forwarder '
-                f'({message.listening_host}:{message.listening_port}): {reason_text}.',
+                f'Messenger `{self.nickname}` encountered an error for the Remote Port Forwarder '
+                f'{host_port}: {reason_text}.',
                 'error', display_module='messengers'
             )
 
@@ -342,6 +333,7 @@ class HTTPMessenger(Messenger):
         self.ips.add(ip)
         self.user_agent = user_agent
         self.disconnected = False
+        self.adaptative = True
 
     @property
     def connected(self):
@@ -350,12 +342,12 @@ class HTTPMessenger(Messenger):
     @property
     def status(self):
         if self.checked_out:
-            return color_text('checked out', 'red')
+            return color_text('killed', 'red')
         elapsed = time.time() - self.last_check_in
         label = f"{self._format_delay(elapsed)} ago"
-        if elapsed < 1:
+        if elapsed <= 12:
             return color_text(label, "green")
-        elif elapsed < 5:
+        elif elapsed <= 60:
             return color_text(label, "yellow")
         else:
             return color_text(label, "red")
@@ -380,7 +372,7 @@ class WebSocketMessenger(Messenger):
     @property
     def status(self):
         if self.checked_out:
-            return color_text('checked out', 'red')
+            return color_text('killed', 'red')
         if self.connected:
             return color_text('connected', "green")
         return color_text('disconnected', 'red')

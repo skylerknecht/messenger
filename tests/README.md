@@ -53,6 +53,10 @@ as passing. The builder/output portions of those options are covered here.
 
 ```text
 python tests/test_builders.py
+python tests/test_builder_versions.py
+python tests/test_polling.py
+python tests/test_keep_alive.py
+python tests/test_display.py
 python tests/test_protocol_python.py
 node tests/test_protocol_node.js
 python tests/build_generated_clients.py --output-dir .conformance-artifacts --target-framework net8.0
@@ -60,3 +64,12 @@ dotnet run --project tests/csharp_contract/Contract.csproj -c Release
 python tests/test_runtime_args.py --manifest .conformance-artifacts/manifest.json
 python tests/run_e2e.py --manifest .conformance-artifacts/manifest.json --output-dir .conformance-results/e2e
 ```
+
+`test_polling.py` checks backoff, activity in both directions, outbound wakeups,
+and stopping during a polling wait without making network requests. It also
+checks Node/Electron when Node.js is installed. On Windows, set `MESSENGER_CSC`
+to a .NET Framework-compatible Roslyn `csc.exe` to include the C# polling harness.
+
+`test_keep_alive.py` checks server framing, command toggling, and handling of
+the dummy data message by generated clients. Its C# compatibility check uses
+the same `MESSENGER_CSC` setting.

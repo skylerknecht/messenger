@@ -2,8 +2,14 @@
 """Exercise the aggregate and direct builders with every declared option."""
 
 import argparse
+import ast
+import contextlib
 import filecmp
 import importlib.util
+import io
+import itertools
+import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -64,7 +70,7 @@ class BuilderTests(unittest.TestCase):
                     direct = base / f"direct-{language}{suffix}"
                     extra = []
                     if language == "python":
-                        extra = ["--non-main-thread", "--no-obfuscate"]
+                        extra = ["--non-main-thread"]
                     elif language == "nodejs":
                         extra = ["--electron"]
 
@@ -111,9 +117,10 @@ class BuilderTests(unittest.TestCase):
         expected_common = {
             "name", "server_url", "encryption_key", "user_agent", "proxy",
             "retry_duration", "retry_attempts",
+            "no_adaptive_polling", "no_arg_parsing", "no_print", "exit_on_close",
         }
         expected_extra = {
-            "python": {"non_main_thread", "no_obfuscate"},
+            "python": {"non_main_thread"},
             "nodejs": {"electron"},
             "csharp": set(),
         }
@@ -142,6 +149,46 @@ class BuilderTests(unittest.TestCase):
                 ])
                 for option in expected_common | expected_extra[language]:
                     self.assertIn("--" + option.replace("_", "-"), help_output)
+
+    def test_generated_output_variants(self):
+        """Quiet templates must remain valid with every other build-time flag."""
+        common_flags = ["--no-print", "--no-arg-parsing", "--no-adaptive-polling", "--exit-on-close"]
+        extra_flags = {"python": ["--non-main-thread"], "nodejs": ["--electron"], "csharp": []}
+        with tempfile.TemporaryDirectory() as temporary:
+            for language in LANGUAGES:
+                path = ROOT / "builder" / "clients" / language / "builder.py"
+                spec = importlib.util.spec_from_file_location(f"variant_builder_{language}", path)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                parser = argparse.ArgumentParser()
+                module.add_arguments(parser)
+                flags = common_flags + extra_flags[language]
+                for index, enabled in enumerate(itertools.product((False, True), repeat=len(flags))):
+                    selected = [flag for flag, active in zip(flags, enabled) if active]
+                    with self.subTest(language=language, flags=selected):
+                        suffix = {"python": ".py", "nodejs": ".js", "csharp": ""}[language]
+                        output = Path(temporary) / language / str(index) / ("client" + suffix)
+                        args = parser.parse_args(common_args(str(output)) + selected)
+                        with contextlib.redirect_stdout(io.StringIO()):
+                            module.build(args)
+
+                        if language == "python":
+                            tree = ast.parse(output.read_text(encoding="utf-8"))
+                            prints = [node for node in ast.walk(tree) if isinstance(node, ast.Call)
+                                      and isinstance(node.func, ast.Name) and node.func.id == "print"]
+                            self.assertEqual(bool(prints), not args.no_print)
+                        elif language == "nodejs":
+                            rendered = output.read_text(encoding="utf-8")
+                            self.assertEqual(bool(re.search(r"\bconsole\s*\.", rendered)), not args.no_print)
+                            if shutil.which("node") is None:
+                                self.skipTest("Node.js is required for generated JavaScript syntax checks")
+                            run(["node", "--check", output])
+                            if args.electron:
+                                run(["node", "--check", output.parent / "main.js"])
+                        else:
+                            rendered = "\n".join(p.read_text(encoding="utf-8") for p in output.rglob("*.cs"))
+                            self.assertEqual(bool(re.search(r"\bConsole\s*\.\s*(?:Write|Out|Error)", rendered)),
+                                             not args.no_print)
 
 
 if __name__ == "__main__":

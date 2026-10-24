@@ -3,11 +3,12 @@ import argparse
 import subprocess
 import sys
 import os
+import re
 import importlib
 import importlib.util
 from pathlib import Path
 
-from messenger import BANNER
+from messenger import BANNER, __version__
 import builder.clients as _clients  # anchor to installed builder.clients
 
 CLIENTS_DIR = Path(_clients.__file__).resolve().parent
@@ -25,7 +26,7 @@ def update_submodules(branch="main"):
 
 def in_git_repo_root() -> bool:
     return (
-        os.path.isdir(".git")
+        Path(".git").exists()
         and subprocess.run(
             ["git", "rev-parse", "--is-inside-work-tree"],
             stdout=subprocess.PIPE,
@@ -39,6 +40,25 @@ def available_languages():
         if p.is_dir() and (p / "builder.py").is_file():
             langs.append(p.name)
     return sorted(langs)
+
+
+def check_target_version(lang):
+    target_file = CLIENTS_DIR / lang / "target-version.txt"
+    if not target_file.is_file():
+        return
+    target = target_file.read_text(encoding="utf-8").strip()
+    pattern = r"(\d+)\.(\d+)\.(\d+)(?:[-+][0-9A-Za-z.-]+)?"
+    target_match = re.fullmatch(pattern, target)
+    server_match = re.fullmatch(pattern, __version__)
+    if not target_match or not server_match:
+        raise ValueError(f"Invalid target/server version: {target!r} / {__version__!r}.")
+    target_major, target_minor = map(int, target_match.groups()[:2])
+    server_major, server_minor = map(int, server_match.groups()[:2])
+    message = f"{lang} client targets server {target}; current server version is {__version__}."
+    if target_major != server_major:
+        print(f"[!] Error: major version mismatch: {message}")
+    elif target_minor != server_minor:
+        print(f"[!] Warning: minor version mismatch: {message}")
 
 def try_import_builder(lang: str):
     builder_file = CLIENTS_DIR / lang / "builder.py"
@@ -92,6 +112,12 @@ def main(banner):
     subparsers = parser.add_subparsers(dest="language", required=True)
     available = discover_and_register_languages(subparsers)
 
+    if not available:
+        if in_git_repo_root():
+            parser.exit(1, "No clients found. Clone with git clone --recurse-submodules https://github.com/skylerknecht/messenger.git, "
+                        "or run messenger-builder update-clients in this checkout.\n")
+        parser.exit(1, "No clients found. Install a Messenger distribution that includes the client builders.\n")
+
     args = parser.parse_args()
 
     if not hasattr(args, "func"):
@@ -99,6 +125,7 @@ def main(banner):
         raise SystemExit(f"No language handler found. Discovered: {found}")
 
     try:
+        check_target_version(args.language)
         print('[*] Building Messenger Client')
         args.func(args)
     except KeyboardInterrupt:

@@ -69,7 +69,7 @@ class Scanner:
                     net = ipaddress.ip_network(part, strict=False)
                     hosts.update(str(ip) for ip in net.hosts())
                 except ValueError:
-                    self.update_cli.display(f'Skipping invalid CIDR `{part}`.', 'warning', reprompt=False)
+                    self.update_cli.display(f'Skipping invalid CIDR `{part}`.', 'warning', reprompt=False, display_module='scanners')
                 continue
 
             # Last-octet range, e.g. 10.0.0.1-50
@@ -80,7 +80,7 @@ class Scanner:
                 if 0 <= start <= stop <= 255:
                     hosts.update(f'{base}.{i}' for i in range(start, stop + 1))
                 else:
-                    self.update_cli.display(f'Skipping invalid range `{part}`.', 'warning', reprompt=False)
+                    self.update_cli.display(f'Skipping invalid range `{part}`.', 'warning', reprompt=False, display_module='scanners')
                 continue
 
             # Single IP or hostname (may contain hyphens)
@@ -100,15 +100,15 @@ class Scanner:
                     lo, hi = max(int(lo), 1), min(int(hi), 65535)
                     ports.update(range(lo, hi + 1))
                 else:
-                    self.update_cli.display(f'Skipping invalid port range `{entry}`.', 'warning', reprompt=False)
+                    self.update_cli.display(f'Skipping invalid port range `{entry}`.', 'warning', reprompt=False, display_module='scanners')
             elif entry.isdigit():
                 port = int(entry)
                 if 1 <= port <= 65535:
                     ports.add(port)
                 else:
-                    self.update_cli.display(f'Skipping out-of-range port `{entry}`.', 'warning', reprompt=False)
+                    self.update_cli.display(f'Skipping out-of-range port `{entry}`.', 'warning', reprompt=False, display_module='scanners')
             else:
-                self.update_cli.display(f'Skipping invalid port `{entry}`.', 'warning', reprompt=False)
+                self.update_cli.display(f'Skipping invalid port `{entry}`.', 'warning', reprompt=False, display_module='scanners')
         return sorted(ports)
 
     def _generate_scans(self):
@@ -168,7 +168,7 @@ class Scanner:
             self.update_cli.display(
                 f'FLIP {current.address}:{current.port} {current.result} -> {message.reason}, '
                 f'please report this to https://github.com/skylerknecht/messenger/issues/31.',
-                'warning'
+                'warning', display_module='scanners'
             )
             return
 
@@ -184,7 +184,7 @@ class Scanner:
             self.end_time = time.time()
             readable = time.strftime("%H:%M:%S %Z", time.localtime(self.end_time))
             self.update_cli.display(
-                f"Scan `{self.nickname}` completed at {readable}. All results received.", 'success'
+                f"Scan `{self.nickname}` completed at {readable}. All results received.", 'success', display_module='scanners'
             )
 
     async def _scan_worker(self):
@@ -214,6 +214,7 @@ class Scanner:
         readable = time.strftime("%H:%M:%S %Z", time.localtime(self.start_time))
         self.update_cli.display(
             f"Starting scan `{self.nickname}` at {readable} with a concurrency of `{self.concurrency}`.", 'information',
+            display_module='scanners'
         )
 
         self._workers = [self.messenger.supervisor.spawn(self._scan_worker(), label=f'scan_worker:{self.identifier}') for _ in range(self.concurrency)]
@@ -221,15 +222,16 @@ class Scanner:
 
         self.update_cli.display(
             f"Scanner `{self.nickname}` finished sending all scan attempts.", 'information',
+            display_module='scanners'
         )
 
     async def stop(self):
         if self.end_time:
-            self.update_cli.display(f"Scanner `{self.nickname}` already stopped sending scan attempts.", 'information', reprompt=False)
+            self.update_cli.display(f"Scanner `{self.nickname}` already stopped sending scan attempts.", 'information', reprompt=False, display_module='scanners')
             return
 
         self.end_time = time.time()
-        self.update_cli.display(f"Scanner `{self.nickname}` has stopped and no further scans attempts will be made. Existing attempts will still update as they arrive.", 'success', reprompt=False)
+        self.update_cli.display(f"Scanner `{self.nickname}` has stopped and no further scans attempts will be made. Existing attempts will still update as they arrive.", 'success', reprompt=False, display_module='scanners')
         for w in self._workers:
             w.cancel()
 

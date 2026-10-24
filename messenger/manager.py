@@ -1,10 +1,11 @@
 import asyncio
 import errno
 import inspect
+import signal
 import sys
 import re
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import namedtuple
 
 from prompt_toolkit import PromptSession
@@ -14,7 +15,7 @@ from prompt_toolkit.patch_stdout import patch_stdout
 from functools import wraps
 from inspect import Parameter
 
-from messenger.messengers import Messenger
+from messenger.messengers import Messenger, HTTPMessenger
 from messenger.http_ws_server import HTTPWSServer
 from messenger.engine import Engine
 from messenger.forwarders import LocalPortForwarder, SocksProxy, RemotePortForwarder, InvalidConfigError
@@ -48,8 +49,11 @@ class UpdateCLI:
         self.prompt = prompt
         self.session = session
         self.logger = logger
-        self.display_filters = {'handlers': {'disabled': {'warning'}}}
+        self.reset_display_filters()
         self.logging_types = set(logging_types) if logging_types else set()
+
+    def reset_display_filters(self):
+        self.display_filters = {'handlers': {'disabled': {'warning'}}}
 
     def display(self, stdout, status='standard', reprompt=True, display_module=None):
         status_info = self.STATUS_LEVELS.get(status, self.STATUS_LEVELS['information'])
@@ -93,6 +97,30 @@ class Manager:
 
     PROMPT = 'messenger'
 
+    TYPE_LABELS = {
+        "SOCKS Server": "SOCKS",
+        "Local Port Forwarder": "LPF",
+        "Remote Port Forwarder": "RPF",
+    }
+
+    STATE_COLORS = {
+        'running': 'cyan',
+        'stopped': 'yellow',
+        'completed': 'green',
+    }
+
+    @staticmethod
+    def _format_timestamp(ts):
+        return datetime.fromtimestamp(ts, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
+
+    @staticmethod
+    def _color_forwarder(forwarder):
+        if isinstance(forwarder, RemotePortForwarder):
+            return color_text(forwarder.nickname, 'cyan')
+        if forwarder.destination_host == '*' and forwarder.destination_port == '*':
+            return color_text(forwarder.nickname, 'blue')
+        return color_text(forwarder.nickname, 'green')
+
     def __init__(self, server_ip, server_port, ssl, encryption_key, config_dir=None, logging_types=None, config_path=None, created_dir=False, created_config=False, quiet=False):
         """
         Initialize Manager with command definitions, messengers, and prompt session.
@@ -112,12 +140,14 @@ class Manager:
             'rename': (self.rename, "Rename a messenger, forwarder, or scanner."),
             'stop': (self.stop, "Stop a forwarder or a scanner."),
             'kill': (self.kill, "Kill a messenger."),
+            'watch': (self.watch, "Watch a table with live updates."),
             'help': (self.print_help, "Display this help message."),
             '?': (self.print_help, "Display this help message but with fewer characters."),
             'exit': (self.exit, "Exit Messenger, stopping the server."),
         }
         self.messenger_commands = {
             'back': (self.back, "Return to the main menu."),
+            'adaptative': (self.adaptative, "Turn adaptive polling on and off."),
             'local': (self.start_local_forwarder, "Start a local port forwarder."),
             'remote': (self.start_remote_forwarder, "Start a remote port forwarder."),
             'socks': (self.start_socks_proxy, "Start a SOCKS server."),
@@ -154,6 +184,9 @@ class Manager:
                 self.update_cli.display(
                     f'Logging commands and no messages to: {self.logger.log_dir}',
                     'information', reprompt=False)
+        self._watching = None
+        self._watch_interval = 1
+        self._previous_sigint = None
         self.messenger_engine = Engine(self.messengers, self.update_cli, generate_hash(self.encryption_key))
         self.messenger_server = HTTPWSServer(self.update_cli, self.messenger_engine, ip=server_ip, port=server_port, ssl_cert=ssl)
 
@@ -314,7 +347,7 @@ class Manager:
                                         reprompt=False)
                 return
             if self.current_messenger.checked_out:
-                self.update_cli.display(f"Messenger `{self.current_messenger.nickname}` is checked out.", 'error',
+                self.update_cli.display(f"Messenger `{self.current_messenger.nickname}` is killed.", 'error',
                                         reprompt=False)
                 return
             return await func(self, *args, **kwargs)
@@ -337,42 +370,70 @@ class Manager:
 
     async def display_settings(self, module=None, type_name=None):
         """
-        Toggle display filters per module.
+        Toggle message types globally or for an individual profile.
 
         Type      | Description
         ----------|-----------------------------------
         debug     | Toggle debug messages
-        warnings  | Toggle warning messages
-        errors    | Toggle error messages
-        successes | Toggle success messages
-        infos     | Toggle info messages
+        success       | Toggle success messages
+        warning       | Toggle warning messages
+        info          | Toggle info messages
+        error         | Toggle error messages
 
         optional:
-          module                   handlers, messengers, or forwarders
+          module                   handlers, messengers, forwarders, or scanners
           type_name                Comma-separated types to toggle
 
         examples:
           display                          Show all module status
-          display off                      Reset all display filters
+          display off                      Turn off messages for all profiles
+          display reset                    Restore startup defaults
           display debug                    Toggle debug for all modules
-          display warnings,errors          Toggle warnings and errors globally
+          display success                  Toggle success messages globally
+          display warning,error            Toggle warnings and errors globally
+          display info                     Toggle info messages globally
           display handlers                 Show handler status
           display handlers debug           Toggle handler debug
-          display handlers debug,warnings  Toggle handler debug and warnings
-          display messengers errors        Toggle messenger errors
+          display handlers debug,warning   Toggle handler debug and warnings
+          display messengers error         Toggle messenger errors
+          display scanners info            Toggle scanner progress messages
         """
-        MODULES = ('handlers', 'messengers', 'forwarders')
-        STATUS_TYPES = ('warnings', 'successes', 'infos', 'errors')
+        MODULES = ('handlers', 'messengers', 'forwarders', 'scanners')
+        STATUS_TYPES = ('warning', 'success', 'information', 'error')
         STATUS_MAP = {
+            'debug': 'debug',
+            'warning': 'warning',
             'warnings': 'warning',
+            'success': 'success',
             'successes': 'success',
+            'informational': 'information',
+            'information': 'information',
+            'info': 'information',
             'infos': 'information',
+            'error': 'error',
             'errors': 'error',
         }
-        VALID_TYPES = {'debug'} | set(STATUS_TYPES)
+        VALID_TYPES = set(STATUS_MAP)
 
         def format_toggle(enabled):
             return color_text('on', 'green') if enabled else color_text('off', 'red')
+
+        def toggle(modules, names):
+            for status in dict.fromkeys(STATUS_MAP[name] for name in names):
+                if status == 'debug':
+                    enabled = not all(self.update_cli.display_filters.get(mod, {}).get('debug', False)
+                                      for mod in modules)
+                else:
+                    enabled = not all(status not in self.update_cli.display_filters.get(mod, {}).get('disabled', set())
+                                      for mod in modules)
+                for mod in modules:
+                    filt = self.update_cli.display_filters.setdefault(mod, {})
+                    if status == 'debug':
+                        filt['debug'] = enabled
+                    elif enabled:
+                        filt.setdefault('disabled', set()).discard(status)
+                    else:
+                        filt.setdefault('disabled', set()).add(status)
 
         def show_table(modules):
             columns = ['Module', 'Debug', 'Warnings', 'Successes', 'Infos', 'Errors']
@@ -393,22 +454,26 @@ class Manager:
             show_table(MODULES)
             return
 
-        if module == 'off':
-            self.update_cli.display_filters.clear()
-            self.update_cli.display('All display filters reset.', 'success', reprompt=False)
+        if module in ('off', 'reset'):
+            if type_name is not None:
+                self.update_cli.display(f'`display {module}` does not take another argument.', 'error', reprompt=False)
+                return
+            if module == 'reset':
+                self.update_cli.reset_display_filters()
+            else:
+                self.update_cli.display_filters = {
+                    mod: {'debug': False, 'disabled': set(STATUS_TYPES)} for mod in MODULES
+                }
+            show_table(MODULES)
             return
 
         if module not in MODULES:
+            if type_name is not None:
+                self.update_cli.display(f'`{module}` is not a valid profile.', 'error', reprompt=False)
+                return
             global_types = [t.strip() for t in module.split(',')]
             if all(t in VALID_TYPES for t in global_types):
-                for mod in MODULES:
-                    filt = self.update_cli.display_filters.setdefault(mod, {})
-                    for t in global_types:
-                        if t == 'debug':
-                            filt['debug'] = not filt.get('debug', False)
-                        else:
-                            disabled = filt.setdefault('disabled', set())
-                            disabled.symmetric_difference_update({STATUS_MAP[t]})
+                toggle(MODULES, global_types)
                 show_table(MODULES)
                 return
             self.update_cli.display(
@@ -428,22 +493,12 @@ class Manager:
                 )
                 return
 
-        filt = self.update_cli.display_filters.setdefault(module, {})
-
-        for t in types:
-            if t == 'debug':
-                filt['debug'] = not filt.get('debug', False)
-            else:
-                status_key = STATUS_MAP[t]
-                disabled = filt.setdefault('disabled', set())
-                disabled.symmetric_difference_update({status_key})
-
+        toggle((module,), types)
         show_table((module,))
 
     async def logging(self, types=None):
         """
         Toggle which message types are logged to disk. With no arguments, show current status.
-        All types are enabled by default.
 
         Type | Message Type
         -----|----------------------------------
@@ -457,7 +512,7 @@ class Manager:
         7    | CheckOutMessage
 
         optional:
-          types        Comma-separated list of types to toggle (e.g. 1,4)
+          types        Comma-separated list of types to toggle (e.g. 1,4), or 0 to disable all
 
         examples:
           logging
@@ -476,12 +531,17 @@ class Manager:
             7: 'CheckOutMessage',
         }
         if types is None:
-            if not self.update_cli.logging_types:
-                self.update_cli.display('All message logging disabled.', 'information', reprompt=False)
-            else:
-                for t in sorted(VALID_TYPES):
-                    state = color_text('on', 'green') if t in self.update_cli.logging_types else color_text('off', 'red')
-                    self.update_cli.display(f'{t} {LABELS[t]}: {state}', 'standard', reprompt=False)
+            items = [
+                {'Type': t, 'Message': LABELS[t],
+                 'Logging': color_text('on', 'green') if t in self.update_cli.logging_types else color_text('off', 'red')}
+                for t in sorted(VALID_TYPES)
+            ]
+            print(self.create_table('Logging', ['Type', 'Message', 'Logging'], items))
+            return
+
+        if str(types).strip() == '0':
+            self.update_cli.logging_types.clear()
+            self.update_cli.display('All message logging disabled.', 'success', reprompt=False)
             return
 
         raw = str(types).split(',')
@@ -492,10 +552,6 @@ class Manager:
                 val = int(token)
             except ValueError:
                 self.update_cli.display(f'`{token}` is not a valid logging type.', 'error', reprompt=False)
-                return
-            if val == 0:
-                self.update_cli.logging_types.clear()
-                self.update_cli.display('All message logging disabled.', 'success', reprompt=False)
                 return
             if val not in VALID_TYPES:
                 self.update_cli.display(f'`{val}` is not a valid logging type. Valid types: 1-7.', 'error', reprompt=False)
@@ -522,21 +578,15 @@ class Manager:
           NkMCyCrrcP
         """
 
-        if isinstance(messenger, str):
-            for _messenger in self.messengers:
-                if messenger in (_messenger.identifier, _messenger.nickname):
-                    self.current_messenger = _messenger
-                    self.update_cli.prompt = self.current_messenger.nickname
-                    return
-            self.update_cli.display(f'Could not find Messenger `{messenger}`', 'error',
-                                    reprompt=False)
-            return
-        elif isinstance(messenger, Messenger):
+        if isinstance(messenger, Messenger):
             self.current_messenger = messenger
             self.update_cli.prompt = self.current_messenger.nickname
-        else:
-            self.update_cli.display(f'Could not find Messenger `{messenger.nickname}`', 'error', reprompt=False)
             return
+        resolved = self._resolve_messenger(messenger)
+        if not resolved:
+            return
+        self.current_messenger = resolved
+        self.update_cli.prompt = self.current_messenger.nickname
 
     async def print_help(self, command=None):
         """
@@ -560,12 +610,12 @@ class Manager:
                 return
             print(docstring)
             return
-        print("Server commands:")
-        for command, (func, description) in self.server_commands.items():
-            print(f"  {command:10} {description}")
-        print()
         print("Messenger commands (must be interacting with a messenger):")
         for command, (func, description) in self.messenger_commands.items():
+            print(f"  {command:10} {description}")
+        print()
+        print("Server commands:")
+        for command, (func, description) in self.server_commands.items():
             print(f"  {command:10} {description}")
 
     async def print_forwarders(self, identifier=None):
@@ -600,11 +650,6 @@ class Manager:
                         return
 
         columns = ["Type", "Messenger", "Name", "Configuration", "Clients"]
-        type_labels = {
-            "SOCKS Server": "SOCKS",
-            "Local Port Forwarder": "LPF",
-            "Remote Port Forwarder": "RPF",
-        }
         items = []
 
         if identifier and not any(identifier in (m.identifier, m.nickname) for m in self.messengers):
@@ -615,22 +660,15 @@ class Manager:
             if identifier and identifier not in (messenger.identifier, messenger.nickname):
                 continue
             for forwarder in messenger.forwarders:
-                if isinstance(forwarder, RemotePortForwarder):
-                    colored_id = color_text(forwarder.nickname, 'cyan')
-                elif forwarder.destination_host == '*' and forwarder.destination_port == '*':
-                    colored_id = color_text(forwarder.nickname, 'blue')
-                else:
-                    colored_id = color_text(forwarder.nickname, 'green')
-
                 orphan = isinstance(forwarder, RemotePortForwarder) and forwarder.is_orphan
                 listen = f'{forwarder.listening_host}:{forwarder.listening_port}'
                 dest = 'None' if orphan else f'{forwarder.destination_host}:{forwarder.destination_port}'
                 config = f'({listen}) -> ({dest})'
 
                 items.append({
-                    "Type": type_labels.get(forwarder.NAME, forwarder.NAME),
+                    "Type": self.TYPE_LABELS.get(forwarder.NAME, forwarder.NAME),
                     "Messenger": messenger.nickname,
-                    "Name": colored_id,
+                    "Name": self._color_forwarder(forwarder),
                     "Configuration": config,
                     "Clients": len(forwarder.clients),
                 })
@@ -677,15 +715,7 @@ class Manager:
         items = []
 
         for messenger in self.messengers:
-            forwarder_ids = [
-                color_text(
-                    forwarder.nickname,
-                    'cyan' if isinstance(forwarder, RemotePortForwarder)
-                    else 'blue' if forwarder.destination_host == '*' and forwarder.destination_port == '*'
-                    else 'green'
-                )
-                for forwarder in messenger.forwarders
-            ]
+            forwarder_ids = [self._color_forwarder(f) for f in messenger.forwarders]
             current_messenger_name = f"{color_text('>', 'white')} {bold_text(messenger.nickname)}"
             messenger_name = bold_text(messenger.nickname)
             name = current_messenger_name if self.current_messenger == messenger else messenger_name
@@ -706,13 +736,10 @@ class Manager:
         print(self.create_table('Messengers', columns, items))
 
     def _print_messenger_detail(self, messenger):
-        from datetime import datetime as dt, timezone
         header = f"Messenger ({messenger.identifier})"
         if messenger._nickname:
             header += f" ({messenger._nickname})"
         separator = '-' * len(header)
-        first_seen = dt.fromtimestamp(messenger.first_seen, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
-        last_seen = dt.fromtimestamp(messenger.last_check_in, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
         ua = messenger.user_agent if hasattr(messenger, 'user_agent') else 'None'
         ips = ', '.join(sorted(messenger.ips)) if messenger.ips else 'None'
 
@@ -722,22 +749,19 @@ class Manager:
             f"Transport:   {messenger.transport_type}",
             f"Status:      {messenger.status}",
             f"IPs:         {ips}",
-            f"First Seen:  {first_seen}",
-            f"Last Seen:   {last_seen}",
+            f"First Seen:  {self._format_timestamp(messenger.first_seen)}",
+            f"Last Seen:   {self._format_timestamp(messenger.last_check_in)}",
             f"Sent:        {messenger.format_sent_bytes()}",
             f"Received:    {messenger.format_received_bytes()}",
             f"User-Agent:  {ua}",
         ]
+        if isinstance(messenger, HTTPMessenger):
+            lines.append(f"Adaptive:    {'on' if messenger.adaptative else 'off'}")
 
         if messenger.forwarders:
-            type_labels = {
-                "SOCKS Server": "SOCKS",
-                "Local Port Forwarder": "LPF",
-                "Remote Port Forwarder": "RPF",
-            }
             lines.append(f"Forwarders:")
             for f in messenger.forwarders:
-                label = type_labels.get(f.NAME, f.NAME)
+                label = self.TYPE_LABELS.get(f.NAME, f.NAME)
                 lines.append(f"  {f.nickname}")
                 lines.append(f"    Type:     {label}")
                 lines.append(f"    Config:   {f._endpoint_str()}")
@@ -765,12 +789,10 @@ class Manager:
         print('\n'.join(lines))
 
     def _print_forwarder_detail(self, messenger, forwarder):
-        from datetime import datetime as dt, timezone
         header = f"Forwarder ({forwarder.identifier})"
         if forwarder._nickname:
             header += f" ({forwarder._nickname})"
         separator = '-' * len(header)
-        created = dt.fromtimestamp(forwarder.created, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
 
         lines = [
             header,
@@ -779,14 +801,12 @@ class Manager:
             f"Messenger:  {messenger.nickname}",
             f"Config:     {forwarder._endpoint_str()}",
             f"Clients:    {len(forwarder.clients)}",
-            f"Created:    {created}",
+            f"Created:    {self._format_timestamp(forwarder.created)}",
         ]
 
         print('\n'.join(lines))
 
     def _print_scanner_detail(self, scanner, open=False, show_all_results=False):
-        from datetime import datetime as dt, timezone
-        STATE_COLORS = {'running': 'cyan', 'stopped': 'yellow', 'completed': 'green'}
         header = f"Scan ({scanner.identifier})"
         if scanner._nickname:
             header += f" ({scanner._nickname})"
@@ -794,15 +814,15 @@ class Manager:
         ips = scanner.ip_input
         ports = scanner.port_input if scanner.port_input else f"top {len(scanner.ports)}"
         state = scanner.state
-        started = dt.fromtimestamp(scanner.start_time, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
-        completed = dt.fromtimestamp(scanner.end_time, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC') if scanner.end_time else 'None'
+        started = self._format_timestamp(scanner.start_time)
+        completed = self._format_timestamp(scanner.end_time) if scanner.end_time else 'None'
 
         print(header)
         print(separator)
         print(f"Messenger:    {scanner.messenger.nickname}")
         print(f"IPs:          {ips}")
         print(f"Ports:        {ports}")
-        print(f"State:        {color_text(state, STATE_COLORS[state])}")
+        print(f"State:        {color_text(state, self.STATE_COLORS[state])}")
         print(f"Started:      {started}")
         print(f"Completed:    {completed}")
         print(f"Runtime:      {scanner.formatted_runtime}")
@@ -871,8 +891,6 @@ class Manager:
             columns = ["Messenger", "Scanner", "State", "Runtime", "Concurrency", "Progress", "Open", "Closed"]
             items = []
 
-            STATE_COLORS = {'running': 'cyan', 'stopped': 'yellow', 'completed': 'green'}
-
             for scanner in scanners:
                 if not hasattr(scanner, 'scans'):
                     continue
@@ -881,7 +899,7 @@ class Manager:
                 items.append({
                     "Messenger": scanner.messenger.nickname,
                     "Scanner": scanner.nickname,
-                    "State": color_text(state, STATE_COLORS[state]),
+                    "State": color_text(state, self.STATE_COLORS[state]),
                     "Runtime": scanner.formatted_runtime,
                     "Concurrency": scanner.concurrency,
                     "Progress": scanner.progress_str,
@@ -926,6 +944,59 @@ class Manager:
                     'error', reprompt=False, display_module='forwarders'
                 )
 
+    def _handle_watch_sigint(self, signum=None, frame=None):
+        self._watching = None
+        if self._previous_sigint is not None:
+            signal.signal(signal.SIGINT, self._previous_sigint)
+            self._previous_sigint = None
+            self.session.output.quit_alternate_screen()
+            self.session.output.flush()
+
+    async def watch(self, target='messengers', interval=1):
+        """
+        Watch a table with live updates. Press Ctrl+C to stop.
+
+        optional:
+          target                   Table to watch: messengers, forwarders, or scans (default: messengers).
+          --interval               Refresh interval in whole seconds (default: 1).
+
+        examples:
+          watch
+          watch forwarders
+          watch scans
+          watch messengers --interval 2
+        """
+        targets = {
+            'messengers': self.print_messengers,
+            'forwarders': self.print_forwarders,
+            'scans': self.print_scanners,
+        }
+        render = targets.get(target)
+        if not render:
+            self.update_cli.display(
+                f'Unknown watch target `{target}`. Use messengers, forwarders, or scans.',
+                'error', reprompt=False
+            )
+            return
+        try:
+            interval = int(str(interval))
+        except ValueError:
+            self.update_cli.display('Interval must be a whole number of seconds.', 'error', reprompt=False)
+            return
+        if interval < 1:
+            self.update_cli.display('Interval must be at least 1 second.', 'error', reprompt=False)
+            return
+        if self._watching is not None:
+            self._handle_watch_sigint()
+            return
+
+        self._previous_sigint = signal.signal(signal.SIGINT, self._handle_watch_sigint)
+        self._watching = render
+        self._watch_interval = interval
+        self.session.output.enter_alternate_screen()
+        self.session.output.flush()
+        self.update_cli.display(f'Watching {target} table.', 'information', reprompt=False)
+
     async def start_command_line_interface(self):
         """
         Start the CLI, display banner, and manage user input.
@@ -936,6 +1007,19 @@ class Manager:
         with patch_stdout(raw=True):
             while True:
                 try:
+                    render = self._watching
+                    if render is not None:
+                        try:
+                            sys.stdout.write('\033[2J\033[H')
+                            await render()
+                            print('\nPress Ctrl+C to exit.')
+                            sys.stdout.flush()
+                            await asyncio.sleep(self._watch_interval)
+                        except BaseException:
+                            self._handle_watch_sigint()
+                            raise
+                        continue
+
                     prompt = self.current_messenger.nickname if self.current_messenger else self.PROMPT
                     user_input = await self.session.prompt_async(f'({prompt})~# ')
                 except KeyboardInterrupt:
@@ -1034,7 +1118,7 @@ class Manager:
                 self.update_cli.display(
                     f'Messenger `{messenger.nickname}` already has a Remote Port Forwarder '
                     f'({forwarder.listening_host}:{forwarder.listening_port}).',
-                    'error', reprompt=False
+                    'error', reprompt=False, display_module='forwarders'
                 )
                 return
             # Adopt the orphan: set its destination, send NO bind request (the
@@ -1043,7 +1127,7 @@ class Manager:
             existing.destination_port = forwarder.destination_port
             self.update_cli.display(
                 f'Messenger `{messenger.nickname}` configured a {existing.NAME} {existing._endpoint_str()}.',
-                'success', reprompt=False
+                'success', reprompt=False, display_module='forwarders'
             )
             return
 
@@ -1130,13 +1214,13 @@ class Manager:
             forwarder.close_all_clients()
             self.update_cli.display(
                 f'Removed unconfigured remote port forward `{forwarder.nickname}`.',
-                'information', reprompt=False
+                'information', reprompt=False, display_module='forwarders'
             )
         else:
             await forwarder.stop()
             self.update_cli.display(
                 f'Removed `{forwarder.nickname}` from forwarders.',
-                'information', reprompt=False
+                'information', reprompt=False, display_module='forwarders'
             )
 
     async def stop(self, id, messenger_id=None):
@@ -1163,7 +1247,7 @@ class Manager:
                 return
             self.update_cli.display(
                 f'Messenger `{messenger.nickname}` is attempting to stop all forwarders and scanners.',
-                'success', reprompt=False
+                'success', reprompt=False, display_module='messengers'
             )
             for f in list(messenger.forwarders):
                 messenger.forwarders.remove(f)
@@ -1188,6 +1272,32 @@ class Manager:
                 return
         self.update_cli.display(f'`{id}` not found', 'error', reprompt=False)
 
+    async def adaptative(self, id=None):
+        """
+        Turn adaptive polling on and off.
+
+        optional:
+          id                       ID or name of the HTTP messenger.
+                                   Defaults to the current messenger if interacting.
+
+        examples:
+          adaptative
+          adaptative dc01
+        """
+        target = self._resolve_messenger(id)
+        if target is None:
+            return
+        if not isinstance(target, HTTPMessenger):
+            self.update_cli.display('Adaptive polling is only available for HTTP messengers.', 'error', reprompt=False)
+            return
+        if target.checked_out:
+            self.update_cli.display(f'Messenger `{target.nickname}` is killed.', 'error', reprompt=False)
+            return
+        target.adaptative = not target.adaptative
+        state = 'on' if target.adaptative else 'off'
+        self.update_cli.display(f'Adaptive polling {state} for Messenger `{target.nickname}`.', 'success',
+                                reprompt=False, display_module='messengers')
+
     async def kill(self, id=None):
         """
         Kill a messenger by sending a checkout signal.
@@ -1208,7 +1318,7 @@ class Manager:
         await target.send_message_downstream(CheckOutMessage())
         self.update_cli.display(
             f'Queued kill signal for Messenger `{target.nickname}`.',
-            'success', reprompt=False
+            'success', reprompt=False, display_module='messengers'
         )
 
     async def rename(self, id_or_name, name=None):
@@ -1269,7 +1379,13 @@ class Manager:
         target.nickname = name
         if self.current_messenger and self.current_messenger is target:
             self.update_cli.prompt = name
-        self.update_cli.display(f'`{old}` is now known as `{name}`.', 'success', reprompt=False)
+        if isinstance(target, Messenger):
+            module = 'messengers'
+        elif isinstance(target, Scanner):
+            module = 'scanners'
+        else:
+            module = 'forwarders'
+        self.update_cli.display(f'`{old}` is now known as `{name}`.', 'success', reprompt=False, display_module=module)
 
 
 class DynamicCompleter(Completer):
