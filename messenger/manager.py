@@ -4,7 +4,7 @@ import inspect
 import sys
 import re
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import namedtuple
 
 from prompt_toolkit import PromptSession
@@ -93,6 +93,30 @@ class Manager:
 
     PROMPT = 'messenger'
 
+    TYPE_LABELS = {
+        "SOCKS Server": "SOCKS",
+        "Local Port Forwarder": "LPF",
+        "Remote Port Forwarder": "RPF",
+    }
+
+    STATE_COLORS = {
+        'running': 'cyan',
+        'stopped': 'yellow',
+        'completed': 'green',
+    }
+
+    @staticmethod
+    def _format_timestamp(ts):
+        return datetime.fromtimestamp(ts, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
+
+    @staticmethod
+    def _color_forwarder(forwarder):
+        if isinstance(forwarder, RemotePortForwarder):
+            return color_text(forwarder.nickname, 'cyan')
+        if forwarder.destination_host == '*' and forwarder.destination_port == '*':
+            return color_text(forwarder.nickname, 'blue')
+        return color_text(forwarder.nickname, 'green')
+
     def __init__(self, server_ip, server_port, ssl, encryption_key, config_dir=None, logging_types=None, config_path=None, created_dir=False, created_config=False, quiet=False):
         """
         Initialize Manager with command definitions, messengers, and prompt session.
@@ -112,6 +136,7 @@ class Manager:
             'rename': (self.rename, "Rename a messenger, forwarder, or scanner."),
             'stop': (self.stop, "Stop a forwarder or a scanner."),
             'kill': (self.kill, "Kill a messenger."),
+            'watch': (self.watch, "Watch a table with live updates."),
             'help': (self.print_help, "Display this help message."),
             '?': (self.print_help, "Display this help message but with fewer characters."),
             'exit': (self.exit, "Exit Messenger, stopping the server."),
@@ -154,6 +179,8 @@ class Manager:
                 self.update_cli.display(
                     f'Logging commands and no messages to: {self.logger.log_dir}',
                     'information', reprompt=False)
+        self._watching = None
+        self._watch_interval = 1
         self.messenger_engine = Engine(self.messengers, self.update_cli, generate_hash(self.encryption_key))
         self.messenger_server = HTTPWSServer(self.update_cli, self.messenger_engine, ip=server_ip, port=server_port, ssl_cert=ssl)
 
@@ -522,21 +549,15 @@ class Manager:
           NkMCyCrrcP
         """
 
-        if isinstance(messenger, str):
-            for _messenger in self.messengers:
-                if messenger in (_messenger.identifier, _messenger.nickname):
-                    self.current_messenger = _messenger
-                    self.update_cli.prompt = self.current_messenger.nickname
-                    return
-            self.update_cli.display(f'Could not find Messenger `{messenger}`', 'error',
-                                    reprompt=False)
-            return
-        elif isinstance(messenger, Messenger):
+        if isinstance(messenger, Messenger):
             self.current_messenger = messenger
             self.update_cli.prompt = self.current_messenger.nickname
-        else:
-            self.update_cli.display(f'Could not find Messenger `{messenger.nickname}`', 'error', reprompt=False)
             return
+        resolved = self._resolve_messenger(messenger)
+        if not resolved:
+            return
+        self.current_messenger = resolved
+        self.update_cli.prompt = self.current_messenger.nickname
 
     async def print_help(self, command=None):
         """
@@ -600,11 +621,6 @@ class Manager:
                         return
 
         columns = ["Type", "Messenger", "Name", "Configuration", "Clients"]
-        type_labels = {
-            "SOCKS Server": "SOCKS",
-            "Local Port Forwarder": "LPF",
-            "Remote Port Forwarder": "RPF",
-        }
         items = []
 
         if identifier and not any(identifier in (m.identifier, m.nickname) for m in self.messengers):
@@ -615,22 +631,15 @@ class Manager:
             if identifier and identifier not in (messenger.identifier, messenger.nickname):
                 continue
             for forwarder in messenger.forwarders:
-                if isinstance(forwarder, RemotePortForwarder):
-                    colored_id = color_text(forwarder.nickname, 'cyan')
-                elif forwarder.destination_host == '*' and forwarder.destination_port == '*':
-                    colored_id = color_text(forwarder.nickname, 'blue')
-                else:
-                    colored_id = color_text(forwarder.nickname, 'green')
-
                 orphan = isinstance(forwarder, RemotePortForwarder) and forwarder.is_orphan
                 listen = f'{forwarder.listening_host}:{forwarder.listening_port}'
                 dest = 'None' if orphan else f'{forwarder.destination_host}:{forwarder.destination_port}'
                 config = f'({listen}) -> ({dest})'
 
                 items.append({
-                    "Type": type_labels.get(forwarder.NAME, forwarder.NAME),
+                    "Type": self.TYPE_LABELS.get(forwarder.NAME, forwarder.NAME),
                     "Messenger": messenger.nickname,
-                    "Name": colored_id,
+                    "Name": self._color_forwarder(forwarder),
                     "Configuration": config,
                     "Clients": len(forwarder.clients),
                 })
@@ -677,15 +686,7 @@ class Manager:
         items = []
 
         for messenger in self.messengers:
-            forwarder_ids = [
-                color_text(
-                    forwarder.nickname,
-                    'cyan' if isinstance(forwarder, RemotePortForwarder)
-                    else 'blue' if forwarder.destination_host == '*' and forwarder.destination_port == '*'
-                    else 'green'
-                )
-                for forwarder in messenger.forwarders
-            ]
+            forwarder_ids = [self._color_forwarder(f) for f in messenger.forwarders]
             current_messenger_name = f"{color_text('>', 'white')} {bold_text(messenger.nickname)}"
             messenger_name = bold_text(messenger.nickname)
             name = current_messenger_name if self.current_messenger == messenger else messenger_name
@@ -706,13 +707,10 @@ class Manager:
         print(self.create_table('Messengers', columns, items))
 
     def _print_messenger_detail(self, messenger):
-        from datetime import datetime as dt, timezone
         header = f"Messenger ({messenger.identifier})"
         if messenger._nickname:
             header += f" ({messenger._nickname})"
         separator = '-' * len(header)
-        first_seen = dt.fromtimestamp(messenger.first_seen, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
-        last_seen = dt.fromtimestamp(messenger.last_check_in, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
         ua = messenger.user_agent if hasattr(messenger, 'user_agent') else 'None'
         ips = ', '.join(sorted(messenger.ips)) if messenger.ips else 'None'
 
@@ -722,22 +720,17 @@ class Manager:
             f"Transport:   {messenger.transport_type}",
             f"Status:      {messenger.status}",
             f"IPs:         {ips}",
-            f"First Seen:  {first_seen}",
-            f"Last Seen:   {last_seen}",
+            f"First Seen:  {self._format_timestamp(messenger.first_seen)}",
+            f"Last Seen:   {self._format_timestamp(messenger.last_check_in)}",
             f"Sent:        {messenger.format_sent_bytes()}",
             f"Received:    {messenger.format_received_bytes()}",
             f"User-Agent:  {ua}",
         ]
 
         if messenger.forwarders:
-            type_labels = {
-                "SOCKS Server": "SOCKS",
-                "Local Port Forwarder": "LPF",
-                "Remote Port Forwarder": "RPF",
-            }
             lines.append(f"Forwarders:")
             for f in messenger.forwarders:
-                label = type_labels.get(f.NAME, f.NAME)
+                label = self.TYPE_LABELS.get(f.NAME, f.NAME)
                 lines.append(f"  {f.nickname}")
                 lines.append(f"    Type:     {label}")
                 lines.append(f"    Config:   {f._endpoint_str()}")
@@ -765,12 +758,10 @@ class Manager:
         print('\n'.join(lines))
 
     def _print_forwarder_detail(self, messenger, forwarder):
-        from datetime import datetime as dt, timezone
         header = f"Forwarder ({forwarder.identifier})"
         if forwarder._nickname:
             header += f" ({forwarder._nickname})"
         separator = '-' * len(header)
-        created = dt.fromtimestamp(forwarder.created, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
 
         lines = [
             header,
@@ -779,14 +770,12 @@ class Manager:
             f"Messenger:  {messenger.nickname}",
             f"Config:     {forwarder._endpoint_str()}",
             f"Clients:    {len(forwarder.clients)}",
-            f"Created:    {created}",
+            f"Created:    {self._format_timestamp(forwarder.created)}",
         ]
 
         print('\n'.join(lines))
 
     def _print_scanner_detail(self, scanner, open=False, show_all_results=False):
-        from datetime import datetime as dt, timezone
-        STATE_COLORS = {'running': 'cyan', 'stopped': 'yellow', 'completed': 'green'}
         header = f"Scan ({scanner.identifier})"
         if scanner._nickname:
             header += f" ({scanner._nickname})"
@@ -794,15 +783,15 @@ class Manager:
         ips = scanner.ip_input
         ports = scanner.port_input if scanner.port_input else f"top {len(scanner.ports)}"
         state = scanner.state
-        started = dt.fromtimestamp(scanner.start_time, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
-        completed = dt.fromtimestamp(scanner.end_time, tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC') if scanner.end_time else 'None'
+        started = self._format_timestamp(scanner.start_time)
+        completed = self._format_timestamp(scanner.end_time) if scanner.end_time else 'None'
 
         print(header)
         print(separator)
         print(f"Messenger:    {scanner.messenger.nickname}")
         print(f"IPs:          {ips}")
         print(f"Ports:        {ports}")
-        print(f"State:        {color_text(state, STATE_COLORS[state])}")
+        print(f"State:        {color_text(state, self.STATE_COLORS[state])}")
         print(f"Started:      {started}")
         print(f"Completed:    {completed}")
         print(f"Runtime:      {scanner.formatted_runtime}")
@@ -871,8 +860,6 @@ class Manager:
             columns = ["Messenger", "Scanner", "State", "Runtime", "Concurrency", "Progress", "Open", "Closed"]
             items = []
 
-            STATE_COLORS = {'running': 'cyan', 'stopped': 'yellow', 'completed': 'green'}
-
             for scanner in scanners:
                 if not hasattr(scanner, 'scans'):
                     continue
@@ -881,7 +868,7 @@ class Manager:
                 items.append({
                     "Messenger": scanner.messenger.nickname,
                     "Scanner": scanner.nickname,
-                    "State": color_text(state, STATE_COLORS[state]),
+                    "State": color_text(state, self.STATE_COLORS[state]),
                     "Runtime": scanner.formatted_runtime,
                     "Concurrency": scanner.concurrency,
                     "Progress": scanner.progress_str,
@@ -926,6 +913,43 @@ class Manager:
                     'error', reprompt=False, display_module='forwarders'
                 )
 
+    async def watch(self, target='messengers', interval=1):
+        """
+        Watch a table with live updates. Press Ctrl+C to stop.
+
+        optional:
+          target                   Table to watch: messengers, forwarders, or scans (default: messengers).
+          --interval               Refresh interval in seconds (default: 1).
+
+        examples:
+          watch
+          watch forwarders
+          watch scans
+          watch messengers --interval 2
+        """
+        targets = {
+            'messengers': self.print_messengers,
+            'forwarders': self.print_forwarders,
+            'scans': self.print_scanners,
+        }
+        render = targets.get(target)
+        if not render:
+            self.update_cli.display(
+                f'Unknown watch target `{target}`. Use messengers, forwarders, or scans.',
+                'error', reprompt=False
+            )
+            return
+        try:
+            interval = float(interval)
+        except (ValueError, TypeError):
+            interval = 1
+        if interval < 1:
+            self.update_cli.display('Interval must be at least 1 second.', 'error', reprompt=False)
+            return
+        self._watching = render
+        self._watch_interval = interval
+        self.update_cli.display(f'Started watching {target} table.', 'information', reprompt=False)
+
     async def start_command_line_interface(self):
         """
         Start the CLI, display banner, and manage user input.
@@ -936,6 +960,13 @@ class Manager:
         with patch_stdout(raw=True):
             while True:
                 try:
+                    if self._watching:
+                        sys.stdout.write('\033[2J\033[H')
+                        sys.stdout.flush()
+                        await self._watching()
+                        await asyncio.sleep(self._watch_interval)
+                        continue
+
                     prompt = self.current_messenger.nickname if self.current_messenger else self.PROMPT
                     user_input = await self.session.prompt_async(f'({prompt})~# ')
                 except KeyboardInterrupt:
@@ -969,7 +1000,6 @@ class Manager:
                         self.update_cli.log_unexpected_error(e)
 
                 captured = strip_ansi(output.getvalue()).strip()
-                self.logger.record_command(timestamp, user_input.strip(), captured)
 
                 if output_path:
                     self._write_output_file(output_path, captured)

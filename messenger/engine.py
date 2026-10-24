@@ -73,12 +73,12 @@ class Engine:
             return None
 
         if messenger:
-            messenger.check_in()
-            if messenger.check_in_delta > 60:
+            if not messenger.connected:
                 self.update_cli.display(
                     f'{messenger.transport_type} Messenger `{messenger.nickname}` has reconnected.',
                     'success', display_module='handlers'
                 )
+            messenger.check_in()
         else:
             messenger = HTTPMessenger(ip, user_agent, self.update_cli, self._serialize)
             if messenger_id:

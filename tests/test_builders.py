@@ -64,7 +64,7 @@ class BuilderTests(unittest.TestCase):
                     direct = base / f"direct-{language}{suffix}"
                     extra = []
                     if language == "python":
-                        extra = ["--non-main-thread", "--no-obfuscate"]
+                        extra = ["--non-main-thread"]
                     elif language == "nodejs":
                         extra = ["--electron"]
 
@@ -111,9 +111,10 @@ class BuilderTests(unittest.TestCase):
         expected_common = {
             "name", "server_url", "encryption_key", "user_agent", "proxy",
             "retry_duration", "retry_attempts",
+            "no_adaptive_polling", "no_arg_parsing", "no_print", "exit_on_close",
         }
         expected_extra = {
-            "python": {"non_main_thread", "no_obfuscate"},
+            "python": {"non_main_thread"},
             "nodejs": {"electron"},
             "csharp": set(),
         }
