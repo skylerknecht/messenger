@@ -962,7 +962,7 @@ class Manager:
         self._previous_sigint = signal.signal(signal.SIGINT, self._handle_watch_sigint)
         self._watching = render
         self._watch_interval = interval
-        self.update_cli.display(f'Started watching {target} table.', 'information', reprompt=False)
+        self.update_cli.display(f'Watching {target} table.', 'information', reprompt=False)
 
     async def start_command_line_interface(self):
         """
@@ -979,6 +979,7 @@ class Manager:
                         try:
                             sys.stdout.write('\033[2J\033[H')
                             await render()
+                            print('\nPress Ctrl+C to exit.')
                             sys.stdout.flush()
                             await asyncio.sleep(self._watch_interval)
                         except BaseException:
@@ -1019,6 +1020,7 @@ class Manager:
                         self.update_cli.log_unexpected_error(e)
 
                 captured = strip_ansi(output.getvalue()).strip()
+                self.logger.record_command(timestamp, user_input.strip(), captured)
 
                 if output_path:
                     self._write_output_file(output_path, captured)
