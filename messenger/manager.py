@@ -920,6 +920,8 @@ class Manager:
         if self._previous_sigint is not None:
             signal.signal(signal.SIGINT, self._previous_sigint)
             self._previous_sigint = None
+            self.session.output.quit_alternate_screen()
+            self.session.output.flush()
 
     async def watch(self, target='messengers', interval=1):
         """
@@ -962,6 +964,8 @@ class Manager:
         self._previous_sigint = signal.signal(signal.SIGINT, self._handle_watch_sigint)
         self._watching = render
         self._watch_interval = interval
+        self.session.output.enter_alternate_screen()
+        self.session.output.flush()
         self.update_cli.display(f'Watching {target} table.', 'information', reprompt=False)
 
     async def start_command_line_interface(self):
