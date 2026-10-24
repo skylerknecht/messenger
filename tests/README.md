@@ -53,6 +53,7 @@ as passing. The builder/output portions of those options are covered here.
 
 ```text
 python tests/test_builders.py
+python tests/test_builder_versions.py
 python tests/test_polling.py
 python tests/test_keep_alive.py
 python tests/test_display.py
