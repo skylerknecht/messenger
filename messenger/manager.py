@@ -982,6 +982,11 @@ class Manager:
                             print('\nPress Ctrl+C to exit.')
                             sys.stdout.flush()
                             await asyncio.sleep(self._watch_interval)
+                            if self._watching is None:
+                                self.session.output.reset_attributes()
+                                self.session.output.erase_screen()
+                                self.session.output.cursor_goto(0, 0)
+                                self.session.output.flush()
                         except BaseException:
                             self._handle_watch_sigint()
                             raise
