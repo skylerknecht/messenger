@@ -344,9 +344,9 @@ class HTTPMessenger(Messenger):
             return color_text('checked out', 'red')
         elapsed = time.time() - self.last_check_in
         label = f"{self._format_delay(elapsed)} ago"
-        if elapsed < 1:
+        if elapsed <= 12:
             return color_text(label, "green")
-        elif elapsed < 5:
+        elif elapsed <= 60:
             return color_text(label, "yellow")
         else:
             return color_text(label, "red")
