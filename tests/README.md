@@ -55,6 +55,7 @@ as passing. The builder/output portions of those options are covered here.
 python tests/test_builders.py
 python tests/test_polling.py
 python tests/test_keep_alive.py
+python tests/test_display.py
 python tests/test_protocol_python.py
 node tests/test_protocol_node.js
 python tests/build_generated_clients.py --output-dir .conformance-artifacts --target-framework net8.0

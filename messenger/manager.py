@@ -49,8 +49,11 @@ class UpdateCLI:
         self.prompt = prompt
         self.session = session
         self.logger = logger
-        self.display_filters = {'handlers': {'disabled': {'warning'}}}
+        self.reset_display_filters()
         self.logging_types = set(logging_types) if logging_types else set()
+
+    def reset_display_filters(self):
+        self.display_filters = {'handlers': {'disabled': {'warning'}}}
 
     def display(self, stdout, status='standard', reprompt=True, display_module=None):
         status_info = self.STATUS_LEVELS.get(status, self.STATUS_LEVELS['information'])
@@ -367,42 +370,70 @@ class Manager:
 
     async def display_settings(self, module=None, type_name=None):
         """
-        Toggle display filters per module.
+        Toggle message types globally or for an individual profile.
 
         Type      | Description
         ----------|-----------------------------------
         debug     | Toggle debug messages
-        warnings  | Toggle warning messages
-        errors    | Toggle error messages
-        successes | Toggle success messages
-        infos     | Toggle info messages
+        success       | Toggle success messages
+        warning       | Toggle warning messages
+        info          | Toggle info messages
+        error         | Toggle error messages
 
         optional:
-          module                   handlers, messengers, or forwarders
+          module                   handlers, messengers, forwarders, or scanners
           type_name                Comma-separated types to toggle
 
         examples:
           display                          Show all module status
-          display off                      Reset all display filters
+          display off                      Turn off messages for all profiles
+          display reset                    Restore startup defaults
           display debug                    Toggle debug for all modules
-          display warnings,errors          Toggle warnings and errors globally
+          display success                  Toggle success messages globally
+          display warning,error            Toggle warnings and errors globally
+          display info                     Toggle info messages globally
           display handlers                 Show handler status
           display handlers debug           Toggle handler debug
-          display handlers debug,warnings  Toggle handler debug and warnings
-          display messengers errors        Toggle messenger errors
+          display handlers debug,warning   Toggle handler debug and warnings
+          display messengers error         Toggle messenger errors
+          display scanners info            Toggle scanner progress messages
         """
-        MODULES = ('handlers', 'messengers', 'forwarders')
-        STATUS_TYPES = ('warnings', 'successes', 'infos', 'errors')
+        MODULES = ('handlers', 'messengers', 'forwarders', 'scanners')
+        STATUS_TYPES = ('warning', 'success', 'information', 'error')
         STATUS_MAP = {
+            'debug': 'debug',
+            'warning': 'warning',
             'warnings': 'warning',
+            'success': 'success',
             'successes': 'success',
+            'informational': 'information',
+            'information': 'information',
+            'info': 'information',
             'infos': 'information',
+            'error': 'error',
             'errors': 'error',
         }
-        VALID_TYPES = {'debug'} | set(STATUS_TYPES)
+        VALID_TYPES = set(STATUS_MAP)
 
         def format_toggle(enabled):
             return color_text('on', 'green') if enabled else color_text('off', 'red')
+
+        def toggle(modules, names):
+            for status in dict.fromkeys(STATUS_MAP[name] for name in names):
+                if status == 'debug':
+                    enabled = not all(self.update_cli.display_filters.get(mod, {}).get('debug', False)
+                                      for mod in modules)
+                else:
+                    enabled = not all(status not in self.update_cli.display_filters.get(mod, {}).get('disabled', set())
+                                      for mod in modules)
+                for mod in modules:
+                    filt = self.update_cli.display_filters.setdefault(mod, {})
+                    if status == 'debug':
+                        filt['debug'] = enabled
+                    elif enabled:
+                        filt.setdefault('disabled', set()).discard(status)
+                    else:
+                        filt.setdefault('disabled', set()).add(status)
 
         def show_table(modules):
             columns = ['Module', 'Debug', 'Warnings', 'Successes', 'Infos', 'Errors']
@@ -423,22 +454,26 @@ class Manager:
             show_table(MODULES)
             return
 
-        if module == 'off':
-            self.update_cli.display_filters.clear()
-            self.update_cli.display('All display filters reset.', 'success', reprompt=False)
+        if module in ('off', 'reset'):
+            if type_name is not None:
+                self.update_cli.display(f'`display {module}` does not take another argument.', 'error', reprompt=False)
+                return
+            if module == 'reset':
+                self.update_cli.reset_display_filters()
+            else:
+                self.update_cli.display_filters = {
+                    mod: {'debug': False, 'disabled': set(STATUS_TYPES)} for mod in MODULES
+                }
+            show_table(MODULES)
             return
 
         if module not in MODULES:
+            if type_name is not None:
+                self.update_cli.display(f'`{module}` is not a valid profile.', 'error', reprompt=False)
+                return
             global_types = [t.strip() for t in module.split(',')]
             if all(t in VALID_TYPES for t in global_types):
-                for mod in MODULES:
-                    filt = self.update_cli.display_filters.setdefault(mod, {})
-                    for t in global_types:
-                        if t == 'debug':
-                            filt['debug'] = not filt.get('debug', False)
-                        else:
-                            disabled = filt.setdefault('disabled', set())
-                            disabled.symmetric_difference_update({STATUS_MAP[t]})
+                toggle(MODULES, global_types)
                 show_table(MODULES)
                 return
             self.update_cli.display(
@@ -458,22 +493,12 @@ class Manager:
                 )
                 return
 
-        filt = self.update_cli.display_filters.setdefault(module, {})
-
-        for t in types:
-            if t == 'debug':
-                filt['debug'] = not filt.get('debug', False)
-            else:
-                status_key = STATUS_MAP[t]
-                disabled = filt.setdefault('disabled', set())
-                disabled.symmetric_difference_update({status_key})
-
+        toggle((module,), types)
         show_table((module,))
 
     async def logging(self, types=None):
         """
         Toggle which message types are logged to disk. With no arguments, show current status.
-        All types are enabled by default.
 
         Type | Message Type
         -----|----------------------------------
@@ -487,7 +512,7 @@ class Manager:
         7    | CheckOutMessage
 
         optional:
-          types        Comma-separated list of types to toggle (e.g. 1,4)
+          types        Comma-separated list of types to toggle (e.g. 1,4), or 0 to disable all
 
         examples:
           logging
@@ -506,12 +531,17 @@ class Manager:
             7: 'CheckOutMessage',
         }
         if types is None:
-            if not self.update_cli.logging_types:
-                self.update_cli.display('All message logging disabled.', 'information', reprompt=False)
-            else:
-                for t in sorted(VALID_TYPES):
-                    state = color_text('on', 'green') if t in self.update_cli.logging_types else color_text('off', 'red')
-                    self.update_cli.display(f'{t} {LABELS[t]}: {state}', 'standard', reprompt=False)
+            items = [
+                {'Type': t, 'Message': LABELS[t],
+                 'Logging': color_text('on', 'green') if t in self.update_cli.logging_types else color_text('off', 'red')}
+                for t in sorted(VALID_TYPES)
+            ]
+            print(self.create_table('Logging', ['Type', 'Message', 'Logging'], items))
+            return
+
+        if str(types).strip() == '0':
+            self.update_cli.logging_types.clear()
+            self.update_cli.display('All message logging disabled.', 'success', reprompt=False)
             return
 
         raw = str(types).split(',')
@@ -522,10 +552,6 @@ class Manager:
                 val = int(token)
             except ValueError:
                 self.update_cli.display(f'`{token}` is not a valid logging type.', 'error', reprompt=False)
-                return
-            if val == 0:
-                self.update_cli.logging_types.clear()
-                self.update_cli.display('All message logging disabled.', 'success', reprompt=False)
                 return
             if val not in VALID_TYPES:
                 self.update_cli.display(f'`{val}` is not a valid logging type. Valid types: 1-7.', 'error', reprompt=False)
@@ -1092,7 +1118,7 @@ class Manager:
                 self.update_cli.display(
                     f'Messenger `{messenger.nickname}` already has a Remote Port Forwarder '
                     f'({forwarder.listening_host}:{forwarder.listening_port}).',
-                    'error', reprompt=False
+                    'error', reprompt=False, display_module='forwarders'
                 )
                 return
             # Adopt the orphan: set its destination, send NO bind request (the
@@ -1101,7 +1127,7 @@ class Manager:
             existing.destination_port = forwarder.destination_port
             self.update_cli.display(
                 f'Messenger `{messenger.nickname}` configured a {existing.NAME} {existing._endpoint_str()}.',
-                'success', reprompt=False
+                'success', reprompt=False, display_module='forwarders'
             )
             return
 
@@ -1188,13 +1214,13 @@ class Manager:
             forwarder.close_all_clients()
             self.update_cli.display(
                 f'Removed unconfigured remote port forward `{forwarder.nickname}`.',
-                'information', reprompt=False
+                'information', reprompt=False, display_module='forwarders'
             )
         else:
             await forwarder.stop()
             self.update_cli.display(
                 f'Removed `{forwarder.nickname}` from forwarders.',
-                'information', reprompt=False
+                'information', reprompt=False, display_module='forwarders'
             )
 
     async def stop(self, id, messenger_id=None):
@@ -1221,7 +1247,7 @@ class Manager:
                 return
             self.update_cli.display(
                 f'Messenger `{messenger.nickname}` is attempting to stop all forwarders and scanners.',
-                'success', reprompt=False
+                'success', reprompt=False, display_module='messengers'
             )
             for f in list(messenger.forwarders):
                 messenger.forwarders.remove(f)
@@ -1269,7 +1295,8 @@ class Manager:
             return
         target.adaptative = not target.adaptative
         state = 'on' if target.adaptative else 'off'
-        self.update_cli.display(f'Adaptive polling {state} for Messenger `{target.nickname}`.', 'success', reprompt=False)
+        self.update_cli.display(f'Adaptive polling {state} for Messenger `{target.nickname}`.', 'success',
+                                reprompt=False, display_module='messengers')
 
     async def kill(self, id=None):
         """
@@ -1291,7 +1318,7 @@ class Manager:
         await target.send_message_downstream(CheckOutMessage())
         self.update_cli.display(
             f'Queued kill signal for Messenger `{target.nickname}`.',
-            'success', reprompt=False
+            'success', reprompt=False, display_module='messengers'
         )
 
     async def rename(self, id_or_name, name=None):
@@ -1352,7 +1379,13 @@ class Manager:
         target.nickname = name
         if self.current_messenger and self.current_messenger is target:
             self.update_cli.prompt = name
-        self.update_cli.display(f'`{old}` is now known as `{name}`.', 'success', reprompt=False)
+        if isinstance(target, Messenger):
+            module = 'messengers'
+        elif isinstance(target, Scanner):
+            module = 'scanners'
+        else:
+            module = 'forwarders'
+        self.update_cli.display(f'`{old}` is now known as `{name}`.', 'success', reprompt=False, display_module=module)
 
 
 class DynamicCompleter(Completer):

@@ -76,6 +76,27 @@ Run the command again to turn adaptive polling back on. The state is shown in me
 [+] Adaptive polling off for Messenger `dc01`.
 ```
 
+### Display filters
+
+`display` shows the message settings for handlers, messengers, forwarders, and
+scanners. A message-type command toggles that type consistently across all four
+profiles; add a profile name to change only that profile.
+
+```text
+display off
+display reset
+display debug
+display success
+display warning
+display info
+display error
+display scanners info
+```
+
+`display off` turns off profile messages. `display reset` restores the startup
+defaults: debug off, handler warnings off, and other message types on. Tables,
+help, and general CLI feedback remain available.
+
 ## Detailed Guides
 
 ### Operators
