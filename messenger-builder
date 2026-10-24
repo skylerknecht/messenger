@@ -114,7 +114,7 @@ def main(banner):
 
     if not available:
         if in_git_repo_root():
-            parser.exit(1, "No clients found. Clone with git clone --recurse-submodules <repository-url>, "
+            parser.exit(1, "No clients found. Clone with git clone --recurse-submodules https://github.com/skylerknecht/messenger.git, "
                         "or run messenger-builder update-clients in this checkout.\n")
         parser.exit(1, "No clients found. Install a Messenger distribution that includes the client builders.\n")
 
