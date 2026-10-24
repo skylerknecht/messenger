@@ -87,7 +87,8 @@ class Engine:
                 await messenger.send_message_downstream(CheckInMessage(messenger.identifier))
             self._register(messenger)
 
-        messenger.received_bytes += len(data)
+        # The first frame identifies the messenger; exclude its polling overhead.
+        messenger.received_bytes += len(data) - struct.unpack('!I', data[4:8])[0]
         await messenger.process_upstream_messages(messages[1:])
         return messenger
 
@@ -141,7 +142,7 @@ class Engine:
                 return
             messenger = self._get_messenger(messenger_id)
             if messenger:
-                messenger.received_bytes += len(data)
+                messenger.received_bytes += len(data) - struct.unpack('!I', data[4:8])[0]
                 await messenger.process_upstream_messages(messages[1:])
         except Exception as e:
             self.update_cli.log_unexpected_error(e)
