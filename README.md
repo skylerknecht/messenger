@@ -80,8 +80,8 @@ Run the command again to turn adaptive polling back on. The state is shown in me
 
 Each client repository declares its target server version in `target-version.txt`.
 `messenger-builder` compares this with the installed server version before building:
-minor version differences print a warning, major version differences stop the build,
-and patch version differences are allowed. Missing metadata prints a warning that
+minor version differences print a warning, major version differences print an error,
+and both allow the build to continue. Patch version differences are allowed. Missing metadata prints a warning that
 compatibility is unknown; invalid metadata stops the build.
 
 If a source checkout has no client builders, initialize them with

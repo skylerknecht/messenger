@@ -41,10 +41,9 @@ class BuilderVersionTests(unittest.TestCase):
         self.target('1.9.6')
         self.assertIn('Warning: minor version mismatch', self.output())
 
-    def test_major_mismatch_blocks(self):
+    def test_major_mismatch_reports_error_and_continues(self):
         self.target('2.10.6')
-        with self.assertRaisesRegex(ValueError, 'Major version mismatch'):
-            self.output()
+        self.assertIn('Error: major version mismatch', self.output())
 
     def test_missing_metadata_warns_and_invalid_metadata_blocks(self):
         self.assertIn('compatibility is unknown', self.output())

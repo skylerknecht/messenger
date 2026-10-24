@@ -57,8 +57,8 @@ def check_target_version(lang):
     server_major, server_minor = map(int, server_match.groups()[:2])
     message = f"{lang} client targets server {target}; current server version is {__version__}."
     if target_major != server_major:
-        raise ValueError(f"Major version mismatch: {message}")
-    if target_minor != server_minor:
+        print(f"[!] Error: major version mismatch: {message}")
+    elif target_minor != server_minor:
         print(f"[!] Warning: minor version mismatch: {message}")
 
 def try_import_builder(lang: str):
