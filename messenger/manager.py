@@ -15,7 +15,7 @@ from prompt_toolkit.patch_stdout import patch_stdout
 from functools import wraps
 from inspect import Parameter
 
-from messenger.messengers import Messenger
+from messenger.messengers import Messenger, HTTPMessenger
 from messenger.http_ws_server import HTTPWSServer
 from messenger.engine import Engine
 from messenger.forwarders import LocalPortForwarder, SocksProxy, RemotePortForwarder, InvalidConfigError
@@ -137,6 +137,7 @@ class Manager:
             'rename': (self.rename, "Rename a messenger, forwarder, or scanner."),
             'stop': (self.stop, "Stop a forwarder or a scanner."),
             'kill': (self.kill, "Kill a messenger."),
+            'adaptative': (self.adaptative, "Turn adaptive polling on and off."),
             'watch': (self.watch, "Watch a table with live updates."),
             'help': (self.print_help, "Display this help message."),
             '?': (self.print_help, "Display this help message but with fewer characters."),
@@ -343,7 +344,7 @@ class Manager:
                                         reprompt=False)
                 return
             if self.current_messenger.checked_out:
-                self.update_cli.display(f"Messenger `{self.current_messenger.nickname}` is checked out.", 'error',
+                self.update_cli.display(f"Messenger `{self.current_messenger.nickname}` is killed.", 'error',
                                         reprompt=False)
                 return
             return await func(self, *args, **kwargs)
@@ -728,6 +729,8 @@ class Manager:
             f"Received:    {messenger.format_received_bytes()}",
             f"User-Agent:  {ua}",
         ]
+        if isinstance(messenger, HTTPMessenger):
+            lines.append(f"Adaptive:    {'on' if messenger.adaptative else 'off'}")
 
         if messenger.forwarders:
             lines.append(f"Forwarders:")
@@ -1242,6 +1245,31 @@ class Manager:
                 await scanner.stop()
                 return
         self.update_cli.display(f'`{id}` not found', 'error', reprompt=False)
+
+    async def adaptative(self, id=None):
+        """
+        Turn adaptive polling on and off.
+
+        optional:
+          id                       ID or name of the HTTP messenger.
+                                   Defaults to the current messenger if interacting.
+
+        examples:
+          adaptative
+          adaptative dc01
+        """
+        target = self._resolve_messenger(id)
+        if target is None:
+            return
+        if not isinstance(target, HTTPMessenger):
+            self.update_cli.display('Adaptive polling is only available for HTTP messengers.', 'error', reprompt=False)
+            return
+        if target.checked_out:
+            self.update_cli.display(f'Messenger `{target.nickname}` is killed.', 'error', reprompt=False)
+            return
+        target.adaptative = not target.adaptative
+        state = 'on' if target.adaptative else 'off'
+        self.update_cli.display(f'Adaptive polling {state} for Messenger `{target.nickname}`.', 'success', reprompt=False)
 
     async def kill(self, id=None):
         """

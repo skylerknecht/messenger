@@ -62,6 +62,20 @@ operator~# ./client.py
 [+] Connected to http://localhost:8080/
 ```
 
+### Toggle adaptive polling
+
+`adaptative` turns adaptive polling on and off for the current HTTP messenger, or
+for the messenger ID/name supplied as an argument. Adaptive polling is on by default.
+When turned off, the server appends a small random data message for an unused TCP
+client ID to poll responses when space remains in the batch. Clients discard
+the message, but it prevents adaptive polling from backing off while idle.
+Run the command again to turn adaptive polling back on. The state is shown in messenger details.
+
+```text
+(messenger)~# adaptative dc01
+[+] Adaptive polling off for Messenger `dc01`.
+```
+
 ## Detailed Guides
 
 ### Operators

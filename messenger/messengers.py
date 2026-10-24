@@ -333,6 +333,7 @@ class HTTPMessenger(Messenger):
         self.ips.add(ip)
         self.user_agent = user_agent
         self.disconnected = False
+        self.adaptative = True
 
     @property
     def connected(self):
@@ -341,7 +342,7 @@ class HTTPMessenger(Messenger):
     @property
     def status(self):
         if self.checked_out:
-            return color_text('checked out', 'red')
+            return color_text('killed', 'red')
         elapsed = time.time() - self.last_check_in
         label = f"{self._format_delay(elapsed)} ago"
         if elapsed <= 12:
@@ -371,7 +372,7 @@ class WebSocketMessenger(Messenger):
     @property
     def status(self):
         if self.checked_out:
-            return color_text('checked out', 'red')
+            return color_text('killed', 'red')
         if self.connected:
             return color_text('connected', "green")
         return color_text('disconnected', 'red')
