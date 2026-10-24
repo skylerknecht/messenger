@@ -8,6 +8,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.10.6] - 2026-10-24
 
+### Server
+
+#### Added
+
+- `watch` command provides live updates for the messengers, forwarders, and scans tables with a whole-second `--interval`. Uses the alternate screen buffer, shows a Ctrl+C exit hint, and restores the previous screen and SIGINT handler on exit. Refreshes are excluded from command output logging.
+- `adaptative` messenger command toggles adaptive polling for the current HTTP messenger or a specified messenger (`adaptative dc01`). Disabling it keeps the client polling quickly. Messenger detail view shows `Adaptive: on/off`.
+- `display reset` restores startup defaults: debug off, handler warnings off, and other message types on.
+- Scanner display profile lets scanner lifecycle messages and input warnings respect `display scanners` settings.
+
+#### Changed
+
+- `display off` now disables all profile messages instead of resetting filters. `display debug`, `success`, `warning`, `info`, and `error` toggle that type consistently across handlers, messengers, forwarders, and scanners; plural aliases remain supported. Tables, help, and general CLI feedback remain available.
+- `logging` now shows all seven message types in a settings table, including when all are disabled, without changing settings. `logging 0` disables all message logging.
+- HTTP messenger status stays green through 12 seconds since the last check-in, yellow through 60 seconds, and red after 60 seconds to accommodate adaptive polling.
+- Killed messengers now display `killed` instead of `checked out` in status output and command validation.
+- Shared forwarder labels, colors, UTC timestamp formatting, and scanner state colors across table and detail views; simplified messenger selection and remote bind error handling.
+
+#### Fixed
+
+- HTTP reconnection detection now checks connection state before updating the check-in timestamp, avoiding missed reconnect messages after long gaps.
+
+### Clients
+
+#### Added
+
+- Adaptive HTTP polling on Python, Node.js, and C#. Idle delay grows by 10% per poll from 100ms to a 10-second base with +/-20% jitter (8-12 seconds at the cap). Sent or received traffic resets the delay, queued outbound messages wake the wait, and shutdown interrupts it.
+- `--no-adaptive-polling` builder flag retains fixed 100ms HTTP polling on all three clients.
+- `--no-arg-parsing` builder flag removes runtime argument parsing and uses build-time configuration on all three clients. Requires an encryption key and a non-default server URL.
+- `-e` runtime alias for `--encryption-key` on all three clients.
+- `target-version.txt` in each client repository declares the target server version (`0.10.6`). Before building, `messenger-builder` prints a warning for a minor version mismatch or an error for a major mismatch; both allow the build to continue. Patch differences are allowed, missing files silently skip the check, and invalid version metadata stops the build.
+- Builder regression coverage for output variants, adaptive polling, server polling toggles, and target-version checks.
+
+#### Changed
+
+- `--no-print` now omits client output statements through template guards instead of redirecting process-wide output streams or console methods.
+- Connection attempt messages now include the destination URL; reconnection counters use consistent `(1/4)` formatting.
+- `messenger-builder` now shows the repository clone command with `--recurse-submodules` and `messenger-builder update-clients` when a Git checkout has no clients. Git worktree roots are recognized by `update-clients`.
+
 ## [0.10.5] - 2026-10-21
 
 ### Server

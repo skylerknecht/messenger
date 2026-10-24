@@ -140,7 +140,6 @@ class Manager:
             'rename': (self.rename, "Rename a messenger, forwarder, or scanner."),
             'stop': (self.stop, "Stop a forwarder or a scanner."),
             'kill': (self.kill, "Kill a messenger."),
-            'adaptative': (self.adaptative, "Turn adaptive polling on and off."),
             'watch': (self.watch, "Watch a table with live updates."),
             'help': (self.print_help, "Display this help message."),
             '?': (self.print_help, "Display this help message but with fewer characters."),
@@ -148,6 +147,7 @@ class Manager:
         }
         self.messenger_commands = {
             'back': (self.back, "Return to the main menu."),
+            'adaptative': (self.adaptative, "Turn adaptive polling on and off."),
             'local': (self.start_local_forwarder, "Start a local port forwarder."),
             'remote': (self.start_remote_forwarder, "Start a remote port forwarder."),
             'socks': (self.start_socks_proxy, "Start a SOCKS server."),
@@ -610,12 +610,12 @@ class Manager:
                 return
             print(docstring)
             return
-        print("Server commands:")
-        for command, (func, description) in self.server_commands.items():
-            print(f"  {command:10} {description}")
-        print()
         print("Messenger commands (must be interacting with a messenger):")
         for command, (func, description) in self.messenger_commands.items():
+            print(f"  {command:10} {description}")
+        print()
+        print("Server commands:")
+        for command, (func, description) in self.server_commands.items():
             print(f"  {command:10} {description}")
 
     async def print_forwarders(self, identifier=None):
